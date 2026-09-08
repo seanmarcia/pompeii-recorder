@@ -1,0 +1,126 @@
+import React, { useState, useRef } from "react";
+import { compressImage } from "../lib/imageCompressor";
+
+export default function PhotoUploader({ photos, setPhotos }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setIsProcessing(true);
+
+    const newPhotos = [...photos];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setProcessingStatus(`Resizing photo ${i + 1} of ${files.length} to < 1MB...`);
+
+      try {
+        const compressed = await compressImage(file);
+        newPhotos.push({
+          id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          name: compressed.file.name,
+          file: compressed.file,
+          dataUrl: compressed.dataUrl,
+          originalSize: compressed.originalSize,
+          compressedSize: compressed.compressedSize,
+          originalFormatted: compressed.originalFormatted,
+          compressedFormatted: compressed.compressedFormatted,
+          width: compressed.width,
+          height: compressed.height,
+          isUnder1MB: compressed.isUnder1MB,
+        });
+      } catch (err) {
+        console.error("Image compression error:", err);
+        alert(`Failed to compress ${file.name}: ${err.message}`);
+      }
+    }
+
+    setPhotos(newPhotos);
+    setIsProcessing(false);
+    setProcessingStatus("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const removePhoto = (id) => {
+    setPhotos(photos.filter((p) => p.id !== id));
+  };
+
+  return (
+    <div className="photo-uploader-component">
+      <div
+        className={`dropzone ${isProcessing ? "processing" : ""}`}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={(e) => handleFiles(e.target.files)}
+          multiple
+          accept="image/*"
+          style={{ display: "none" }}
+        />
+        <div className="dropzone-icon">&#128247;</div>
+        <div className="dropzone-text">
+          <strong>Click to select</strong> or drag and drop field excavation photos here
+        </div>
+        <div className="dropzone-sub">
+          Automatic in-browser resizing strictly guarantees all photos are <strong>&lt; 1 MB</strong> before upload
+        </div>
+      </div>
+
+      {isProcessing && (
+        <div className="compression-progress-bar">
+          <div className="spinner"></div>
+          <span>{processingStatus}</span>
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <div className="photo-preview-grid">
+          {photos.map((photo) => (
+            <div key={photo.id} className="photo-preview-card">
+              <div className="photo-thumb-container">
+                <img src={photo.dataUrl} alt={photo.name} className="photo-thumb" />
+                <button
+                  type="button"
+                  className="photo-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePhoto(photo.id);
+                  }}
+                  title="Remove this photo"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="photo-meta-info">
+                <div className="photo-filename" title={photo.name}>{photo.name}</div>
+                <div className="photo-compression-stats">
+                  <span className="orig-size">{photo.originalFormatted}</span>
+                  <span className="arrow-sep">&rarr;</span>
+                  <span className="comp-size">{photo.compressedFormatted}</span>
+                </div>
+                <div className="under-1mb-pill">&#10003; &lt; 1MB ({Math.round(photo.compressedSize / 1024)} KB)</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

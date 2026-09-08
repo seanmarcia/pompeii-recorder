@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pompeii Archaeological Archive &bull; Review Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #f3ead9;
+      --surface: #fffdf8;
+      --surface-elevated: #ece0c9;
+      --border: #d8c7a8;
+      --text: #2c2218;
+      --text-muted: #6f6151;
+      --terracotta: #8a3b1e;
+      --terracotta-hover: #b5532f;
+      --accent: #a5723f;
+      --success: #4f7942;
+      --danger: #b3392a;
+      --pending: #a5723f;
+      --radius: 10px;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header.admin-header {
+      background: linear-gradient(135deg, var(--terracotta) 0%, #6c2c14 100%);
+      border-bottom: 3px solid rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 14px rgba(60, 40, 20, 0.14);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+      color: #fff;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: rgba(0, 0, 0, 0.18);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+    }
+    .brand h1 {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+    .brand span {
+      display: block;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.75);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-family: var(--font-sans);
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-terracotta {
+      background: var(--terracotta);
+      color: #fff;
+    }
+    .btn-terracotta:hover { background: var(--terracotta-hover); }
+    .btn-outline {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover {
+      background: var(--surface-elevated);
+      border-color: var(--text-muted);
+    }
+    .admin-header .btn-outline {
+      border-color: rgba(255, 255, 255, 0.7);
+      color: #fff;
+    }
+    .admin-header .btn-outline:hover {
+      background: var(--surface);
+      color: var(--terracotta);
+      border-color: var(--surface);
+    }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-success:hover { background: #3f6535; }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-danger:hover { background: #922e22; }
+    main.admin-main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    .flash {
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .flash-notice {
+      background: rgba(79, 121, 66, 0.12);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    .flash-alert {
+      background: rgba(179, 57, 42, 0.12);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-pending {
+      background: rgba(165, 114, 63, 0.16);
+      color: var(--accent);
+      border: 1px solid rgba(165, 114, 63, 0.4);
+    }
+    .badge-approved {
+      background: rgba(79, 121, 66, 0.14);
+      color: var(--success);
+      border: 1px solid rgba(79, 121, 66, 0.4);
+    }
+    .badge-rejected {
+      background: rgba(179, 57, 42, 0.14);
+      color: var(--danger);
+      border: 1px solid rgba(179, 57, 42, 0.4);
+    }
+    .badge-new {
+      background: rgba(90, 110, 130, 0.14);
+      color: #3f5064;
+      border: 1px solid rgba(90, 110, 130, 0.35);
+    }
+    .badge-update {
+      background: rgba(107, 74, 138, 0.14);
+      color: #6b4a8a;
+      border: 1px solid rgba(107, 74, 138, 0.35);
+    }
+    footer.admin-footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="admin-header">
+    <a href="/admin" class="brand">
+      <div class="brand-icon">&#9928;</div>
+      <div>
+        <h1>POMPEII REVIEW PORTAL</h1>
+        <span>Archaeological Field Queue &bull; Master Catalog</span>
+      </div>
+    </a>
+    <div class="nav-actions">
+      <% if logged_in? %>
+        <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">
+          Signed in as <strong style="color: var(--accent);"><%= current_user.username %></strong>
+        </span>
+        <a href="/admin/export_master" class="btn btn-outline" title="Export the complete verified Pompeii features master JSON file">
+          <span>&#8681;</span> Master JSON
+        </a>
+        <a href="/admin/logout" class="btn btn-outline" title="Sign out of Admin Portal">
+          Sign Out
+        </a>
+      <% else %>
+        <a href="/admin/login" class="btn btn-outline">Sign In</a>
+      <% end %>
+      <a href="http://localhost:5173" target="_blank" class="btn btn-terracotta" title="Open the field logging React client">
+        Field Client &rarr;
+      </a>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <% if notice %>
+      <div class="flash flash-notice"><%= notice %></div>
+    <% end %>
+    <% if alert %>
+      <div class="flash flash-alert"><%= alert %></div>
+    <% end %>
+
+    <%= yield %>
+  </main>
+
+  <footer class="admin-footer">
+    Pompeii Archaeological Research Database &bull; Field Data Collector &amp; Admin Review System
+  </footer>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card.active-pending {
+    border-color: var(--pending);
+    box-shadow: 0 0 20px rgba(227, 179, 65, 0.1);
+  }
+  .stat-card .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--font-serif);
+  }
+  .tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+  .tab-link {
+    padding: 0.75rem 1.25rem;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .tab-link.active {
+    color: var(--text);
+    border-bottom-color: var(--terracotta);
+  }
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table.submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+  table.submissions-table th {
+    background: var(--surface-elevated);
+    padding: 0.85rem 1rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+  table.submissions-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.submissions-table tr:hover td {
+    background: var(--surface-elevated);
+  }
+  .cell-title {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .cell-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+  }
+</style>
+
+<div class="stats-grid">
+  <div class="stat-card <%= 'active-pending' if @counts[:pending] > 0 %>">
+    <span class="label">Pending Review</span>
+    <span class="value" style="color: var(--pending);"><%= @counts[:pending] %></span>
+    <span class="cell-sub">Awaiting admin curation</span>
+  </div>
+  <div class="stat-card">
+    <span class="label">Approved &amp; Merged</span>
+    <span class="value" style="color: var(--success);"><%= @counts[:approved] %></span>
+    <span class="cell-sub">Added to master catalog</span>
+  </div>
+  <div class="stat-card">
+    <span class="label">Master Catalog Rooms</span>
+    <span class="value"><%= Feature.count %></span>
+    <span class="cell-sub">Verified Pompeii records</span>
+  </div>
+</div>
+
+<nav class="tabs-nav">
+  <a href="/admin?status=pending" class="tab-link <%= 'active' if @filter == 'pending' %>">
+    Pending Queue (<%= @counts[:pending] %>)
+  </a>
+  <a href="/admin?status=approved" class="tab-link <%= 'active' if @filter == 'approved' %>">
+    Approved (<%= @counts[:approved] %>)
+  </a>
+  <a href="/admin?status=rejected" class="tab-link <%= 'active' if @filter == 'rejected' %>">
+    Rejected (<%= @counts[:rejected] %>)
+  </a>
+  <a href="/admin?status=all" class="tab-link <%= 'active' if @filter == 'all' %>">
+    All History (<%= @counts[:total] %>)
+  </a>
+</nav>
+
+<div class="table-card">
+  <% if @submissions.empty? %>
+    <div class="empty-state">
+      <div class="empty-state-icon">&#9782;</div>
+      <h3>No <%= @filter %> submissions in queue</h3>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+        When field archaeologists submit new room logs or updates from the client app, they will appear here for review.
+      </p>
+    </div>
+  <% else %>
+    <table class="submissions-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Sheet / Location</th>
+          <th>Room / Structure</th>
+          <th>Submitter</th>
+          <th>Photos</th>
+          <th>Submitted</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @submissions.each do |sub| %>
+          <% payload = sub.payload %>
+          <tr>
+            <td>
+              <span style="font-family: monospace; font-weight: bold;">#<%= sub.id %></span>
+            </td>
+            <td>
+              <% if sub.action_type == "create_new" %>
+                <span class="badge badge-new">New Room</span>
+              <% else %>
+                <span class="badge badge-update">Update</span>
+              <% end %>
+            </td>
+            <td>
+              <div class="cell-title">Sheet <%= sub.target_sheet.presence || payload["SHEET"] || "—" %></div>
+              <div class="cell-sub">
+                Reg <%= payload["REGION"].presence || "—" %> &bull; Ins <%= payload["INSULA"].presence || "—" %> &bull; Ent <%= payload["ENTRANCE"].presence || "—" %>
+              </div>
+            </td>
+            <td>
+              <div class="cell-title"><%= payload["SPACE_NUMBER"].presence || payload["STRUCTURE_ID"] || "Untitled Space" %></div>
+              <div class="cell-sub"><%= payload["FEATURE_TYPE_ID"].presence || payload["SHEET_TYPE_ID"] || "Record" %></div>
+            </td>
+            <td>
+              <div class="cell-title"><%= sub.submitter_name.presence || "Anonymous" %></div>
+              <% if sub.submitter_notes.present? %>
+                <div class="cell-sub" title="<%= sub.submitter_notes %>">&ldquo;<%= truncate(sub.submitter_notes, length: 30) %>&rdquo;</div>
+              <% end %>
+            </td>
+            <td>
+              <% photo_count = sub.photos.attached? ? sub.photos.count : (payload["photos"]&.size || 0) %>
+              <% if photo_count > 0 %>
+                <span style="font-size: 0.85rem;">📷 <%= photo_count %></span>
+              <% else %>
+                <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+              <% end %>
+            </td>
+            <td>
+              <div class="cell-sub"><%= time_ago_in_words(sub.created_at) %> ago</div>
+            </td>
+            <td>
+              <span class="badge badge-<%= sub.status %>"><%= sub.status %></span>
+            </td>
+            <td>
+              <a href="/admin/submissions/<%= sub.id %>" class="btn btn-outline" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+                <%= sub.action_type == "create_new" ? "Review Sheet" : "Review Updates" %> &rarr;
+              </a>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

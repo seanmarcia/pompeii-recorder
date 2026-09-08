@@ -1,0 +1,395 @@
+<style>
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+  }
+  .back-link:hover { color: var(--text); }
+  .detail-title {
+    font-size: 1.6rem;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .review-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+  }
+  @media (max-width: 960px) {
+    .review-layout { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+  table.diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  table.diff-table th {
+    padding: 0.6rem 0.75rem;
+    background: var(--surface-elevated);
+    color: var(--text-muted);
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  table.diff-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .changed-row {
+    background: rgba(227, 179, 65, 0.08);
+  }
+  .val-old {
+    color: var(--danger);
+    background: rgba(179, 57, 42, 0.12);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  .val-new {
+    color: var(--success);
+    background: rgba(79, 121, 66, 0.14);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  .val-unchanged {
+    color: var(--text-muted);
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  .diff-text {
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+  }
+  .diff-removed {
+    color: var(--danger);
+    background: rgba(179, 57, 42, 0.18);
+    text-decoration: line-through;
+    border-radius: 3px;
+  }
+  .diff-added {
+    color: var(--success);
+    background: rgba(79, 121, 66, 0.2);
+    border-radius: 3px;
+  }
+  .photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .photo-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface-elevated);
+  }
+  .photo-box img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+  }
+  .photo-caption {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    background: var(--surface-elevated);
+  }
+  .action-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .form-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .form-group textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 80px;
+  }
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+</style>
+
+<div>
+  <a href="/admin" class="back-link">&larr; Back to Submissions Queue</a>
+
+  <div class="detail-header">
+    <div>
+      <div class="detail-title">
+        Submission #<%= @submission.id %>
+        <% if @submission.action_type == "create_new" %>
+          <span class="badge badge-new">New Room Record</span>
+        <% else %>
+          <span class="badge badge-update">Update Existing Record</span>
+        <% end %>
+        <span class="badge badge-<%= @submission.status %>"><%= @submission.status %></span>
+      </div>
+      <p style="color: var(--text-muted); margin-top: 0.35rem; font-size: 0.9rem;">
+        Target Sheet: <strong><%= @submission.target_sheet.presence || @payload["SHEET"] || "Unspecified" %></strong> &bull;
+        Submitted <%= @submission.created_at.strftime("%B %d, %Y at %H:%M UTC") %>
+      </p>
+    </div>
+  </div>
+
+  <div class="review-layout">
+    <!-- LEFT: Diff / Field Breakdown -->
+    <div class="main-column">
+      <div class="card">
+        <div class="card-title">
+          <span>Archaeological Field Data &bull; <%= @diff[:is_new] ? "New Record Values" : "Changed Fields" %></span>
+          <% unless @diff[:is_new] %>
+            <span style="font-size: 0.8rem; font-weight: normal; color: var(--pending);">
+              <%= @diff[:changes].keys.size %> field(s) modified
+            </span>
+          <% end %>
+        </div>
+
+        <% if @diff[:is_new] %>
+          <!-- Full Table for New Record -->
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Field Attribute</th>
+                <th>Field Submitted Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @payload.each do |key, val| %>
+                <% next if key == "photos" %>
+                <tr>
+                  <td><strong><%= key %></strong></td>
+                  <td>
+                    <% if val.present? %>
+                      <span class="val-new"><%= val %></span>
+                    <% else %>
+                      <span class="val-unchanged">null / empty</span>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% elsif @diff[:changes].empty? %>
+          <p style="color: var(--text-muted); padding: 1rem 0;">No field changes detected &mdash; this submission only updates photos or matches the master record.</p>
+        <% else %>
+          <!-- Diff Table comparing Master vs Submitted: changed fields only -->
+          <table class="diff-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Attribute</th>
+                <th style="width: 37%;">Current Master Value</th>
+                <th style="width: 38%;">Submitted Field Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @diff[:changes].keys.sort.each do |k| %>
+                <% next if k == "photos" %>
+                <% old_val = @master.as_json_pompeii[k] %>
+                <% new_val = @payload[k] %>
+                <% old_html, new_html = old_val.present? && new_val.present? ? word_diff_html(old_val, new_val) : [nil, nil] %>
+                <tr class="changed-row">
+                  <td>
+                    <strong><%= k %></strong>
+                    <span style="color: var(--pending); font-size: 0.75rem; display: block;">&#9679; Changed</span>
+                  </td>
+                  <td>
+                    <% if old_html %>
+                      <span class="diff-text"><%= old_html %></span>
+                    <% elsif old_val.present? %>
+                      <span class="val-old"><%= old_val %></span>
+                    <% else %>
+                      <span class="val-unchanged">null / empty</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <% if new_html %>
+                      <span class="diff-text"><%= new_html %></span>
+                    <% elsif new_val.present? %>
+                      <span class="val-new"><%= new_val %></span>
+                    <% else %>
+                      <span class="val-unchanged">null / empty</span>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% end %>
+      </div>
+
+      <!-- Photos Section -->
+      <div class="card">
+        <div class="card-title">
+          <span>Attached Photos</span>
+          <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">
+            <% count = @submission.photos.attached? ? @submission.photos.count : (@payload["photos"]&.size || 0) %>
+            <%= count %> photo(s)
+          </span>
+        </div>
+
+        <% if @submission.photos.attached? %>
+          <div class="photos-grid">
+            <% @submission.photos.each do |photo| %>
+              <div class="photo-box">
+                <%= image_tag photo, alt: photo.filename.to_s %>
+                <div class="photo-caption">
+                  <%= photo.filename %> (<%= number_to_human_size(photo.byte_size) %>)
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% elsif @payload["photos"].present? %>
+          <div class="photos-grid">
+            <% @payload["photos"].each do |pname| %>
+              <div class="photo-box">
+                <div style="height: 140px; display: flex; align-items: center; justify-content: center; background: var(--surface-elevated); font-size: 2rem;">
+                  📷
+                </div>
+                <div class="photo-caption"><%= pname %></div>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">No photos attached to this submission.</p>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- RIGHT: Submitter info and Approval actions -->
+    <div class="sidebar-column">
+      <div class="card">
+        <div class="card-title">Submitter Information</div>
+        <div style="display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Archaeologist / Submitter</div>
+            <div style="font-weight: 600; color: var(--text);"><%= @submission.submitter_name.presence || "Field Researcher" %></div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Field Notes</div>
+            <div style="margin-top: 0.2rem; background: var(--surface-elevated); padding: 0.6rem; border-radius: var(--radius); font-style: italic;">
+              <%= @submission.submitter_notes.presence || "None provided" %>
+            </div>
+          </div>
+          <div>
+            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Status</div>
+            <div style="margin-top: 0.2rem;">
+              <span class="badge badge-<%= @submission.status %>"><%= @submission.status.upcase %></span>
+            </div>
+          </div>
+          <% if @submission.reviewed_at %>
+            <div>
+              <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Reviewed Date</div>
+              <div style="font-size: 0.8rem;"><%= @submission.reviewed_at.strftime("%B %d, %Y %H:%M") %></div>
+            </div>
+          <% end %>
+          <% if @submission.reviewer_notes.present? %>
+            <div>
+              <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Reviewer Notes</div>
+              <div style="margin-top: 0.2rem; background: var(--surface-elevated); padding: 0.6rem; border-radius: var(--radius);">
+                <%= @submission.reviewer_notes %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Action Box -->
+      <div class="card" style="border-color: <%= @submission.status == 'pending' ? 'var(--pending)' : 'var(--border)' %>;">
+        <div class="card-title">Curation Actions</div>
+        <% if @submission.status == "pending" %>
+          <div class="action-form">
+            <%= form_with url: approve_admin_submission_path(@submission), method: :post do |f| %>
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Approval Comment (Optional)</label>
+                <textarea name="reviewer_notes" placeholder="e.g., Verified against 2011 excavation diary. Approved for catalog."></textarea>
+              </div>
+              <button type="submit" class="btn btn-success" style="width: 100%; justify-content: center;">
+                &#10003; Approve &amp; Merge to Master
+              </button>
+            <% end %>
+
+            <div style="text-align: center; margin: 0.5rem 0; color: var(--text-muted); font-size: 0.8rem;">or</div>
+
+            <%= form_with url: reject_admin_submission_path(@submission), method: :post do |f| %>
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Rejection Reason</label>
+                <textarea name="reviewer_notes" placeholder="e.g., Space number conflicts with published insula survey." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center;">
+                &#10007; Reject Submission
+              </button>
+            <% end %>
+          </div>
+        <% else %>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">
+            This submission has already been <strong><%= @submission.status %></strong>.
+          </p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

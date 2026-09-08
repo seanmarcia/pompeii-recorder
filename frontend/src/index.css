@@ -1,0 +1,65 @@
+:root {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+
+  /* Palette: warm Pompeian parchment, terracotta & volcanic ink */
+  --bg: #f3ead9;
+  --surface: #fffdf8;
+  --surface-elevated: #ece0c9;
+  --surface-hover: #fbf1d8;
+  --border: #d8c7a8;
+  --border-subtle: #e7dcc7;
+  --border-focus: #8a3b1e;
+
+  --text-primary: #2c2218;
+  --text-secondary: #6f6151;
+  --text-muted: #9a8a76;
+
+  --terracotta: #8a3b1e;
+  --terracotta-dark: #6c2c14;
+  --terracotta-hover: #b5532f;
+  --terracotta-subtle: rgba(138, 59, 30, 0.12);
+
+  --accent-gold: #a5723f;
+  --accent-gold-subtle: rgba(165, 114, 63, 0.14);
+
+  --success-green: #4f7942;
+  --success-green-subtle: rgba(79, 121, 66, 0.14);
+
+  --danger-red: #b3392a;
+  --danger-red-subtle: rgba(179, 57, 42, 0.12);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 3px rgba(60, 40, 20, 0.1);
+  --shadow-md: 0 4px 14px rgba(60, 40, 20, 0.14);
+  --shadow-lg: 0 16px 40px rgba(40, 25, 12, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(138, 59, 30, 0.3);
+  border-radius: var(--radius-sm);
+}
