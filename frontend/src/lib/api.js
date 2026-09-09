@@ -147,7 +147,7 @@ export async function loadMasterFeatures() {
 
   // Fallback 2: Bundled public/features.json
   try {
-    const localRes = await fetch("/features.json");
+    const localRes = await fetch(`${import.meta.env.BASE_URL}features.json`);
     if (localRes.ok) {
       features = await localRes.json();
       setCachedFeatures(features);
