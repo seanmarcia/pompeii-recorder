@@ -16,13 +16,18 @@ export default function Header({
   return (
     <header className="app-header">
       <div className="header-container">
-        <div className="brand-section">
+        <button
+          type="button"
+          className="brand-section brand-section-btn"
+          onClick={() => setActiveTab("landing")}
+          title="Return to landing page"
+        >
           <div className="brand-icon">&#9928;</div>
           <div>
             <h1 className="brand-title">POMPEII FIELD RECORDER</h1>
-            <p className="brand-sub">Archaeological Survey &bull; Excavation Archive</p>
+            <p className="brand-sub">Pompeii Food and Drink Research</p>
           </div>
-        </div>
+        </button>
 
         <div className="header-center">
           <nav className="header-nav">

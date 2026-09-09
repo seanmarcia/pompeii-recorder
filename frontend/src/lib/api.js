@@ -184,10 +184,14 @@ export async function submitFeature({
       formData.append("submitter_notes", submitterNotes || "");
       formData.append("payload", JSON.stringify(payload));
 
-      // Append attached compressed photo files
+      // Append attached compressed photo files. A photo restored from a saved
+      // draft has no live File object, only its dataUrl, so reconstruct a Blob.
       for (const photo of photoFiles) {
         if (photo.file) {
           formData.append("photos[]", photo.file, photo.file.name);
+        } else if (photo.dataUrl) {
+          const blob = await fetch(photo.dataUrl).then((r) => r.blob());
+          formData.append("photos[]", blob, photo.name || "field_photo.jpg");
         }
       }
 

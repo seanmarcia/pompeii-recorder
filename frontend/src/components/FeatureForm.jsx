@@ -1,10 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PhotoUploader from "./PhotoUploader";
+import AttributeMultiSelect from "./AttributeMultiSelect";
 import { submitFeature } from "../lib/api";
+import {
+  FEATURE_TYPES,
+  attributesForFeatureType,
+  formatFeatureType,
+  parseFeatureType,
+} from "../data/featureTypes";
+import {
+  SPACE_TYPES,
+  attributesForSpaceType,
+  formatSpaceType,
+  parseSpaceType,
+} from "../data/spaceTypes";
+import { LATE_USAGE_TYPES, attributesForLateUsageType } from "../data/lateUsage";
+import { formatUsageField, parseUsageField } from "../data/usageField";
+import {
+  getDraft,
+  saveDraft,
+  clearDraft,
+  getLastSubmitterName,
+  setLastSubmitterName,
+} from "../lib/storage";
 
 const REGION_OPTIONS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "Suburban"];
 
 const SHEET_TYPE_OPTIONS = ["Feature", "Space", "Area", "Deposit", "Structure", "Other"];
+
+const RECORDER_OPTIONS = [
+  "Lilly Andoe-Liccetti",
+  "Carlos Avila",
+  "Sera Baker",
+  "Alethea Banar",
+  "Terry Bruno",
+  "Anne Carter",
+  "Monica Connors",
+  "Loretta Dimitruk",
+  "Natalie Dimitruk",
+  "Lynette Galloway",
+  "Larry Ludwicki",
+  "David Mayeske",
+  "Rich Olimpio",
+  "Matthew Selmheimer",
+  "Linda Swanson",
+  "Pam Wood",
+  "Leslie Xavier",
+  "Ted Xavier",
+];
+
+const RESEARCHER_OPTIONS = ["Lisa Khan", "Mary Meier", "Suzanne Stone"];
+
+const USAGE_OPTIONS = ["Commercial", "Domestic"];
 
 const CATEGORY_OPTIONS = [
   "Food preparation",
@@ -34,8 +81,39 @@ export default function FeatureForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  // Unsaved sheet content is drafted to localStorage under this key so it
+  // survives closing the browser or the device sleeping mid-entry in the
+  // field. "new" for a not-yet-submitted sheet, "edit_<SHEET>" while editing.
+  const draftId = initialFeature?.SHEET ? `edit_${initialFeature.SHEET}` : "new";
+
+  // The hydration effect below and the auto-save effect further down both
+  // run on the same initial pass, but auto-save would otherwise capture
+  // formData from *before* hydration's setFormData takes effect, writing a
+  // blank draft that a later pass could read back and "resume" from -
+  // silently wiping the real defaults. This ref makes auto-save skip that
+  // one stale pass right after any (re)hydration.
+  const skipNextAutoSaveRef = useRef(true);
+
+  // Remember the researcher's name across sheets and browser restarts so
+  // they don't have to retype it every time.
+  useEffect(() => {
+    const savedName = getLastSubmitterName();
+    if (savedName) setSubmitterName(savedName);
+  }, []);
+
   // Sync state when initialFeature changes
   useEffect(() => {
+    skipNextAutoSaveRef.current = true;
+    const draft = getDraft(draftId);
+    if (draft) {
+      // Resume exactly where the researcher left off on this sheet.
+      setFormData(draft.formData || {});
+      setPhotos(draft.photos || []);
+      setSubmitterNotes(draft.submitterNotes || "");
+      setFeedback(null);
+      return;
+    }
+
     if (initialFeature) {
       setFormData({
         SHEET: initialFeature.SHEET || "",
@@ -117,6 +195,47 @@ export default function FeatureForm({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Auto-save the in-progress sheet on every change so nothing is lost if the
+  // browser closes, crashes, or the device sleeps before submission - no
+  // matter which field the researcher happens to fill in first.
+  useEffect(() => {
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+    saveDraft(draftId, {
+      formData,
+      photos: photos.map((p) => ({ ...p, file: undefined })),
+      submitterNotes,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, formData, photos, submitterNotes]);
+
+  useEffect(() => {
+    setLastSubmitterName(submitterName);
+  }, [submitterName]);
+
+  // Feature Type is stored as a single "Type: Attr1, Attr2" string; derive the
+  // dropdown + checkbox selections from it on each render.
+  const { typeName: selectedFeatureType, attributes: selectedFeatureAttributes } =
+    parseFeatureType(formData.FEATURE_TYPE_ID);
+  const featureTypeAttributeOptions = attributesForFeatureType(selectedFeatureType);
+
+  // Space Type follows the same single-field "Type: Attr1, Attr2" pattern.
+  const { typeName: selectedSpaceType, attributes: selectedSpaceAttributes } = parseSpaceType(
+    formData.SPACE_TYPE_ID
+  );
+  const spaceTypeAttributeOptions = attributesForSpaceType(selectedSpaceType);
+
+  // Usage Classification (Commercial/Domestic) and Late Usage (category + sub-categories)
+  // are separate selectors but combine into the single USAGE_ID field for storage.
+  const {
+    usageClassification: selectedUsageClassification,
+    lateUsageTypeName: selectedLateUsageType,
+    lateUsageAttributes: selectedLateUsageAttributes,
+  } = parseUsageField(formData.USAGE_ID);
+  const lateUsageAttributeOptions = attributesForLateUsageType(selectedLateUsageType);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -163,6 +282,10 @@ export default function FeatureForm({
         message: result.message,
         id: result.submissionId || result.clientId,
       });
+
+      // Submission is safely on the server (or in the persisted outbox), so
+      // the local in-progress draft is no longer needed.
+      clearDraft(draftId);
 
       if (onSuccess) {
         onSuccess(result);
@@ -270,23 +393,25 @@ export default function FeatureForm({
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
               <label>Recorder Name</label>
-              <input
-                type="text"
-                name="RECORDER_ID"
-                value={formData.RECORDER_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Linda Baxter"
-              />
+              <select name="RECORDER_ID" value={formData.RECORDER_ID || ""} onChange={handleChange}>
+                <option value="">Select Recorder</option>
+                {RECORDER_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label>Researcher Name</label>
-              <input
-                type="text"
-                name="RESEARCHER_ID"
-                value={formData.RESEARCHER_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Sera Baker"
-              />
+              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
+                <option value="">Select Researcher</option>
+                {RESEARCHER_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -371,15 +496,42 @@ export default function FeatureForm({
             </div>
             <div className="form-field">
               <label>Feature Type</label>
-              <input
-                type="text"
+              <select
                 name="FEATURE_TYPE_ID"
-                value={formData.FEATURE_TYPE_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Oven, Impluvium, Basin"
-              />
+                value={selectedFeatureType}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
+                  }))
+                }
+              >
+                <option value="">Select Feature Type</option>
+                {FEATURE_TYPES.map((ft) => (
+                  <option key={ft.name} value={ft.name}>
+                    {ft.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {featureTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedFeatureType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedFeatureType} attributes`}
+                options={featureTypeAttributeOptions}
+                selected={selectedFeatureAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    FEATURE_TYPE_ID: formatFeatureType(selectedFeatureType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
 
           <div className="form-grid-4" style={{ marginTop: "1rem" }}>
             <div className="form-field">
@@ -395,23 +547,47 @@ export default function FeatureForm({
             </div>
             <div className="form-field">
               <label>Space Type</label>
-              <input
-                type="text"
+              <select
                 name="SPACE_TYPE_ID"
-                value={formData.SPACE_TYPE_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Mill-baking area"
-              />
+                value={selectedSpaceType}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
+                  }))
+                }
+              >
+                <option value="">Select Space Type</option>
+                {SPACE_TYPES.map((st) => (
+                  <option key={st.name} value={st.name}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label>Usage Classification</label>
-              <input
-                type="text"
+              <select
                 name="USAGE_ID"
-                value={formData.USAGE_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Commercial, Domestic"
-              />
+                value={selectedUsageClassification}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    USAGE_ID: formatUsageField(
+                      e.target.value,
+                      selectedLateUsageType,
+                      selectedLateUsageAttributes
+                    ),
+                  }))
+                }
+              >
+                <option value="">Select Usage</option>
+                {USAGE_OPTIONS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label>City Gate / Approach</label>
@@ -423,6 +599,67 @@ export default function FeatureForm({
                 placeholder="e.g. Herculaneum Gate"
               />
             </div>
+          </div>
+
+          {spaceTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedSpaceType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedSpaceType} attributes`}
+                options={spaceTypeAttributeOptions}
+                selected={selectedSpaceAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    SPACE_TYPE_ID: formatSpaceType(selectedSpaceType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
+
+          <div className="form-grid-2" style={{ marginTop: "1rem" }}>
+            <div className="form-field">
+              <label>Late Usage</label>
+              <select
+                name="LATE_USAGE_TYPE"
+                value={selectedLateUsageType}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    USAGE_ID: formatUsageField(selectedUsageClassification, e.target.value, []),
+                  }))
+                }
+              >
+                <option value="">Select Late Usage</option>
+                {LATE_USAGE_TYPES.map((lu) => (
+                  <option key={lu.name} value={lu.name}>
+                    {lu.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {lateUsageAttributeOptions.length > 0 && (
+              <div className="form-field">
+                <label>{selectedLateUsageType} Attributes</label>
+                <AttributeMultiSelect
+                  label={`${selectedLateUsageType} attributes`}
+                  options={lateUsageAttributeOptions}
+                  selected={selectedLateUsageAttributes}
+                  onChange={(nextAttributes) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      USAGE_ID: formatUsageField(
+                        selectedUsageClassification,
+                        selectedLateUsageType,
+                        nextAttributes
+                      ),
+                    }))
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
 

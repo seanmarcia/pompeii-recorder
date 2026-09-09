@@ -8,7 +8,28 @@ const STORAGE_KEYS = {
   CACHED_FEATURES: "pompeii_cached_features_v1",
   CACHED_TIMESTAMP: "pompeii_cached_time_v1",
   OFFLINE_OUTBOX: "pompeii_offline_outbox_v1",
+  DRAFT_PREFIX: "pompeii_draft_v1_",
+  LAST_SUBMITTER_NAME: "pompeii_last_submitter_name_v1",
 };
+
+/** Get the researcher's name from their last submission, if any. */
+export function getLastSubmitterName() {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.LAST_SUBMITTER_NAME) || "";
+  } catch (err) {
+    console.warn("Error loading last submitter name:", err);
+    return "";
+  }
+}
+
+/** Remember the researcher's name so they don't have to retype it every sheet. */
+export function setLastSubmitterName(name) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.LAST_SUBMITTER_NAME, name || "");
+  } catch (err) {
+    console.warn("Error saving last submitter name:", err);
+  }
+}
 
 /** Load cached master features */
 export function getCachedFeatures() {
@@ -84,4 +105,52 @@ export function removeFromOutbox(clientId) {
 export function clearOutbox() {
   localStorage.removeItem(STORAGE_KEYS.OFFLINE_OUTBOX);
   window.dispatchEvent(new CustomEvent("pompeii_outbox_change", { detail: { count: 0 } }));
+}
+
+/**
+ * In-progress form drafts, so a researcher's unsaved work survives closing the
+ * browser, a page reload, or the device sleeping mid-entry in the field.
+ * Keyed by draftId: "new" for a not-yet-submitted sheet, "edit_<SHEET>" while
+ * editing an existing one.
+ */
+function draftStorageKey(draftId) {
+  return `${STORAGE_KEYS.DRAFT_PREFIX}${draftId}`;
+}
+
+/** Load a saved in-progress form draft, or null if none exists. */
+export function getDraft(draftId) {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(draftId));
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.warn("Error loading draft from localStorage:", err);
+    return null;
+  }
+}
+
+/** Save an in-progress form draft. Drops photo data URLs if storage is full. */
+export function saveDraft(draftId, draft) {
+  try {
+    localStorage.setItem(draftStorageKey(draftId), JSON.stringify(draft));
+  } catch (err) {
+    console.warn("Storage quota exceeded saving draft, retrying without photo previews:", err);
+    try {
+      const reduced = {
+        ...draft,
+        photos: (draft.photos || []).map((p) => ({ ...p, dataUrl: undefined })),
+      };
+      localStorage.setItem(draftStorageKey(draftId), JSON.stringify(reduced));
+    } catch (err2) {
+      console.warn("Failed to save draft even without photo previews:", err2);
+    }
+  }
+}
+
+/** Discard a saved draft, e.g. after its submission succeeds. */
+export function clearDraft(draftId) {
+  try {
+    localStorage.removeItem(draftStorageKey(draftId));
+  } catch (err) {
+    console.warn("Error clearing draft:", err);
+  }
 }

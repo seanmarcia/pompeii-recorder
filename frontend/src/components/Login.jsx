@@ -16,8 +16,8 @@ export default function Login({ onLogin, isOnline }) {
     try {
       const result = await loginClient(username, password);
       if (result.success) {
-        sessionStorage.setItem("isAuthenticated", "true");
-        sessionStorage.setItem("currentUser", JSON.stringify(result.user || { username }));
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("currentUser", JSON.stringify(result.user || { username }));
         onLogin(result.user || { username });
       } else {
         setError(result.error || "Invalid username or password");
@@ -35,7 +35,7 @@ export default function Login({ onLogin, isOnline }) {
         <div className="client-login-header">
           <div className="client-login-icon">&#9928;</div>
           <h1>POMPEII FIELD RECORDER</h1>
-          <p className="client-login-subtitle">Archaeological Survey &amp; Excavation Data Archive</p>
+          <p className="client-login-subtitle">Pompeii Food and Drink Research</p>
           <div className="client-login-status">
             <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
             <span>{isOnline ? "Connected to Rails Review Server" : "Field Mode (Offline Active)"}</span>

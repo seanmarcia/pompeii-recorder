@@ -6,16 +6,19 @@ import FeatureForm from "./components/FeatureForm";
 import BrowseView from "./components/BrowseView";
 import OutboxView from "./components/OutboxView";
 import Login from "./components/Login";
+import LandingChoice from "./components/LandingChoice";
 import { loadMasterFeatures, checkBackendStatus, syncOutbox, pullMasterFeatures } from "./lib/api";
 import { getOutbox, removeFromOutbox, clearOutbox } from "./lib/storage";
 
 export default function App() {
+  // Auth persists in localStorage (not sessionStorage) so field researchers
+  // stay logged in after fully closing the browser, not just reloading.
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => sessionStorage.getItem("isAuthenticated") === "true"
+    () => localStorage.getItem("isAuthenticated") === "true"
   );
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      return JSON.parse(sessionStorage.getItem("currentUser")) || { username: "Researcher" };
+      return JSON.parse(localStorage.getItem("currentUser")) || { username: "Researcher" };
     } catch {
       return { username: "Researcher" };
     }
@@ -24,7 +27,7 @@ export default function App() {
   const [features, setFeatures] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [actionType, setActionType] = useState("create_new");
-  const [activeTab, setActiveTab] = useState("form"); // 'form' | 'browse' | 'outbox'
+  const [activeTab, setActiveTab] = useState("landing"); // 'landing' | 'form' | 'browse' | 'outbox'
   const [isOnline, setIsOnline] = useState(false);
   const [dataSource, setDataSource] = useState("loading...");
   const [outbox, setOutbox] = useState([]);
@@ -80,14 +83,16 @@ export default function App() {
   const handleLogin = (user) => {
     setIsAuthenticated(true);
     setCurrentUser(user);
+    setActiveTab("landing");
     showNotice(`Welcome, ${user.username || "Researcher"}. Field Recorder ready.`, "success");
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("isAuthenticated");
-    sessionStorage.removeItem("currentUser");
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("currentUser");
     setIsAuthenticated(false);
     setSelectedFeature(null);
+    setActiveTab("landing");
     showNotice("Signed out of Field Recorder.", "info");
   };
 
@@ -202,6 +207,10 @@ export default function App() {
       )}
 
       <main className="app-main-content">
+        {activeTab === "landing" && (
+          <LandingChoice onNewSheet={handleNewRoom} onEditSheet={() => setActiveTab("browse")} />
+        )}
+
         {activeTab === "form" && (
           <div className="form-tab-layout">
             <RoomSelector

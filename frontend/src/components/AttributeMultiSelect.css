@@ -1,0 +1,114 @@
+.attribute-multiselect {
+  position: relative;
+}
+
+.attribute-multiselect-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.attribute-multiselect-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.attribute-multiselect-placeholder {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.attribute-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--terracotta-subtle);
+  color: var(--terracotta);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.attribute-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--terracotta);
+  line-height: 1;
+}
+
+.attribute-chip-remove:hover {
+  background: var(--terracotta);
+  color: #fff;
+}
+
+.attribute-multiselect-caret {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.attribute-multiselect-caret.open {
+  transform: rotate(180deg);
+}
+
+.attribute-multiselect-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 0.4rem;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.attribute-multiselect-panel label.attribute-multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.attribute-multiselect-option:hover {
+  background: var(--surface-hover);
+}
+
+.attribute-multiselect-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--terracotta);
+  flex-shrink: 0;
+}
