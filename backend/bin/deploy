@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Deploy fdpompeii.org. Builds on the server itself (copying the source with a
+# resumable rsync) instead of streaming the build over SSH, which kept dropping
+# on a flaky connection; then has Kamal start the pushed image.
+#
+#   cd backend && bin/deploy
+#
+# Needs: ssh access as ubuntu@40.160.90.252 and `gh` logged in with the
+# write:packages scope (gh auth refresh -h github.com -s write:packages).
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+SERVER=ubuntu@40.160.90.252
+IMAGE=ghcr.io/seanmarcia/fdpompeii
+VERSION=$(git rev-parse HEAD)
+[ -z "$(git status --porcelain -- . ../frontend)" ] || VERSION="$VERSION-dirty-$(date +%s)"
+
+echo "==> Copying source to the server"
+rsync -az --partial --timeout=60 --delete \
+  --exclude .git/ --exclude .claude/ --exclude .serena/ --exclude node_modules/ --exclude frontend/dist/ \
+  --exclude 'backend/config/master.key' --exclude 'backend/config/credentials/*.key' --exclude 'backend/storage/*' \
+  --exclude 'backend/log/*' --exclude 'backend/tmp/*' --exclude 'backend/.kamal/' \
+  ../ "$SERVER:fdpompeii-src/"
+
+echo "==> Building $IMAGE:$VERSION on the server"
+gh auth token | ssh "$SERVER" 'docker login ghcr.io -u seanmarcia --password-stdin >/dev/null'
+ssh "$SERVER" "cd fdpompeii-src && nohup sh -c 'docker build -f backend/Dockerfile --label service=fdpompeii -t $IMAGE:$VERSION . && docker push $IMAGE:$VERSION; echo BUILD_EXIT=\$?' > ~/fdpompeii-build.log 2>&1 < /dev/null &"
+until ssh -o ConnectTimeout=15 "$SERVER" 'grep -q "^BUILD_EXIT=" ~/fdpompeii-build.log' 2>/dev/null; do sleep 15; done
+if ! ssh "$SERVER" 'grep -q "^BUILD_EXIT=0" ~/fdpompeii-build.log'; then
+  ssh "$SERVER" 'tail -30 ~/fdpompeii-build.log'
+  echo "Build failed (full log on the server: ~/fdpompeii-build.log)" >&2
+  exit 1
+fi
+
+echo "==> Starting the new version"
+bin/kamal deploy --skip-push --version="$VERSION"

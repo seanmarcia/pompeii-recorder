@@ -2,7 +2,7 @@
 service: fdpompeii
 
 # Name of the container image (use your-user/app-name on external registries).
-image: fdpompeii
+image: seanmarcia/fdpompeii
 
 # Deploy to these servers.
 servers:
@@ -29,14 +29,13 @@ proxy:
 # Where you keep your container images.
 registry:
   # Alternatives: hub.docker.com / registry.digitalocean.com / ghcr.io / ...
-  server: localhost:5555
+  # GitHub's container registry: the server builds, pushes and pulls the image directly.
+  server: ghcr.io
+  username: seanmarcia
 
-  # Needed for authenticated registries.
-  # username: your-user
-
-  # Always use an access token rather than real password when possible.
-  # password:
-  #   - KAMAL_REGISTRY_PASSWORD
+  # GitHub token with write:packages, read from the gh CLI in .kamal/secrets.
+  password:
+    - KAMAL_REGISTRY_PASSWORD
 
 # Inject ENV variables into containers (secrets come from .kamal/secrets).
 env:
@@ -85,8 +84,10 @@ builder:
   # (Builds from the working tree, so uncommitted changes are included.)
   context: ..
 
-  # # Build image via remote server (useful for faster amd64 builds on arm64 computers)
-  # remote: ssh://docker@docker-builder-server
+  # Deploy with bin/deploy, which builds on the server and then runs
+  # `kamal deploy --skip-push`. If plain `kamal deploy` is ever used, build on the
+  # server too (amd64, fast connection) rather than on a local arm64 Mac.
+  remote: ssh://ubuntu@40.160.90.252
   #
   # # Pass arguments and secrets to the Docker build process
   # args:
