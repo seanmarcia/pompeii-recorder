@@ -1,18 +1,4 @@
-# Seed Admin User
-admin = User.find_or_initialize_by(username: "admin")
-admin.email = "admin@pompeii.org"
-admin.password = "pompeii2026"
-admin.role = "admin"
-admin.save!
-puts "✓ Admin user ready: username=admin, email=admin@pompeii.org (password: pompeii2026)"
-
-# Seed Researcher User for API login
-researcher = User.find_or_initialize_by(username: "researcher")
-researcher.email = "researcher@pompeii.org"
-researcher.password = "pompeii2025"
-researcher.role = "researcher"
-researcher.save!
-puts "✓ Researcher user ready: username=researcher, password=pompeii2025"
+load Rails.root.join("db", "seeds", "users.rb")
 
 # Import all Pompeii records from features.json
 features_file = Rails.root.join("db", "features.json")

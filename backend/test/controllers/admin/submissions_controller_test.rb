@@ -34,7 +34,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
   test "GET /admin displays pending submissions" do
     get "/admin"
     assert_response :success
-    assert_select "h1", /POMPEII REVIEW PORTAL/
+    assert_select "h1", /FOOD AND DRINK IN ANCIENT POMPEII/
     assert_select "td", /Lararium shrine room/
   end
 
@@ -70,5 +70,73 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     @submission.reload
     assert_equal "rejected", @submission.status
     assert_equal "Duplicate sheet entry", @submission.reviewer_notes
+  end
+
+  test "GET /admin/submissions/:id shows every field as click-to-edit while pending" do
+    get "/admin/submissions/#{@submission.id}"
+    assert_select "tr[data-field='SPACE_NUMBER'] td.value-cell.editable[data-value='Lararium shrine room']"
+    assert_select "tr[data-field='ARTIST_ID'] td.value-cell.editable", /click to add/
+  end
+
+  test "PATCH /admin/submissions/:id saves reviewer corrections that are merged on approval" do
+    patch "/admin/submissions/#{@submission.id}", params: {
+      fields: { "SPACE_NUMBER" => "Lararium", "ARTIST_ID" => "Linda Baxter" }
+    }, as: :json
+    assert_response :success
+    rows = JSON.parse(response.body)["rows"]
+    assert_match "Lararium", rows["SPACE_NUMBER"]
+    assert_match "Linda Baxter", rows["ARTIST_ID"]
+    assert_equal "Lararium", @submission.reload.payload["SPACE_NUMBER"]
+
+    post "/admin/submissions/#{@submission.id}/approve"
+    feature = Feature.find_by(sheet: "8888")
+    assert_equal "Lararium", feature.space_number
+    assert_equal "Linda Baxter", feature.artist_id
+  end
+
+  test "PATCH leaves untouched master values alone on an update submission" do
+    Feature.create!(sheet: "6083", region: "VI", artist_id: "Inge Otto")
+    update = Submission.create!(
+      action_type: "update_existing",
+      target_sheet: "6083",
+      payload: { "SHEET" => "6083", "REGION" => "VI" }
+    )
+
+    patch "/admin/submissions/#{update.id}", params: {
+      fields: { "SHEET" => "9999", "REGION" => "VII", "ARTIST_ID" => "Inge Otto", "INSULA" => "" }
+    }, as: :json
+    payload = update.reload.payload
+    assert_equal "6083", payload["SHEET"]
+    assert_equal "VII", payload["REGION"]
+    assert_not payload.key?("ARTIST_ID")
+    assert_not payload.key?("INSULA")
+  end
+
+  test "PATCH lets the reviewer fill in a field the researcher never touched" do
+    Feature.create!(sheet: "6083", region: "VI", artist_id: "Inge Otto")
+    update = Submission.create!(
+      action_type: "update_existing",
+      target_sheet: "6083",
+      payload: { "SHEET" => "6083", "REGION" => "VI" }
+    )
+
+    patch "/admin/submissions/#{update.id}", params: {
+      fields: { "ARTIST_ID" => "Linda Baxter", "BW_ROLL" => "R-12" }
+    }, as: :json
+    post "/admin/submissions/#{update.id}/approve"
+
+    feature = Feature.find_by(sheet: "6083")
+    assert_equal "Linda Baxter", feature.artist_id
+    assert_equal "R-12", feature.bw_roll
+  end
+
+  test "cannot edit a submission that has already been reviewed" do
+    @submission.reject!("Duplicate")
+    get "/admin/submissions/#{@submission.id}"
+    assert_select "td.value-cell.editable", count: 0
+
+    patch "/admin/submissions/#{@submission.id}", params: { fields: { "REGION" => "I" } }, as: :json
+    assert_response :unprocessable_entity
+    assert_equal "VII", @submission.reload.payload["REGION"]
   end
 end

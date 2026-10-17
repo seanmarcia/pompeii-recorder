@@ -1,6 +1,6 @@
 /**
  * storage.js
- * Offline-first persistent storage for the Pompeii Field Client.
+ * Offline-first persistent storage for the Food And Drink in Ancient Pompeii field client.
  * Handles master feature caching and the offline outbox queue.
  */
 

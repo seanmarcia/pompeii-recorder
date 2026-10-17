@@ -84,7 +84,7 @@ export default function App() {
     setIsAuthenticated(true);
     setCurrentUser(user);
     setActiveTab("landing");
-    showNotice(`Welcome, ${user.username || "Researcher"}. Field Recorder ready.`, "success");
+    showNotice(`Welcome, ${user.full_name || user.username || "Researcher"}. Field Recorder ready.`, "success");
   };
 
   const handleLogout = () => {
@@ -226,6 +226,7 @@ export default function App() {
               onSuccess={handleFormSuccess}
               isOnline={isOnline}
               formResetKey={formResetKey}
+              currentUser={currentUser}
             />
           </div>
         )}
@@ -257,7 +258,7 @@ export default function App() {
       <footer className="app-footer">
         <div className="footer-content">
           <p>
-            Pompeii Archaeological Field Recorder &bull; Compatible with Pompeii Excavation Master Sheets
+            Food And Drink in Ancient Pompeii &bull; Field Recorder &bull; Compatible with Pompeii Excavation Master Sheets
           </p>
           <p className="footer-sub">
             All photos compressed client-side &lt; 1MB &bull; Offline-first resilient architecture

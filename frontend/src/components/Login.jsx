@@ -34,8 +34,8 @@ export default function Login({ onLogin, isOnline }) {
       <div className="client-login-card">
         <div className="client-login-header">
           <div className="client-login-icon">&#9928;</div>
-          <h1>POMPEII FIELD RECORDER</h1>
-          <p className="client-login-subtitle">Pompeii Food and Drink Research</p>
+          <h1>FOOD AND DRINK IN ANCIENT POMPEII</h1>
+          <p className="client-login-subtitle">Field Recorder</p>
           <div className="client-login-status">
             <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
             <span>{isOnline ? "Connected to Rails Review Server" : "Field Mode (Offline Active)"}</span>
@@ -44,13 +44,15 @@ export default function Login({ onLogin, isOnline }) {
 
         <form onSubmit={handleSubmit} className="client-login-form">
           <div className="client-form-group">
-            <label htmlFor="client-username">Researcher ID / Username</label>
+            <label htmlFor="client-username">Username</label>
             <input
               id="client-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. admin or researcher"
+              placeholder="first and last name, e.g. serabaker"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
               autoFocus
               disabled={isLoading}
@@ -58,7 +60,7 @@ export default function Login({ onLogin, isOnline }) {
           </div>
 
           <div className="client-form-group">
-            <label htmlFor="client-password">Access Passcode</label>
+            <label htmlFor="client-password">Password</label>
             <input
               id="client-password"
               type="password"
@@ -77,10 +79,6 @@ export default function Login({ onLogin, isOnline }) {
           </button>
         </form>
 
-        <div className="client-login-hints">
-          <div>Authorized Researcher Credentials:</div>
-          <code>admin</code> / <code>pompeii2025</code> or <code>pompeii2026</code>
-        </div>
       </div>
     </div>
   );

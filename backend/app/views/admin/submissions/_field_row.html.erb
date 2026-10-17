@@ -1,0 +1,47 @@
+<%# One field of a submission. Pending submissions get a click-to-edit value cell. %>
+<% value = submission.editable_value(key) %>
+<% master_val = submission.master_values[key] %>
+<% changed = !is_new && submission.field_changed?(key) %>
+<% locked = key == "SHEET" && submission.action_type == "update_existing" %>
+<% editable = submission.status == "pending" && !locked %>
+<% kind = Submission::LONG_TEXT_FIELDS.include?(key) ? "textarea" : (Submission::BOOLEAN_FIELDS.include?(key) ? "boolean" : "text") %>
+<% old_html, new_html = changed && master_val.present? && value.present? ? word_diff_html(master_val, value) : [nil, nil] %>
+<tr class="field-row<%= " changed-row" if changed %>" data-field="<%= key %>">
+  <td>
+    <strong><%= label %></strong>
+    <% if changed %>
+      <span class="changed-flag">&#9679; Changed</span>
+    <% end %>
+  </td>
+  <% unless is_new %>
+    <td>
+      <% if old_html %>
+        <span class="diff-text"><%= old_html %></span>
+      <% elsif master_val.present? %>
+        <span class="<%= changed ? "val-old" : "val-plain" %>"><%= master_val %></span>
+      <% else %>
+        <span class="val-unchanged">empty</span>
+      <% end %>
+    </td>
+  <% end %>
+  <td class="value-cell<%= " editable" if editable %>"
+      <% if editable %>
+        tabindex="0" title="Click to edit"
+        data-kind="<%= kind %>" data-value="<%= value %>"
+      <% end %>>
+    <span class="value-display">
+      <% if new_html %>
+        <span class="diff-text"><%= new_html %></span>
+      <% elsif value.present? %>
+        <span class="<%= changed || is_new ? "val-new" : "val-plain" %>"><%= value %></span>
+      <% else %>
+        <span class="val-unchanged"><%= editable ? "empty — click to add" : "empty" %></span>
+      <% end %>
+    </span>
+    <% if editable %>
+      <span class="edit-icon" aria-hidden="true">&#9998;</span>
+    <% elsif locked %>
+      <span class="field-hint">Locked for updates to an existing sheet</span>
+    <% end %>
+  </td>
+</tr>

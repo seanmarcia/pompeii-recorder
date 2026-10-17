@@ -8,3 +8,13 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Cache the app so it opens with no connection (production builds only;
+// browsers only allow this over HTTPS or on localhost).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((err) => {
+      console.info('Offline caching unavailable:', err.message)
+    })
+  })
+}

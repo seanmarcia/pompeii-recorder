@@ -172,6 +172,104 @@
     outline: none;
     border-color: var(--accent);
   }
+  .val-plain {
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+  }
+  .changed-flag {
+    color: var(--pending);
+    font-size: 0.75rem;
+    display: block;
+  }
+  .field-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+  .section-row td {
+    background: var(--surface-elevated);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.45rem 0.75rem;
+  }
+  .edit-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  .value-cell { position: relative; }
+  .value-cell.editable {
+    cursor: text;
+    padding-right: 2rem;
+    border-radius: 4px;
+    outline: 1px dashed transparent;
+    outline-offset: -4px;
+    transition: background 0.12s ease, outline-color 0.12s ease;
+  }
+  .value-cell.editable:hover,
+  .value-cell.editable:focus {
+    background: rgba(165, 114, 63, 0.08);
+    outline-color: var(--accent);
+  }
+  .edit-icon {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.6rem;
+    color: var(--accent);
+    opacity: 0.35;
+  }
+  .value-cell.editable:hover .edit-icon,
+  .value-cell.editable:focus .edit-icon { opacity: 1; }
+  .value-cell.editing { background: transparent; outline-color: transparent; }
+  .value-cell.editing .edit-icon { display: none; }
+  .value-cell.saving { opacity: 0.5; }
+  .inline-editor {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 0.4rem 0.5rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  textarea.inline-editor { min-height: 110px; resize: vertical; }
+  .inline-editor:focus { outline: 2px solid rgba(165, 114, 63, 0.35); }
+  .editor-help {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+  }
+  .editor-error {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--danger);
+    margin-top: 0.3rem;
+  }
+  .row-saved { animation: row-saved 1.2s ease; }
+  @keyframes row-saved {
+    from { background: rgba(79, 121, 66, 0.25); }
+  }
+  .filter-toggle {
+    font-size: 0.8rem;
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+  .only-changed tr.field-row:not(.changed-row),
+  .only-changed tr.section-row { display: none; }
 </style>
 
 <div>
@@ -200,85 +298,49 @@
     <div class="main-column">
       <div class="card">
         <div class="card-title">
-          <span>Archaeological Field Data &bull; <%= @diff[:is_new] ? "New Record Values" : "Changed Fields" %></span>
+          <span>Archaeological Field Data &bull; <%= @diff[:is_new] ? "New Record Values" : "Submitted vs. Master" %></span>
           <% unless @diff[:is_new] %>
-            <span style="font-size: 0.8rem; font-weight: normal; color: var(--pending);">
-              <%= @diff[:changes].keys.size %> field(s) modified
-            </span>
+            <label class="filter-toggle">
+              <input type="checkbox" id="only-changed-toggle">
+              <span>Changed only (<span id="changed-count"><%= @submission.changed_field_count %></span>)</span>
+            </label>
           <% end %>
         </div>
 
-        <% if @diff[:is_new] %>
-          <!-- Full Table for New Record -->
-          <table class="diff-table">
-            <thead>
-              <tr>
-                <th style="width: 25%;">Field Attribute</th>
-                <th>Field Submitted Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @payload.each do |key, val| %>
-                <% next if key == "photos" %>
-                <tr>
-                  <td><strong><%= key %></strong></td>
-                  <td>
-                    <% if val.present? %>
-                      <span class="val-new"><%= val %></span>
-                    <% else %>
-                      <span class="val-unchanged">null / empty</span>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        <% elsif @diff[:changes].empty? %>
-          <p style="color: var(--text-muted); padding: 1rem 0;">No field changes detected &mdash; this submission only updates photos or matches the master record.</p>
-        <% else %>
-          <!-- Diff Table comparing Master vs Submitted: changed fields only -->
-          <table class="diff-table">
-            <thead>
-              <tr>
-                <th style="width: 25%;">Attribute</th>
-                <th style="width: 37%;">Current Master Value</th>
-                <th style="width: 38%;">Submitted Field Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @diff[:changes].keys.sort.each do |k| %>
-                <% next if k == "photos" %>
-                <% old_val = @master.as_json_pompeii[k] %>
-                <% new_val = @payload[k] %>
-                <% old_html, new_html = old_val.present? && new_val.present? ? word_diff_html(old_val, new_val) : [nil, nil] %>
-                <tr class="changed-row">
-                  <td>
-                    <strong><%= k %></strong>
-                    <span style="color: var(--pending); font-size: 0.75rem; display: block;">&#9679; Changed</span>
-                  </td>
-                  <td>
-                    <% if old_html %>
-                      <span class="diff-text"><%= old_html %></span>
-                    <% elsif old_val.present? %>
-                      <span class="val-old"><%= old_val %></span>
-                    <% else %>
-                      <span class="val-unchanged">null / empty</span>
-                    <% end %>
-                  </td>
-                  <td>
-                    <% if new_html %>
-                      <span class="diff-text"><%= new_html %></span>
-                    <% elsif new_val.present? %>
-                      <span class="val-new"><%= new_val %></span>
-                    <% else %>
-                      <span class="val-unchanged">null / empty</span>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+        <% if @submission.status == "pending" %>
+          <p class="edit-hint">&#9998; Click any value to correct it or fill in a missed detail. Changes save automatically.</p>
         <% end %>
+
+        <table class="diff-table" id="field-table" data-update-url="<%= admin_submission_path(@submission) %>">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Field</th>
+              <% unless @diff[:is_new] %>
+                <th style="width: 35%;">Current Master Value</th>
+              <% end %>
+              <th>Submitted Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% Submission::EDITABLE_FIELDS.each do |section, fields| %>
+              <tr class="section-row"><td colspan="<%= @diff[:is_new] ? 2 : 3 %>"><%= section %></td></tr>
+              <% fields.each do |key, label| %>
+                <%= render "field_row", submission: @submission, key: key, label: label, is_new: @diff[:is_new] %>
+              <% end %>
+            <% end %>
+            <% extra_keys = @payload.keys - Submission::EDITABLE_FIELDS.values.flat_map(&:keys) - ["photos"] %>
+            <% if extra_keys.any? %>
+              <tr class="section-row"><td colspan="<%= @diff[:is_new] ? 2 : 3 %>">Other Submitted Values</td></tr>
+              <% extra_keys.each do |key| %>
+                <tr class="field-row">
+                  <td><strong><%= key %></strong></td>
+                  <% unless @diff[:is_new] %><td></td><% end %>
+                  <td><span class="val-plain"><%= @payload[key].presence || "empty" %></span></td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
       </div>
 
       <!-- Photos Section -->
@@ -393,3 +455,143 @@
     </div>
   </div>
 </div>
+
+<% if @submission.status == "pending" %>
+<script>
+  (function () {
+    const table = document.getElementById("field-table");
+    if (!table || table.dataset.inlineEditBound) return;
+    table.dataset.inlineEditBound = "true";
+    const url = table.dataset.updateUrl;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    function startEdit(cell) {
+      if (cell.classList.contains("editing")) return;
+      const kind = cell.dataset.kind;
+      const original = cell.dataset.value || "";
+      const display = cell.querySelector(".value-display");
+      let editor;
+
+      if (kind === "boolean") {
+        editor = document.createElement("select");
+        [["T", "True (T)"], ["F", "False (F)"]].forEach(([v, text]) => {
+          const opt = new Option(text, v);
+          opt.selected = (original || "F") === v;
+          editor.add(opt);
+        });
+      } else if (kind === "textarea") {
+        editor = document.createElement("textarea");
+        editor.value = original;
+      } else {
+        editor = document.createElement("input");
+        editor.type = "text";
+        editor.value = original;
+      }
+      editor.className = "inline-editor";
+
+      const help = document.createElement("span");
+      help.className = "editor-help";
+      help.textContent = kind === "textarea"
+        ? "Ctrl/⌘ + Enter to save · Esc to cancel"
+        : "Enter to save · Esc to cancel";
+
+      display.hidden = true;
+      cell.classList.add("editing");
+      cell.append(editor, help);
+      editor.focus();
+      // Caret at the end rather than select-all, so a stray keystroke can't
+      // wipe a long description.
+      if (kind !== "boolean") editor.setSelectionRange(editor.value.length, editor.value.length);
+
+      let done = false;
+      const finish = (save) => {
+        if (done) return;
+        done = true;
+        if (!save || editor.value === original) {
+          editor.remove();
+          help.remove();
+          display.hidden = false;
+          cell.classList.remove("editing");
+          cell.focus();
+          return;
+        }
+        save_(cell, editor.value, () => {
+          done = false;
+        });
+      };
+
+      editor.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish(false);
+        } else if (e.key === "Enter" && (kind !== "textarea" || e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          finish(true);
+        }
+      });
+      editor.addEventListener("blur", () => finish(true));
+      if (kind === "boolean") editor.addEventListener("change", () => finish(true));
+    }
+
+    function save_(cell, value, onError) {
+      const row = cell.closest("tr");
+      const key = row.dataset.field;
+      cell.classList.add("saving");
+      cell.querySelector(".editor-error")?.remove();
+
+      fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        },
+        body: JSON.stringify({ fields: { [key]: value } }),
+      })
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok) throw new Error(data.error || "Could not save");
+          const tmp = document.createElement("tbody");
+          tmp.innerHTML = data.rows[key].trim();
+          const newRow = tmp.firstElementChild;
+          row.replaceWith(newRow);
+          newRow.classList.add("row-saved");
+          newRow.querySelector(".value-cell")?.focus();
+          const count = document.getElementById("changed-count");
+          if (count) count.textContent = data.changed_count;
+        })
+        .catch((err) => {
+          cell.classList.remove("saving");
+          const msg = document.createElement("span");
+          msg.className = "editor-error";
+          msg.textContent = err.message + " — try again or press Esc.";
+          cell.append(msg);
+          cell.querySelector(".inline-editor")?.focus();
+          onError();
+        });
+    }
+
+    table.addEventListener("click", (e) => {
+      const cell = e.target.closest(".value-cell.editable");
+      if (cell && !e.target.closest(".inline-editor")) startEdit(cell);
+    });
+    table.addEventListener("keydown", (e) => {
+      const cell = e.target.closest(".value-cell.editable");
+      if (cell && e.target === cell && (e.key === "Enter" || e.key === "F2")) {
+        e.preventDefault();
+        startEdit(cell);
+      }
+    });
+  })();
+</script>
+<% end %>
+
+<% unless @diff[:is_new] %>
+<script>
+  (function () {
+    const toggle = document.getElementById("only-changed-toggle");
+    const table = document.getElementById("field-table");
+    if (toggle && table) toggle.addEventListener("change", () => table.classList.toggle("only-changed", toggle.checked));
+  })();
+</script>
+<% end %>

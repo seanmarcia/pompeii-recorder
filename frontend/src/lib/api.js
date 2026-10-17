@@ -1,6 +1,6 @@
 /**
  * api.js
- * Network communications module for Pompeii Field Client.
+ * Network communications module for the Food And Drink in Ancient Pompeii field client.
  * Automatically fails over to offline cache and local outbox when Rails is offline.
  */
 
@@ -11,8 +11,10 @@ import {
   getOutbox,
   removeFromOutbox,
 } from "./storage";
+import { RECORDER_NAMES, RECORDER_OFFLINE_CHECK, usernameFor } from "../data/people";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+// Empty string = same site as the app (the fdpompeii.org build).
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:3000";
 
 /**
  * Checks whether the Rails backend is reachable via its health check route.
@@ -34,7 +36,8 @@ export async function checkBackendStatus() {
 /**
  * Authenticates user credentials.
  * Checks online against Rails API /api/v1/auth/login.
- * If Rails is offline, verifies against authorized field credentials.
+ * If Rails is offline, accepts anyone who has signed in on this device before
+ * (see rememberOfflineLogin), and any recorder via the hashed shared password.
  */
 export async function loginClient(username, password) {
   const cleanUser = username.trim();
@@ -54,6 +57,7 @@ export async function loginClient(username, password) {
 
     if (res.ok) {
       const data = await res.json();
+      await rememberOfflineLogin(cleanUser, cleanPass, data.user);
       return { success: true, user: data.user, isOnline: true };
     } else if (res.status === 401) {
       return { success: false, error: "Invalid username or password." };
@@ -62,20 +66,69 @@ export async function loginClient(username, password) {
     console.info("Rails login offline, checking authorized field researcher credentials:", err.message);
   }
 
-  // Offline fallback credentials
-  const validOffline =
-    (cleanUser.toLowerCase() === "admin" && (cleanPass === "pompeii2025" || cleanPass === "pompeii2026")) ||
-    (cleanUser.toLowerCase() === "researcher" && cleanPass === "pompeii2025");
-
-  if (validOffline) {
-    return {
-      success: true,
-      user: { username: cleanUser, role: cleanUser.toLowerCase() === "admin" ? "admin" : "researcher" },
-      isOnline: false,
-    };
+  const offlineUser =
+    (await checkOfflineLogin(cleanUser, cleanPass)) || (await checkRecorderOfflineLogin(cleanUser, cleanPass));
+  if (offlineUser) {
+    return { success: true, user: offlineUser, isOnline: false };
   }
 
-  return { success: false, error: "Invalid credentials (offline check failed)." };
+  return { success: false, error: "Invalid username or password." };
+}
+
+// Offline sign-in: after a successful online login we keep a salted hash of
+// the password (never the password itself) so the same person can sign in
+// again in the field without a connection.
+const OFFLINE_LOGINS_KEY = "offlineLogins";
+
+async function hashCredentials(username, password, salt) {
+  if (!globalThis.crypto?.subtle) return null; // only available over HTTPS/localhost
+  const data = new TextEncoder().encode(`${salt}:${username.toLowerCase()}:${password}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function readOfflineLogins() {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_LOGINS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+async function rememberOfflineLogin(username, password, user) {
+  try {
+    const salt = crypto.randomUUID();
+    const hash = await hashCredentials(username, password, salt);
+    if (!hash) return;
+    const logins = readOfflineLogins();
+    logins[username.toLowerCase()] = { salt, hash, user };
+    localStorage.setItem(OFFLINE_LOGINS_KEY, JSON.stringify(logins));
+  } catch (err) {
+    console.info("Could not remember login for offline use:", err.message);
+  }
+}
+
+// Any recorder can also sign in offline on a device they haven't used before,
+// checked against the hashed shared recorder password.
+async function checkRecorderOfflineLogin(username, password) {
+  const fullName = RECORDER_NAMES.find((name) => usernameFor(name) === username.toLowerCase());
+  if (!fullName || !globalThis.crypto?.subtle) return null;
+  const { salt, iterations, hash } = RECORDER_OFFLINE_CHECK;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations, hash: "SHA-256" },
+    key,
+    256
+  );
+  const hex = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, "0")).join("");
+  return hex === hash ? { username: usernameFor(fullName), full_name: fullName, role: "recorder" } : null;
+}
+
+async function checkOfflineLogin(username, password) {
+  const saved = readOfflineLogins()[username.toLowerCase()];
+  if (!saved) return null;
+  const hash = await hashCredentials(username, password, saved.salt);
+  return hash && hash === saved.hash ? saved.user : null;
 }
 
 /**

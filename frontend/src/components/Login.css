@@ -156,19 +156,4 @@
   cursor: not-allowed;
 }
 
-.client-login-hints {
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 1rem;
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
 
-.client-login-hints code {
-  background: var(--surface-elevated);
-  color: var(--accent-gold);
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  font-family: monospace;
-}

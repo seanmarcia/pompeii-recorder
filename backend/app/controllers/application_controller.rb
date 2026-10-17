@@ -13,7 +13,7 @@ class ApplicationController < ActionController::Base
 
   def require_admin_login
     unless logged_in? && current_user.admin?
-      flash[:alert] = "Authentication required. Please log in to access the Pompeii Admin Portal."
+      flash[:alert] = "Authentication required. Please log in to access the Food And Drink in Ancient Pompeii admin portal."
       redirect_to admin_login_path
     end
   end

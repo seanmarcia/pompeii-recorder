@@ -15,7 +15,7 @@ module Admin
 
       if user&.admin?
         session[:user_id] = user.id
-        redirect_to admin_root_path, notice: "Welcome back, #{user.username}. Successfully logged in to Pompeii Admin."
+        redirect_to admin_root_path, notice: "Welcome back, #{user.display_name}. Successfully logged in to Food And Drink in Ancient Pompeii admin."
       elsif user
         flash.now[:alert] = "This portal is restricted to admin accounts."
         render :new, status: :unprocessable_entity

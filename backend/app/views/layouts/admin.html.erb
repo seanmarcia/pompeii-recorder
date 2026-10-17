@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <%= csrf_meta_tags %>
   <meta charset="utf-8">
-  <title>Pompeii Archaeological Archive &bull; Review Dashboard</title>
+  <title>Food And Drink in Ancient Pompeii &bull; Review Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     :root {
@@ -196,14 +197,14 @@
     <a href="/admin" class="brand">
       <div class="brand-icon">&#9928;</div>
       <div>
-        <h1>POMPEII REVIEW PORTAL</h1>
-        <span>Archaeological Field Queue &bull; Master Catalog</span>
+        <h1>FOOD AND DRINK IN ANCIENT POMPEII</h1>
+        <span>Review Portal &bull; Field Queue &bull; Master Catalog</span>
       </div>
     </a>
     <div class="nav-actions">
       <% if logged_in? %>
         <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">
-          Signed in as <strong style="color: var(--accent);"><%= current_user.username %></strong>
+          Signed in as <strong style="color: var(--accent);"><%= current_user.display_name %></strong>
         </span>
         <a href="/admin/export_master" class="btn btn-outline" title="Export the complete verified Pompeii features master JSON file">
           <span>&#8681;</span> Master JSON
@@ -232,7 +233,7 @@
   </main>
 
   <footer class="admin-footer">
-    Pompeii Archaeological Research Database &bull; Field Data Collector &amp; Admin Review System
+    Food And Drink in Ancient Pompeii &bull; Field Data Collector &amp; Admin Review System
   </footer>
 </body>
 </html>

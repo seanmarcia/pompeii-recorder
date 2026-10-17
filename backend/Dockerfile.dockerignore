@@ -1,0 +1,60 @@
+# Used for builds of backend/Dockerfile, whose build context is the repository root.
+
+# See https://docs.docker.com/engine/reference/builder/#dockerignore-file for more about ignoring files.
+
+# Ignore git directory.
+/backend/.git/
+/backend/.gitignore
+
+# Ignore bundler config.
+/backend/.bundle
+
+# Ignore all environment files.
+/backend/.env*
+
+# Ignore all default key files.
+/backend/config/master.key
+/backend/config/credentials/*.key
+
+# Ignore all logfiles and tempfiles.
+/backend/log/*
+/backend/tmp/*
+!/backend/log/.keep
+!/backend/tmp/.keep
+
+# Ignore pidfiles, but keep the directory.
+/backend/tmp/pids/*
+!/backend/tmp/pids/.keep
+
+# Ignore storage (uploaded files in development and any SQLite databases).
+/backend/storage/*
+!/backend/storage/.keep
+/backend/tmp/storage/*
+!/backend/tmp/storage/.keep
+
+# Ignore assets.
+/backend/node_modules/
+/backend/app/assets/builds/*
+!/backend/app/assets/builds/.keep
+/backend/public/assets
+
+# Ignore CI service files.
+/backend/.github
+
+# Ignore Kamal files.
+/backend/config/deploy*.yml
+/backend/.kamal
+
+# Ignore development files
+/backend/.devcontainer
+
+# Ignore Docker-related files
+/backend/.dockerignore
+/backend/Dockerfile*
+
+# Repository-level and field app files not needed in the image.
+/.git/
+/.github
+/.claude
+/frontend/node_modules/
+/frontend/dist/

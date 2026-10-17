@@ -22,6 +22,14 @@ class Admin::SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @admin.id, session[:user_id]
   end
 
+  test "POST /admin/login turns away recorders" do
+    User.create!(username: "serabaker", full_name: "Sera Baker", email: "serabaker@fdpompeii.org",
+                 password: "test-password", role: "recorder")
+    post "/admin/login", params: { login: "serabaker", password: "test-password" }
+    assert_response :unprocessable_entity
+    assert_nil session[:user_id]
+  end
+
   test "POST /admin/login rejects invalid credentials" do
     post "/admin/login", params: { login: "admin", password: "wrongpassword" }
     assert_response :unprocessable_entity

@@ -3,7 +3,8 @@ module Admin
     layout "admin"
     skip_before_action :verify_authenticity_token, raise: false
     before_action :require_admin_login
-    before_action :set_submission, only: [:show, :approve, :reject]
+    before_action :set_submission, only: [:show, :update, :approve, :reject]
+    before_action :require_pending, only: [:update]
 
     # GET /admin or /admin/submissions
     def index
@@ -28,6 +29,24 @@ module Admin
       @diff = @submission.compute_diff
       @master = @submission.master_feature
       @payload = @submission.payload
+    end
+
+    # PATCH /admin/submissions/:id (JSON) - inline field corrections from the
+    # review page. Responds with the re-rendered rows for the edited fields.
+    def update
+      edits = params.fetch(:fields, {}).to_unsafe_h
+      @submission.apply_reviewer_edits!(edits)
+      @submission = Submission.find(@submission.id)
+      is_new = @submission.master_feature.nil?
+      labels = Submission::EDITABLE_FIELDS.values.reduce(:merge)
+
+      rows = edits.keys.select { |k| labels.key?(k) }.to_h do |key|
+        [key, render_to_string(partial: "field_row", formats: [:html],
+                               locals: { submission: @submission, key: key, label: labels[key], is_new: is_new })]
+      end
+      render json: { rows: rows, changed_count: @submission.changed_field_count }
+    rescue StandardError => e
+      render json: { error: e.message }, status: :unprocessable_entity
     end
 
     # POST /admin/submissions/:id/approve
@@ -61,6 +80,11 @@ module Admin
 
     def set_submission
       @submission = Submission.find(params[:id])
+    end
+
+    def require_pending
+      return if @submission.status == "pending"
+      render json: { error: "Only pending submissions can be edited." }, status: :unprocessable_entity
     end
   end
 end

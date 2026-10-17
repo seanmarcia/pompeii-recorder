@@ -1,6 +1,55 @@
 class Submission < ApplicationRecord
   has_many_attached :photos
 
+  # Fields a reviewer can correct before approving, grouped and labelled to
+  # match the field recorder form.
+  EDITABLE_FIELDS = {
+    "Sheet Identification" => {
+      "SHEET" => "Sheet Number",
+      "FEATURE_ID" => "Sheet ID",
+      "SHEET_DATE" => "Sheet Date",
+      "SEASON" => "Excavation Season",
+      "RESEARCHER_ID" => "Researcher Name",
+      "RECORDER_ID" => "Recorder Name"
+    },
+    "Spatial Address & Location" => {
+      "REGION" => "Region",
+      "INSULA" => "Insula",
+      "ENTRANCE" => "Entrance",
+      "GATE_ID" => "City Gate / Approach",
+      "SPACE_NUMBER" => "Space / Room Name",
+      "STRUCTURE_ID" => "Structure Name"
+    },
+    "Classification" => {
+      "SHEET_TYPE_ID" => "Sheet Type",
+      "FEATURE_TYPE_ID" => "Feature Type",
+      "SPACE_TYPE_ID" => "Space Type",
+      "USAGE_ID" => "Category",
+      "CATEGORY_ID" => "Usage Classification"
+    },
+    "Interpretation" => {
+      "NEGATIVE_FEATURE" => "Negative Feature (T/F)",
+      "MINORITY_REPORT" => "Minority Report (Other Interpretation)",
+      "DESCRIPTION" => "Archaeological Description",
+      "CONTIGUOUS_RELATIONSHIP" => "Contiguous Spatial Relationships"
+    },
+    "Archival Records & Media" => {
+      "PHOTOGRAPHER_ID" => "Photographer",
+      "ARTIST_ID" => "Sketch Artist",
+      "BW_ROLL" => "B/W Roll #",
+      "COLOR_ROLL" => "Color Roll #",
+      "DIGITAL_IMAGE" => "Digital Image #",
+      "VIDEOGRAPHER_ID" => "Videographer",
+      "FILE_NUMBER" => "File #",
+      "TAPE_NUMBER" => "Tape #",
+      "TIME_COUNT" => "Time Count",
+      "VIDEO_COMMENTS" => "Video Comments"
+    }
+  }.freeze
+
+  LONG_TEXT_FIELDS = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
+  BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
+
   validates :status, inclusion: { in: %w[pending approved rejected] }
   validates :action_type, inclusion: { in: %w[create_new update_existing] }
 
@@ -25,6 +74,43 @@ class Submission < ApplicationRecord
     target = target_sheet.presence || payload["SHEET"].presence
     return nil if target.blank?
     Feature.find_by(sheet: target)
+  end
+
+  # Value shown in the reviewer edit form: the submitted value, or the master
+  # record's value for fields the submission didn't touch.
+  def editable_value(key)
+    return payload[key] if payload.key?(key)
+    master_values[key]
+  end
+
+  def master_values
+    @master_values ||= master_feature&.as_json_pompeii || {}
+  end
+
+  # True when the submission would change this field on the master record.
+  def field_changed?(key)
+    payload.key?(key) && payload[key].to_s.strip != master_values[key].to_s.strip
+  end
+
+  def changed_field_count
+    Submission::EDITABLE_FIELDS.values.sum { |fields| fields.keys.count { |k| field_changed?(k) } }
+  end
+
+  # Apply reviewer corrections to the payload. Fields the submission didn't
+  # include are only added when the reviewer actually changed them, so an
+  # untouched form never blanks out master values on approval.
+  def apply_reviewer_edits!(edits)
+    data = payload
+    edits.each do |key, value|
+      next unless EDITABLE_FIELDS.values.any? { |fields| fields.key?(key) }
+      next if key == "SHEET" && action_type == "update_existing"
+      value = value.to_s.strip
+      next if !data.key?(key) && value == editable_value(key).to_s.strip
+      data[key] = value
+    end
+    self.payload = data
+    self.target_sheet = data["SHEET"] if action_type == "create_new" && data["SHEET"].present?
+    save!
   end
 
   # Returns diff hash between master feature and submission payload

@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t backend .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name backend backend
+# This Dockerfile is designed for production, not development. Deploy with Kamal from backend/
+# (bin/kamal deploy). It builds from the repository root so the field app in frontend/ can be
+# bundled into public/; to build by hand from the repo root:
+# docker build -f backend/Dockerfile -t fdpompeii .
+# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from backend/config/master.key> --name fdpompeii fdpompeii
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
@@ -27,6 +29,14 @@ ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
+# Build the field app (frontend/) to be served from the same site as the backend.
+FROM docker.io/library/node:24-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN VITE_BASE=/ VITE_BACKEND_URL= npm run build
+
 # Throw-away build stage to reduce size of final image
 FROM base AS build
 
@@ -36,16 +46,17 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
-COPY vendor/* ./vendor/
-COPY Gemfile Gemfile.lock ./
+COPY backend/vendor/* ./vendor/
+COPY backend/Gemfile backend/Gemfile.lock ./
 
 RUN bundle install && \
     rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
     # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
     bundle exec bootsnap precompile -j 1 --gemfile
 
-# Copy application code
-COPY . .
+# Copy application code, plus the built field app at the site root
+COPY backend/ ./
+COPY --from=frontend /frontend/dist/ ./public/
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495

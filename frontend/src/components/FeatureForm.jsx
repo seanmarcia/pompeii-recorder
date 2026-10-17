@@ -23,47 +23,43 @@ import {
   getLastSubmitterName,
   setLastSubmitterName,
 } from "../lib/storage";
+import { RECORDER_NAMES as RECORDER_OPTIONS, RESEARCHER_NAMES as RESEARCHER_OPTIONS } from "../data/people";
 
-const REGION_OPTIONS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "Suburban"];
+const REGION_OPTIONS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "Suburban"];
 
-const SHEET_TYPE_OPTIONS = ["Feature", "Space", "Area", "Deposit", "Structure", "Other"];
+const SHEET_TYPE_OPTIONS = ["Space", "Room", "Feature", "Other"];
 
-const RECORDER_OPTIONS = [
-  "Lilly Andoe-Liccetti",
-  "Carlos Avila",
-  "Sera Baker",
-  "Alethea Banar",
-  "Terry Bruno",
-  "Anne Carter",
-  "Monica Connors",
-  "Loretta Dimitruk",
-  "Natalie Dimitruk",
-  "Lynette Galloway",
-  "Larry Ludwicki",
-  "David Mayeske",
-  "Rich Olimpio",
-  "Matthew Selmheimer",
-  "Linda Swanson",
-  "Pam Wood",
-  "Leslie Xavier",
-  "Ted Xavier",
+
+const GATE_OPTIONS = [
+  "Capua Gate",
+  "Herculaneum Gate",
+  "Marine Gate",
+  "Nocera Gate",
+  "Nola Gate",
+  "Sarno Gate",
+  "Stabian Gate",
+  "Vesuvius Gate",
 ];
-
-const RESEARCHER_OPTIONS = ["Lisa Khan", "Mary Meier", "Suzanne Stone"];
 
 const USAGE_OPTIONS = ["Commercial", "Domestic"];
 
 const CATEGORY_OPTIONS = [
+  "Architectural Element",
+  "Circulation",
+  "Commercial",
+  "Commercial Service",
+  "Commercial-Domestic",
+  "Decoration",
+  "Domestic",
+  "Domestic-Commercial",
   "Food preparation",
   "Production",
-  "Architectural Element",
-  "Water catchment",
-  "Commercial Service",
-  "Storage",
-  "Circulation",
+  "Public",
+  "Religious",
   "Religious / Cult",
   "Sanitary",
-  "Decoration",
+  "Storage",
+  "Water catchment",
   "Other",
 ];
 
@@ -73,6 +69,7 @@ export default function FeatureForm({
   onSuccess,
   isOnline,
   formResetKey,
+  currentUser,
 }) {
   const [formData, setFormData] = useState({});
   const [photos, setPhotos] = useState([]);
@@ -99,6 +96,7 @@ export default function FeatureForm({
   useEffect(() => {
     const savedName = getLastSubmitterName();
     if (savedName) setSubmitterName(savedName);
+    else if (currentUser?.full_name) setSubmitterName(currentUser.full_name);
   }, []);
 
   // Sync state when initialFeature changes
@@ -156,7 +154,8 @@ export default function FeatureForm({
         SHEET: "",
         FEATURE_ID: "",
         SHEET_DATE: new Date().toISOString().substring(0, 10),
-        RECORDER_ID: "",
+        // New sheets are recorded by whoever is signed in, if they're on the recorder list.
+        RECORDER_ID: RECORDER_OPTIONS.includes(currentUser?.full_name) ? currentUser.full_name : "",
         RESEARCHER_ID: "",
         SEASON: new Date().getFullYear().toString(),
         REGION: "VI",
@@ -188,7 +187,7 @@ export default function FeatureForm({
       setPhotos([]);
     }
     setFeedback(null);
-  }, [initialFeature, actionType, formResetKey]);
+  }, [initialFeature, actionType, formResetKey, currentUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -220,12 +219,15 @@ export default function FeatureForm({
   const { typeName: selectedFeatureType, attributes: selectedFeatureAttributes } =
     parseFeatureType(formData.FEATURE_TYPE_ID);
   const featureTypeAttributeOptions = attributesForFeatureType(selectedFeatureType);
+  const isFeatureSheet = formData.SHEET_TYPE_ID === "Feature";
 
   // Space Type follows the same single-field "Type: Attr1, Attr2" pattern.
   const { typeName: selectedSpaceType, attributes: selectedSpaceAttributes } = parseSpaceType(
     formData.SPACE_TYPE_ID
   );
   const spaceTypeAttributeOptions = attributesForSpaceType(selectedSpaceType);
+  // Older imported sheets use "Space or Room" for the same sheet type.
+  const isSpaceSheet = formData.SHEET_TYPE_ID === "Space" || formData.SHEET_TYPE_ID === "Space or Room";
 
   // Usage Classification (Commercial/Domestic) and Late Usage (category + sub-categories)
   // are separate selectors but combine into the single USAGE_ID field for storage.
@@ -360,7 +362,7 @@ export default function FeatureForm({
               <span className="field-hint">Canonical Pompeian sheet ID</span>
             </div>
             <div className="form-field">
-              <label>Feature ID</label>
+              <label>Sheet ID</label>
               <input
                 type="text"
                 name="FEATURE_ID"
@@ -392,10 +394,10 @@ export default function FeatureForm({
 
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
-              <label>Recorder Name</label>
-              <select name="RECORDER_ID" value={formData.RECORDER_ID || ""} onChange={handleChange}>
-                <option value="">Select Recorder</option>
-                {RECORDER_OPTIONS.map((r) => (
+              <label>Researcher Name</label>
+              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
+                <option value="">Select Researcher</option>
+                {RESEARCHER_OPTIONS.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>
@@ -403,10 +405,10 @@ export default function FeatureForm({
               </select>
             </div>
             <div className="form-field">
-              <label>Researcher Name</label>
-              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
-                <option value="">Select Researcher</option>
-                {RESEARCHER_OPTIONS.map((r) => (
+              <label>Recorder Name</label>
+              <select name="RECORDER_ID" value={formData.RECORDER_ID || ""} onChange={handleChange}>
+                <option value="">Select Recorder</option>
+                {RECORDER_OPTIONS.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>
@@ -455,6 +457,21 @@ export default function FeatureForm({
               />
             </div>
             <div className="form-field">
+              <label>City Gate / Approach</label>
+              <select name="GATE_ID" value={formData.GATE_ID || ""} onChange={handleChange}>
+                <option value="">Select Gate</option>
+                {GATE_OPTIONS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+                {/* Keep a value from an older sheet selectable even if it isn't one of the standard gates. */}
+                {formData.GATE_ID && !GATE_OPTIONS.includes(formData.GATE_ID) && (
+                  <option value={formData.GATE_ID}>{formData.GATE_ID}</option>
+                )}
+              </select>
+            </div>
+            <div className="form-field">
               <label>Space / Room Name</label>
               <input
                 type="text"
@@ -486,37 +503,78 @@ export default function FeatureForm({
             </div>
             <div className="form-field">
               <label>Sheet Type</label>
-              <select name="SHEET_TYPE_ID" value={formData.SHEET_TYPE_ID || ""} onChange={handleChange}>
+              <select
+                name="SHEET_TYPE_ID"
+                value={formData.SHEET_TYPE_ID || ""}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    SHEET_TYPE_ID: e.target.value,
+                    // Feature Type only applies to Feature sheets and Space Type to Space
+                    // sheets; clear them when switching away so a hidden value isn't submitted.
+                    ...(e.target.value !== "Feature" && { FEATURE_TYPE_ID: "" }),
+                    ...(e.target.value !== "Space" && { SPACE_TYPE_ID: "" }),
+                  }))
+                }
+              >
                 {SHEET_TYPE_OPTIONS.map((st) => (
                   <option key={st} value={st}>
                     {st}
                   </option>
                 ))}
+                {/* Keep a value from an older sheet (e.g. "Space or Room") selectable. */}
+                {formData.SHEET_TYPE_ID && !SHEET_TYPE_OPTIONS.includes(formData.SHEET_TYPE_ID) && (
+                  <option value={formData.SHEET_TYPE_ID}>{formData.SHEET_TYPE_ID}</option>
+                )}
               </select>
             </div>
-            <div className="form-field">
-              <label>Feature Type</label>
-              <select
-                name="FEATURE_TYPE_ID"
-                value={selectedFeatureType}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
-                  }))
-                }
-              >
-                <option value="">Select Feature Type</option>
-                {FEATURE_TYPES.map((ft) => (
-                  <option key={ft.name} value={ft.name}>
-                    {ft.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isFeatureSheet && (
+              <div className="form-field">
+                <label>Feature Type</label>
+                <select
+                  name="FEATURE_TYPE_ID"
+                  value={selectedFeatureType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Feature Type</option>
+                  {FEATURE_TYPES.map((ft) => (
+                    <option key={ft.name} value={ft.name}>
+                      {ft.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {isSpaceSheet && (
+              <div className="form-field">
+                <label>Space Type</label>
+                <select
+                  name="SPACE_TYPE_ID"
+                  value={selectedSpaceType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Space Type</option>
+                  {SPACE_TYPES.map((st) => (
+                    <option key={st.name} value={st.name}>
+                      {st.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
-          {featureTypeAttributeOptions.length > 0 && (
+          {isFeatureSheet && featureTypeAttributeOptions.length > 0 && (
             <div className="form-field" style={{ marginTop: "1rem" }}>
               <label>{selectedFeatureType} Attributes</label>
               <AttributeMultiSelect
@@ -533,75 +591,7 @@ export default function FeatureForm({
             </div>
           )}
 
-          <div className="form-grid-4" style={{ marginTop: "1rem" }}>
-            <div className="form-field">
-              <label>Category</label>
-              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
-                <option value="">Select Category</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Space Type</label>
-              <select
-                name="SPACE_TYPE_ID"
-                value={selectedSpaceType}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
-                  }))
-                }
-              >
-                <option value="">Select Space Type</option>
-                {SPACE_TYPES.map((st) => (
-                  <option key={st.name} value={st.name}>
-                    {st.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Usage Classification</label>
-              <select
-                name="USAGE_ID"
-                value={selectedUsageClassification}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    USAGE_ID: formatUsageField(
-                      e.target.value,
-                      selectedLateUsageType,
-                      selectedLateUsageAttributes
-                    ),
-                  }))
-                }
-              >
-                <option value="">Select Usage</option>
-                {USAGE_OPTIONS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>City Gate / Approach</label>
-              <input
-                type="text"
-                name="GATE_ID"
-                value={formData.GATE_ID || ""}
-                onChange={handleChange}
-                placeholder="e.g. Herculaneum Gate"
-              />
-            </div>
-          </div>
-
-          {spaceTypeAttributeOptions.length > 0 && (
+          {isSpaceSheet && spaceTypeAttributeOptions.length > 0 && (
             <div className="form-field" style={{ marginTop: "1rem" }}>
               <label>{selectedSpaceType} Attributes</label>
               <AttributeMultiSelect
@@ -617,6 +607,44 @@ export default function FeatureForm({
               />
             </div>
           )}
+
+          <div className="form-grid-4" style={{ marginTop: "1rem" }}>
+            <div className="form-field">
+              <label>Category</label>
+              <select
+                name="USAGE_ID"
+                value={selectedUsageClassification}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    USAGE_ID: formatUsageField(
+                      e.target.value,
+                      selectedLateUsageType,
+                      selectedLateUsageAttributes
+                    ),
+                  }))
+                }
+              >
+                <option value="">Select Category</option>
+                {USAGE_OPTIONS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Usage Classification</label>
+              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
+                <option value="">Select Usage Classification</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
@@ -696,7 +724,7 @@ export default function FeatureForm({
                   }))
                 }
               />
-              <label htmlFor="MINORITY_REPORT">Minority Report (Dissenting Interpretation)</label>
+              <label htmlFor="MINORITY_REPORT">Minority Report (Other Interpretation)</label>
             </div>
           </div>
 
@@ -741,12 +769,33 @@ export default function FeatureForm({
           <div className="form-grid-4">
             <div className="form-field">
               <label>Photographer</label>
-              <input
-                type="text"
-                name="PHOTOGRAPHER_ID"
-                value={formData.PHOTOGRAPHER_ID || ""}
-                onChange={handleChange}
-              />
+              <select name="PHOTOGRAPHER_ID" value={formData.PHOTOGRAPHER_ID || ""} onChange={handleChange}>
+                <option value="">Select Photographer</option>
+                {RECORDER_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                {/* Keep a name from an older sheet selectable even if it isn't in the recorder list. */}
+                {formData.PHOTOGRAPHER_ID && !RECORDER_OPTIONS.includes(formData.PHOTOGRAPHER_ID) && (
+                  <option value={formData.PHOTOGRAPHER_ID}>{formData.PHOTOGRAPHER_ID}</option>
+                )}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Sketch Artist</label>
+              <select name="ARTIST_ID" value={formData.ARTIST_ID || ""} onChange={handleChange}>
+                <option value="">Select Sketch Artist</option>
+                {RECORDER_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                {/* Keep a name from an older sheet selectable even if it isn't in the recorder list. */}
+                {formData.ARTIST_ID && !RECORDER_OPTIONS.includes(formData.ARTIST_ID) && (
+                  <option value={formData.ARTIST_ID}>{formData.ARTIST_ID}</option>
+                )}
+              </select>
             </div>
             <div className="form-field">
               <label>B/W Roll #</label>
@@ -766,6 +815,8 @@ export default function FeatureForm({
                 onChange={handleChange}
               />
             </div>
+          </div>
+          <div className="form-grid-3" style={{ marginTop: "1rem" }}>
             <div className="form-field">
               <label>Digital Image #</label>
               <input
@@ -775,8 +826,6 @@ export default function FeatureForm({
                 onChange={handleChange}
               />
             </div>
-          </div>
-          <div className="form-grid-3" style={{ marginTop: "1rem" }}>
             <div className="form-field">
               <label>Videographer</label>
               <input
@@ -792,15 +841,6 @@ export default function FeatureForm({
                 type="text"
                 name="FILE_NUMBER"
                 value={formData.FILE_NUMBER || ""}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-field">
-              <label>Artist / Drafter</label>
-              <input
-                type="text"
-                name="ARTIST_ID"
-                value={formData.ARTIST_ID || ""}
                 onChange={handleChange}
               />
             </div>
@@ -820,7 +860,7 @@ export default function FeatureForm({
               />
             </div>
             <div className="form-field">
-              <label>Field Notes for Review Admin</label>
+              <label>Field Notes for the Reviewer</label>
               <input
                 type="text"
                 value={submitterNotes}

@@ -16,6 +16,7 @@ module Api
             user: {
               id: user.id,
               username: user.username,
+              full_name: user.full_name,
               email: user.email,
               role: user.role
             },

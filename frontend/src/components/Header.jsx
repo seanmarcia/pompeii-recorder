@@ -1,4 +1,5 @@
 import React from "react";
+import { BACKEND_URL } from "../lib/api";
 
 export default function Header({
   isOnline,
@@ -24,8 +25,8 @@ export default function Header({
         >
           <div className="brand-icon">&#9928;</div>
           <div>
-            <h1 className="brand-title">POMPEII FIELD RECORDER</h1>
-            <p className="brand-sub">Pompeii Food and Drink Research</p>
+            <h1 className="brand-title">FOOD AND DRINK IN ANCIENT POMPEII</h1>
+            <p className="brand-sub">Field Recorder</p>
           </div>
         </button>
 
@@ -61,12 +62,12 @@ export default function Header({
             className={`status-pill ${isOnline ? "online" : "offline"}`}
             title={
               isOnline
-                ? "Connected to Rails Review Server (localhost:3000)"
+                ? "Connected to the database"
                 : "Offline mode: Submissions saved locally in browser storage"
             }
           >
             <span className="status-dot"></span>
-            <span className="status-text">{isOnline ? "Rails Online" : "Offline Mode"}</span>
+            <span className="status-text">{isOnline ? "Database Connected" : "Offline Mode"}</span>
           </div>
 
           {/* Prominent Pull / Sync Rooms from Rails button */}
@@ -99,7 +100,7 @@ export default function Header({
 
           <div className="user-profile-widget">
             <span className="user-tag" title="Authenticated field researcher">
-              👤 {currentUser?.username || "Researcher"}
+              👤 {currentUser?.full_name || currentUser?.username || "Researcher"}
             </span>
             <button
               type="button"
@@ -113,7 +114,7 @@ export default function Header({
 
           {currentUser?.role === "admin" && (
             <a
-              href="http://localhost:3000/admin"
+              href={`${BACKEND_URL}/admin`}
               target="_blank"
               rel="noreferrer"
               className="admin-portal-link"
