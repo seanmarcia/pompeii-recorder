@@ -10,7 +10,7 @@ A high-level assessment of what this application is, how it functions, and how i
 
 The **Pompeii Archaeological Field Recorder** is a field-data-capture and review system for archaeological work at Pompeii. It digitizes the paper "Pompeii Excavation Master Sheet" workflow:
 
-1. **Field recorders** document rooms/features (spaces, walls, finds, photo/video logs) on a tablet or laptop — often with **no internet connection** on site.
+1. **Field recorders** document rooms/features (spaces, walls, finds, photo/video logs) on a tablet or laptop. When the device has a connection (and the recorder is signed in), change requests push to the server in real time; when it doesn't, the app keeps working unconnected and queues changes to batch-sync later.
 2. Recordings are submitted into a **review queue** — never directly into the master catalog.
 3. **Researchers/admins** inspect each submission in a review portal — including a field-by-field diff against the existing master record — and can **correct fields inline** before deciding.
 4. **Approving** a submission merges it into the **master catalog** (~4,959 feature records, ~5.9 MB of JSON); rejecting closes it with notes.
@@ -106,7 +106,7 @@ Auth state persists in `localStorage` (survives a full browser restart), and **f
 
 - **`api.js`** — all network logic with automatic failover:
   - *Reads*: try `GET /api/v1/features` → on failure, `localStorage` cache → on failure, the **bundled `public/features.json`** (the full catalog ships inside the app). Health is re-checked every 10 s against `/up`; reconnect triggers a refresh.
-  - *Writes*: try `POST /api/v1/submissions`; on failure (or offline) **queue to the outbox** instead of failing.
+  - *Writes*: connected → `POST /api/v1/submissions` immediately (real-time push); on failure (or no connection) **queue to the outbox** and batch-sync later instead of failing.
   - `BACKEND_URL` is `VITE_BACKEND_URL`; an **empty string means same-origin** (the fdpompeii.org build, where SPA and API are one site). Default for local dev: `http://localhost:3000`.
 - **`storage.js`** — `localStorage` keys for the cached catalog, the offline outbox, **form drafts**, and the last submitter name; photos are held as base64 data URLs; emits a `pompeii_outbox_change` window event so the UI reacts.
 - **`imageCompressor.js`** — every photo is drawn to a `<canvas>` and re-encoded as JPEG, iteratively reducing quality then dimensions until **strictly under 1 MB** (target 950 KB, max 2048 px).
@@ -126,8 +126,8 @@ Field recorder                        Rails backend                     Reviewer
 login ──────────────► /api/v1/auth/login
 pull catalog ───────► /api/v1/features        (falls back to cache/bundled JSON)
 record new sheet / edit existing room (draft autosaved locally)
-       │ online:  POST /api/v1/submissions ─► Submission(status: pending)
-       │ offline: localStorage outbox ── later "Sync" ─► same endpoint
+       │ connected:  POST /api/v1/submissions (real-time) ─► Submission(status: pending)
+       │ unconnected: localStorage outbox ── batch "Sync" later ─► same endpoint
                                                      ┌──────────────┐
                                         browse /admin │ pending queue│
                                                      └──────┬───────┘

@@ -255,7 +255,7 @@
   <!-- 1. What it is -->
   <section id="what">
     <h2><span class="num">1</span>What This Is</h2>
-    <p class="section-sub">A monorepo containing two independent applications that digitize the paper "Pompeii Excavation Master Sheet": field archaeologists record rooms/features offline on site, submissions flow into a review queue, and admins approve or reject each one before it merges into the master catalog.</p>
+    <p class="section-sub">A monorepo containing two independent applications that digitize the paper "Pompeii Excavation Master Sheet": field archaeologists record rooms/features on site — pushing change requests in real time when connected, or queuing them for batch sync when not — submissions flow into a review queue, and admins approve or reject each one before it merges into the master catalog.</p>
     <div class="cards">
       <div class="card">
         <h4>Field Client</h4>
@@ -388,7 +388,7 @@
     <div class="diagram">
       <div class="flow">
         <div class="step"><span class="n">1</span><b>Record on site</b><span>New sheet or an edit of an existing room (form pre-filled from the master record; draft autosaved locally); photos compressed <1 MB in-browser.</span></div>
-        <div class="step"><span class="n">2</span><b>Submit or queue</b><span>Online → POST <code>/api/v1/submissions</code>. Offline → localStorage outbox, synced later.</span></div>
+        <div class="step"><span class="n">2</span><b>Submit or queue</b><span>Connected → pushed in real time to <code>/api/v1/submissions</code>. Unconnected → localStorage outbox, batch-synced later.</span></div>
         <div class="step"><span class="n">3</span><b>Review queue</b><span>Submission stored <span class="pill pending">pending</span>; bulk sync endpoint replays offline batches.</span></div>
         <div class="step"><span class="n">4</span><b>Diff & decide</b><span>Reviewer views old-vs-new per field, can correct fields inline (PATCH), then approves or rejects.</span></div>
         <div class="step approve"><span class="n">5</span><b>Merge on approve</b><span>Transaction upserts the Feature by sheet number, merges photo lists, stamps reviewer + time.</span></div>
