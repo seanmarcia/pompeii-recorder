@@ -13,6 +13,25 @@ Field data capture and expert review for the **Food And Drink in Ancient Pompeii
 
 **Core rule:** *submissions are drafts, features are truth.* Nothing enters the master catalog without an explicit approval.
 
+## The approval workflow
+
+Every change to the master catalog goes through the same loop: **record → submit → review → merge (or reject)**. Each submission carries an `action_type` — `create_new` or `update_existing` — so reviewers always know which kind of change they are looking at.
+
+**Recording a new sheet.** From the field app's landing screen the recorder starts a blank master sheet, fills it in (pickers enforce the project's controlled vocabularies), attaches photos, and submits.
+
+**Editing an existing sheet.** The recorder opens **Browse**, searches the catalog (works offline from the cached/bundled snapshot), and selects the room. The form **pre-fills with the room's current master values**; the recorder updates what they observed and submits. The submission targets that sheet number (`target_sheet`), so reviewers see the proposed change *against the live master record* — never a blind overwrite.
+
+**Submitting (online or off).** With the backend reachable the submission is queued immediately; otherwise it waits in the local **outbox** and syncs later (individually or via the bulk sync endpoint). The recorder can later check what happened to a submission via `GET /api/v1/submissions/:id`.
+
+**Review.** An investigator/admin opens the review portal (`/admin`):
+- The dashboard lists the pending queue, plus approved/rejected history.
+- Opening a submission shows a **field-by-field diff** — master value vs. submitted value — highlighting only the fields that would change.
+- The reviewer can **correct fields inline** before deciding (`PATCH /admin/submissions/:id`, pending submissions only). Corrections equal to the master value are never written, so an untouched form cannot silently blank out master data.
+- **Approve** merges the payload into the master catalog inside a transaction — creating the feature or updating the existing one by sheet number, *merging* (not replacing) photo lists, and stamping reviewer notes + timestamp.
+- **Reject** closes the submission with reviewer notes; the master record is never touched without an approval.
+
+**After a decision.** Approved changes are live in the catalog: field clients pick them up on the next catalog pull/sync, and admins can export the whole catalog as JSON (`GET /admin/export_master`).
+
 ## Repository layout
 
 ```

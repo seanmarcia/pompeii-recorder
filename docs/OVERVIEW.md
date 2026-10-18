@@ -96,7 +96,7 @@ A deliberately dependency-light SPA (no router, no state library — plain React
 
 - **Login** — posts to the API when online; offline, it accepts **previously-remembered logins** (salted SHA-256 hashes stored after a successful online login) and any recorder via a **PBKDF2-hashed shared recorder password**. No plaintext credentials ship in the bundle.
 - **Landing** — choose "new sheet" or "edit an existing sheet" (browse).
-- **Form tab** — `RoomSelector` + `FeatureForm` (the full master-sheet form, with **controlled-vocabulary pickers** for feature types, space types, usage categories, and people) + `PhotoUploader` + `AttributeMultiSelect`.
+- **Form tab** — `RoomSelector` + `FeatureForm` (the full master-sheet form, with **controlled-vocabulary pickers** for feature types, space types, usage categories, and people) + `PhotoUploader` + `AttributeMultiSelect`. Selecting an existing room in Browse/RoomSelector **pre-fills the form with its current master values** and submits as `update_existing`; a blank start submits as `create_new`.
 - **Browse tab** — browse/search the pulled master catalog.
 - **Outbox tab** — inspect, retry, or discard queued offline submissions.
 
@@ -125,7 +125,7 @@ Field recorder                        Rails backend                     Reviewer
 ──────────────                        ─────────────                     ─────────
 login ──────────────► /api/v1/auth/login
 pull catalog ───────► /api/v1/features        (falls back to cache/bundled JSON)
-record sheet + photos (draft autosaved locally)
+record new sheet / edit existing room (draft autosaved locally)
        │ online:  POST /api/v1/submissions ─► Submission(status: pending)
        │ offline: localStorage outbox ── later "Sync" ─► same endpoint
                                                      ┌──────────────┐

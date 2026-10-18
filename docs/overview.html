@@ -387,7 +387,7 @@
     <p class="section-sub">From the trench to the master catalog. Offline operation is a first-class path, not an error state.</p>
     <div class="diagram">
       <div class="flow">
-        <div class="step"><span class="n">1</span><b>Record on site</b><span>Recorder fills the master-sheet form (draft autosaved locally); photos compressed <1 MB in-browser.</span></div>
+        <div class="step"><span class="n">1</span><b>Record on site</b><span>New sheet or an edit of an existing room (form pre-filled from the master record; draft autosaved locally); photos compressed <1 MB in-browser.</span></div>
         <div class="step"><span class="n">2</span><b>Submit or queue</b><span>Online → POST <code>/api/v1/submissions</code>. Offline → localStorage outbox, synced later.</span></div>
         <div class="step"><span class="n">3</span><b>Review queue</b><span>Submission stored <span class="pill pending">pending</span>; bulk sync endpoint replays offline batches.</span></div>
         <div class="step"><span class="n">4</span><b>Diff & decide</b><span>Reviewer views old-vs-new per field, can correct fields inline (PATCH), then approves or rejects.</span></div>
