@@ -82,7 +82,7 @@ export default function Header({
               <span className={isPullingRooms ? "spinner-mini" : ""}>
                 {isPullingRooms ? "⏳" : "⬇️"}
               </span>
-              <span>{isPullingRooms ? "Updating..." : "Update Latest Data"}</span>
+              <span>{isPullingRooms ? "Syncing..." : "Sync Database Updates"}</span>
             </button>
           )}
 
