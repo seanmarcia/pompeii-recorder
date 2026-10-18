@@ -163,8 +163,8 @@ There are **two deployment modes** for the same frontend, plus one backend deplo
 
 ### 6.3 CI
 
-- `backend/.github/workflows/ci.yml`: **Brakeman**, **bundler-audit**, **importmap audit**, **RuboCop** — on PRs and pushes to `main`. Dependabot is configured.
-- Root `.github/workflows/deploy.yml` handles Pages deploys; backend deploys are manual via `bin/deploy`.
+- Root `.github/workflows/deploy.yml` handles Pages deploys automatically; backend deploys are manual via `bin/deploy`.
+- **The backend CI and Dependabot configs are currently inert.** `backend/.github/workflows/ci.yml` and `backend/.github/dependabot.yml` came from the Rails template, but GitHub only reads `.github/` from the **repo root** — so the Brakeman/bundler-audit/importmap/RuboCop jobs have never run. Run them locally via the binstubs (see `backend/README.md`); relocating the config to the root is a planned follow-up.
 
 ### 6.4 Local development
 
@@ -180,6 +180,7 @@ There are **two deployment modes** for the same frontend, plus one backend deplo
 3. **No API tokens** — API login is one-time validation; the client keeps state in `localStorage`. There is no per-request auth on submission endpoints.
 4. **localStorage as the offline store** — outbox, drafts, and catalog cache are per-browser and quota-bound, though photo-bloat is mitigated by the 1 MB compression rule and drafts degrade gracefully when storage is full.
 5. **Seed passwords in credentials** — a good improvement over the original published demo passwords, but the credential file must be kept safe; re-seeding rotates everyone at once.
+6. **Inert CI/Dependabot config** — `backend/.github/` is invisible to GitHub (only the root `.github/` is read), so lint and security scans never ran automatically. Tests, Brakeman, bundler-audit, and importmap audit currently pass locally; RuboCop reports ~53 offenses. Relocation to the repo root plus a lint cleanup is a pending follow-up.
 
 ---
 
@@ -199,7 +200,7 @@ There are **two deployment modes** for the same frontend, plus one backend deplo
 | `backend/Dockerfile` | Production image — builds the SPA and bundles it into Rails `public/` |
 | `backend/config/deploy.yml` | Kamal deployment (fdpompeii.org, GHCR, SSL) |
 | `backend/bin/deploy` | rsync → remote build → push → `kamal deploy --skip-push` |
-| `backend/.github/workflows/ci.yml` | Security scans + lint CI |
+| `backend/.github/workflows/ci.yml` | Security scans + lint (currently inert — GitHub reads only the root `.github/`) |
 | `frontend/src/App.jsx` | App shell: landing/form/browse/outbox tabs, sync orchestration |
 | `frontend/src/lib/api.js` | Network layer with offline failover + outbox sync + offline login |
 | `frontend/src/lib/storage.js` | localStorage: catalog cache, outbox, form drafts |

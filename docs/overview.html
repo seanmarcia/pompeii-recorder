@@ -494,7 +494,7 @@
       </div>
       <div class="card">
         <h4>CI (backend/.github/workflows)</h4>
-        <p>GitHub Actions on PRs & <code>main</code>: <b>Brakeman</b> (static security), <b>bundler-audit</b> (gem CVEs), <b>importmap audit</b> (JS CVEs), <b>RuboCop</b> lint. Dependabot enabled. Backend deploys are manual via <code>bin/deploy</code>.</p>
+        <p><b>Currently inert:</b> the Rails-template CI + Dependabot live in <code>backend/.github/</code>, which GitHub never reads (only the root <code>.github/</code>) — so only the Pages workflow runs. Scans (<b>Brakeman</b>, <b>bundler-audit</b>, <b>importmap audit</b>, <b>RuboCop</b>) run locally via binstubs; relocating the config is a planned follow-up. Backend deploys are manual via <code>bin/deploy</code>.</p>
       </div>
       <div class="card">
         <h4>Service worker</h4>

@@ -2,7 +2,7 @@
 
 Field data capture and expert review for the **Food And Drink in Ancient Pompeii** project ([fdpompeii.org](https://fdpompeii.org)). It digitizes the paper "Pompeii Excavation Master Sheet" workflow: archaeologists record rooms and features in the field — change requests push to a review queue **in real time** when the device is connected and the recorder signed in, or are **queued locally and batch-synced** when connectivity is (re)acquired — and researchers approve, correct, or reject each one before it merges into the master catalog.
 
-> **Note for humans and AI agents:** the nested `backend/README.md` and `frontend/README.md` are framework boilerplate. This file and [`docs/OVERVIEW.md`](docs/OVERVIEW.md) are the authoritative documentation.
+> **Reading guide:** this file is the front door for the whole system. [`backend/README.md`](backend/README.md) and [`frontend/README.md`](frontend/README.md) hold per-app development details (setup, commands, tests, deploy); [`docs/OVERVIEW.md`](docs/OVERVIEW.md) is the deep-dive overview.
 
 ## The 30-second version
 
@@ -127,7 +127,7 @@ Override the API location with `VITE_BACKEND_URL` (empty string = same-origin).
 
 The Dockerfile builds from the **repo root**: a Node stage builds the SPA (`VITE_BASE=/`, same-origin API) into the Rails app's `public/`. Production Rails forces SSL, pins `config.hosts` to fdpompeii.org, and serves `public/` with `no-cache` so the SPA shell and service worker update immediately.
 
-CI (`backend/.github/workflows/ci.yml`): Brakeman, bundler-audit, importmap audit, RuboCop on PRs and `main`.
+**Backend CI is not active yet** — `backend/.github/` (CI workflow + Dependabot) is invisible to GitHub, which only reads `.github/` from the **repo root**, so currently only the Pages workflow above runs. Security scans and lint (Brakeman, bundler-audit, importmap audit, RuboCop) run locally via the backend binstubs — see [`backend/README.md`](backend/README.md). Relocating the config to the root is a planned follow-up.
 
 ## Repo map
 
@@ -154,6 +154,8 @@ Quick orientation for agents (and humans):
 
 ## Further reading
 
+- [`backend/README.md`](backend/README.md) — backend development: setup, tests, security scans, seeding, Kamal deploy
+- [`frontend/README.md`](frontend/README.md) — frontend development: commands, env vars, offline behavior, conventions
 - [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — full system deep-dive (updated per release)
 - [`docs/overview.html`](docs/overview.html) — the same overview as a visual one-pager
 - [`frontend/DEPLOYMENT.md`](frontend/DEPLOYMENT.md) — GitHub Pages setup and backend connectivity
