@@ -70,14 +70,14 @@ export default function Header({
             <span className="status-text">{isOnline ? "Database Connected" : "Offline Mode"}</span>
           </div>
 
-          {/* Prominent Pull / Sync Rooms from Rails button */}
+          {/* Prominent Sync Database Updates button */}
           {isOnline && (
             <button
               type="button"
               className="pull-rooms-btn"
               onClick={onPullRooms}
               disabled={isPullingRooms}
-              title="Download latest verified master Pompeii rooms catalog from Rails"
+              title="Download the latest verified Pompeii rooms catalog"
             >
               <span className={isPullingRooms ? "spinner-mini" : ""}>
                 {isPullingRooms ? "⏳" : "⬇️"}
@@ -92,7 +92,7 @@ export default function Header({
               className="sync-btn"
               onClick={onSync}
               disabled={isSyncing}
-              title="Sync pending submissions to Rails review queue"
+              title="Send pending submissions to the admin review queue"
             >
               {isSyncing ? "Syncing..." : `Sync Outbox (${outboxCount})`}
             </button>
@@ -118,7 +118,7 @@ export default function Header({
               target="_blank"
               rel="noreferrer"
               className="admin-portal-link"
-              title="Open Rails Admin Review Portal in new tab"
+              title="Open the Admin Review Portal in a new tab"
             >
               Admin Queue &rarr;
             </a>

@@ -63,7 +63,7 @@ export async function loginClient(username, password) {
       return { success: false, error: "Invalid username or password." };
     }
   } catch (err) {
-    console.info("Rails login offline, checking authorized field researcher credentials:", err.message);
+    console.info("Server login unavailable, checking authorized field researcher credentials:", err.message);
   }
 
   const offlineUser =
@@ -146,7 +146,7 @@ export async function pullMasterFeatures() {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      throw new Error(`Rails server responded with HTTP ${res.status}`);
+      throw new Error(`The server responded with an error (HTTP ${res.status})`);
     }
 
     const features = await res.json();
@@ -155,9 +155,9 @@ export async function pullMasterFeatures() {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === "AbortError") {
-      throw new Error("Sync timed out. Rails server took too long to respond.");
+      throw new Error("Sync timed out. The server took too long to respond.");
     }
-    throw new Error(`Cannot reach Rails backend at ${BACKEND_URL}: ${err.message}`);
+    throw new Error(`Cannot reach the server: ${err.message}`);
   }
 }
 
@@ -189,7 +189,7 @@ export async function loadMasterFeatures() {
       return { features, isOnline, source };
     }
   } catch (err) {
-    console.info("Rails backend unreachable, falling back to local/cached data:", err.message);
+    console.info("Server unreachable, falling back to local/cached data:", err.message);
   }
 
   // Fallback 1: Local cache
@@ -285,7 +285,7 @@ export async function submitFeature({
     success: true,
     isOffline: true,
     clientId: outboxEntry.clientId,
-    message: "Saved to Offline Outbox. Will sync when Rails backend is online.",
+    message: "Saved to Offline Outbox. Will sync when the server is reachable.",
   };
 }
 
@@ -295,7 +295,7 @@ export async function submitFeature({
 export async function syncOutbox(onProgress) {
   const isOnline = await checkBackendStatus();
   if (!isOnline) {
-    throw new Error("Rails backend is currently unreachable. Connect to server to sync.");
+    throw new Error("The server is currently unreachable. Connect to the internet to sync.");
   }
 
   const outbox = getOutbox();
@@ -347,6 +347,6 @@ export async function syncOutbox(onProgress) {
     syncedCount,
     failedCount: errors.length,
     errors,
-    message: `Successfully synced ${syncedCount} item(s) to Rails review queue.`,
+    message: `Successfully synced ${syncedCount} item(s) to the admin review queue.`,
   };
 }

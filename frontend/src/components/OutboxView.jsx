@@ -14,7 +14,7 @@ export default function OutboxView({
         <div>
           <h2 className="outbox-title">&#128235; Offline Outbox Queue</h2>
           <p className="outbox-desc">
-            Submissions logged while Rails is offline are held safely in your browser storage.
+            Submissions logged while offline are held safely on this device.
             When connected, sync them directly to the admin review queue.
           </p>
         </div>
@@ -27,7 +27,7 @@ export default function OutboxView({
                 className="btn-sync-all"
                 disabled={!isOnline || isSyncing}
                 onClick={onSync}
-                title={isOnline ? "Send all outbox logs to Rails" : "Connect to Rails backend to sync"}
+                title={isOnline ? "Send all outbox entries to admin review" : "Connect to the internet to sync"}
               >
                 {isSyncing ? "Syncing..." : isOnline ? `Sync All Now (${outbox.length})` : "Offline (Connect to Sync)"}
               </button>
@@ -48,7 +48,7 @@ export default function OutboxView({
           <div className="empty-icon">&#9989;</div>
           <h3>Outbox is empty</h3>
           <p>
-            All field logs have been successfully sent to the Rails review queue, or no offline entries are pending.
+            All field logs have been successfully sent to the admin review queue, or no offline entries are pending.
           </p>
         </div>
       ) : (

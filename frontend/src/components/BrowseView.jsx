@@ -1,5 +1,13 @@
 import React, { useState, useMemo } from "react";
 
+const SOURCE_LABELS = {
+  backend: "database",
+  cache: "saved on this device",
+  localStorage: "saved on this device",
+  bundled_fallback: "built-in copy",
+  none: "none",
+};
+
 export default function BrowseView({
   features,
   onSelectFeature,
@@ -82,9 +90,9 @@ export default function BrowseView({
             className="btn-pull-rooms-browse"
             onClick={onPullRooms}
             disabled={!isOnline || isPullingRooms}
-            title="Download latest rooms from Rails review server"
+            title="Download the latest rooms from the database"
           >
-            {isPullingRooms ? "⏳ Pulling..." : "⬇️ Sync from Rails"}
+            {isPullingRooms ? "⏳ Syncing..." : "⬇️ Sync Database Updates"}
           </button>
 
           <button
@@ -109,7 +117,7 @@ export default function BrowseView({
       <div className="browse-meta-banner">
         <span>
           Showing <strong>{filtered.length}</strong> of {features.length} Pompeii room records
-          (Data source: <code className="source-code">{dataSource}</code>)
+          (Data source: <code className="source-code">{SOURCE_LABELS[dataSource] || dataSource}</code>)
         </span>
       </div>
 

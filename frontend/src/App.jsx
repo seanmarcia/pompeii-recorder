@@ -103,7 +103,7 @@ export default function App() {
       setFeatures(result.features);
       setDataSource("backend");
       showNotice(
-        `✓ Successfully pulled ${result.count.toLocaleString()} rooms from Rails master archive!`,
+        `✓ Successfully pulled ${result.count.toLocaleString()} rooms from the master archive!`,
         "success"
       );
     } catch (err) {
@@ -145,7 +145,7 @@ export default function App() {
     if (result.isOffline) {
       showNotice("Saved to Offline Outbox. Will sync when server is reachable.", "warning");
     } else {
-      showNotice("Submission successfully sent to Rails review queue!", "success");
+      showNotice("Submission successfully sent to the admin review queue!", "success");
     }
     refreshOutbox();
 

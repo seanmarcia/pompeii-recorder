@@ -38,7 +38,7 @@ export default function Login({ onLogin, isOnline }) {
           <p className="client-login-subtitle">Field Recorder</p>
           <div className="client-login-status">
             <span className={`status-dot ${isOnline ? "online" : "offline"}`}></span>
-            <span>{isOnline ? "Connected to Rails Review Server" : "Field Mode (Offline Active)"}</span>
+            <span>{isOnline ? "Database Connected" : "Field Mode (Offline Active)"}</span>
           </div>
         </div>
 
