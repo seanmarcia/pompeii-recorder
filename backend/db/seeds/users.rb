@@ -21,17 +21,26 @@ RECORDERS = [
   "Loretta Dimitruk",
   "Natalie Dimitruk",
   "Lynette Galloway",
+  "Cindy Hacunda",
+  "Lilly Lacetti",
   "Larry Ludwicki",
   "David Mayeske",
+  "Charlie Meier",
   "Rich Olimpio",
   "Matthew Selmheimer",
   "Linda Swanson",
+  "Brian Szczesniak",
   "Pam Wood",
+  "John Wissinger",
   "Leslie Xavier",
   "Ted Xavier"
 ].freeze
 
 RESEARCHERS = ["Lisa Khan", "Mary Meier", "Suzanne Stone"].freeze
+
+# Admin logins that aren't researchers (so they don't appear in the Researcher
+# dropdown), keyed by username. They use the researcher password.
+OTHER_ADMINS = { "carlost" => nil }.freeze
 
 passwords = Rails.application.credentials.seed_passwords || {}
 recorder_password = passwords[:recorder].presence
@@ -53,3 +62,13 @@ User.where(username: %w[admin researcher]).destroy_all
   end
   puts "✓ #{names.size} #{role} logins ready"
 end
+
+OTHER_ADMINS.each do |username, full_name|
+  user = User.find_or_initialize_by(username: username)
+  user.full_name = full_name
+  user.email = "#{username}@fdpompeii.org"
+  user.role = "admin"
+  user.password = researcher_password
+  user.save!
+end
+puts "✓ #{OTHER_ADMINS.size} other admin logins ready"

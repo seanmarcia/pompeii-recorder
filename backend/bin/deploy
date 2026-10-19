@@ -23,7 +23,8 @@ rsync -az --partial --timeout=60 --delete \
   ../ "$SERVER:fdpompeii-src/"
 
 echo "==> Building $IMAGE:$VERSION on the server"
-gh auth token | ssh "$SERVER" 'docker login ghcr.io -u seanmarcia --password-stdin >/dev/null'
+GH_USER=$(gh api user --jq .login)
+gh auth token | ssh "$SERVER" "docker login ghcr.io -u $GH_USER --password-stdin >/dev/null"
 ssh "$SERVER" "cd fdpompeii-src && nohup sh -c 'docker build -f backend/Dockerfile --label service=fdpompeii -t $IMAGE:$VERSION . && docker push $IMAGE:$VERSION; echo BUILD_EXIT=\$?' > ~/fdpompeii-build.log 2>&1 < /dev/null &"
 until ssh -o ConnectTimeout=15 "$SERVER" 'grep -q "^BUILD_EXIT=" ~/fdpompeii-build.log' 2>/dev/null; do sleep 15; done
 if ! ssh "$SERVER" 'grep -q "^BUILD_EXIT=0" ~/fdpompeii-build.log'; then

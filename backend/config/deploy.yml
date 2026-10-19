@@ -31,9 +31,10 @@ registry:
   # Alternatives: hub.docker.com / registry.digitalocean.com / ghcr.io / ...
   # GitHub's container registry: the server builds, pushes and pulls the image directly.
   server: ghcr.io
-  username: seanmarcia
-
-  # GitHub token with write:packages, read from the gh CLI in .kamal/secrets.
+  # Whoever is deploying, via their own gh CLI login (see .kamal/secrets). They need
+  # write access to the ghcr.io/seanmarcia/fdpompeii package.
+  username:
+    - KAMAL_REGISTRY_USERNAME
   password:
     - KAMAL_REGISTRY_PASSWORD
 
