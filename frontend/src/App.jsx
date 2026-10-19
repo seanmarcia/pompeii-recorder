@@ -149,10 +149,11 @@ export default function App() {
     }
     refreshOutbox();
 
-    // Return to the blank "new room" form so it's obvious the submission went through.
+    // Back to the start page so they can begin a new sheet or edit another.
     setSelectedFeature(null);
     setActionType("create_new");
     setFormResetKey((k) => k + 1);
+    setActiveTab("landing");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
