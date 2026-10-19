@@ -22,6 +22,7 @@ module Api
                     {}
                   end
 
+        payload = Submission.clean_field_payload(payload)
         target_sheet ||= payload["SHEET"]
 
         submission = Submission.new(
@@ -68,7 +69,7 @@ module Api
         results = []
         Submission.transaction do
           submissions_data.each do |sub_hash|
-            payload = sub_hash["payload"] || {}
+            payload = Submission.clean_field_payload(sub_hash["payload"])
             submission = Submission.create!(
               action_type: sub_hash["action_type"] || "create_new",
               target_sheet: sub_hash["target_sheet"] || payload["SHEET"],

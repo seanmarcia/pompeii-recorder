@@ -22,6 +22,10 @@ module Admin
                      when "all"      then Submission.recent
                      else                 Submission.pending
                      end
+
+      # How many pending submissions each sheet has, to flag sheets that
+      # several people are recording at once.
+      @pending_per_sheet = Submission.where(status: "pending").where.not(target_sheet: [nil, ""]).group(:target_sheet).count
     end
 
     # GET /admin/submissions/:id

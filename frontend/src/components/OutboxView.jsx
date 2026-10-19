@@ -54,7 +54,7 @@ export default function OutboxView({
       ) : (
         <div className="outbox-cards-list">
           {outbox.map((item) => {
-            const p = item.payload || {};
+            const p = { ...(item.payload?._defaults || {}), ...(item.payload || {}) };
             const photoCount = Array.isArray(item.photos) ? item.photos.length : 0;
             return (
               <div key={item.clientId} className="outbox-item-card">

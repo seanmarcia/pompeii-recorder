@@ -287,11 +287,20 @@
         <span class="badge badge-<%= @submission.status %>"><%= @submission.status %></span>
       </div>
       <p style="color: var(--text-muted); margin-top: 0.35rem; font-size: 0.9rem;">
-        Target Sheet: <strong><%= @submission.target_sheet.presence || @payload["SHEET"] || "Unspecified" %></strong> &bull;
+        Target Sheet: <strong><%= @submission.sheet_number || "Unspecified" %></strong> &bull;
         Submitted <%= @submission.created_at.strftime("%B %d, %Y at %H:%M UTC") %>
       </p>
     </div>
   </div>
+
+  <% if @submission.status == "pending" && (others = @submission.other_pending_for_sheet.to_a).any? %>
+    <div class="flash flash-info">
+      <%= others.size == 1 ? "Another pending submission exists" : "#{others.size} other pending submissions exist" %>
+      for Sheet <%= @submission.sheet_number %>:
+      <% others.each_with_index do |other, i| %><%= ", " if i > 0 %><a href="<%= admin_submission_path(other) %>">#<%= other.id %> from <%= other.submitter_name.presence || "Anonymous" %></a><% end %>.
+      Approve each one to merge them into the sheet. Fields left blank never erase what's already there.
+    </div>
+  <% end %>
 
   <div class="review-layout">
     <!-- LEFT: Diff / Field Breakdown -->
@@ -328,7 +337,7 @@
                 <%= render "field_row", submission: @submission, key: key, label: label, is_new: @diff[:is_new] %>
               <% end %>
             <% end %>
-            <% extra_keys = @payload.keys - Submission::EDITABLE_FIELDS.values.flat_map(&:keys) - ["photos"] %>
+            <% extra_keys = @payload.keys - Submission::EDITABLE_FIELDS.values.flat_map(&:keys) - ["photos", Submission::DEFAULTS_KEY] %>
             <% if extra_keys.any? %>
               <tr class="section-row"><td colspan="<%= @diff[:is_new] ? 2 : 3 %>">Other Submitted Values</td></tr>
               <% extra_keys.each do |key| %>

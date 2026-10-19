@@ -139,4 +139,18 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_equal "VII", @submission.reload.payload["REGION"]
   end
+
+  test "flags other pending submissions for the same sheet" do
+    other = Submission.create!(
+      action_type: "create_new", target_sheet: "8888", status: "pending",
+      submitter_name: "Photo Team", payload: { "SHEET" => "8888", "photos" => ["p.jpg"] }
+    )
+
+    get "/admin"
+    assert_select ".badge-shared", /2 pending for this sheet/
+
+    get "/admin/submissions/#{@submission.id}"
+    assert_select ".flash-info", /Another pending submission exists/
+    assert_select ".flash-info a[href=?]", "/admin/submissions/#{other.id}"
+  end
 end

@@ -72,6 +72,10 @@ export default function FeatureForm({
   currentUser,
 }) {
   const [formData, setFormData] = useState({});
+  // The form's starting values (the master record, or the new-sheet
+  // defaults). Only fields that differ from these are sent as changes, so two
+  // people working on the same sheet don't overwrite each other's fields.
+  const [baseline, setBaseline] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [submitterName, setSubmitterName] = useState("");
   const [submitterNotes, setSubmitterNotes] = useState("");
@@ -106,14 +110,16 @@ export default function FeatureForm({
     if (draft) {
       // Resume exactly where the researcher left off on this sheet.
       setFormData(draft.formData || {});
+      setBaseline(draft.baseline || null);
       setPhotos(draft.photos || []);
       setSubmitterNotes(draft.submitterNotes || "");
       setFeedback(null);
       return;
     }
 
+    let start;
     if (initialFeature) {
-      setFormData({
+      start = {
         SHEET: initialFeature.SHEET || "",
         FEATURE_ID: initialFeature.FEATURE_ID || "",
         SHEET_DATE: initialFeature.SHEET_DATE ? initialFeature.SHEET_DATE.substring(0, 10) : "",
@@ -145,12 +151,12 @@ export default function FeatureForm({
         TIME_COUNT: initialFeature.TIME_COUNT || "",
         VIDEO_COMMENTS: initialFeature.VIDEO_COMMENTS || "",
         ARTIST_ID: initialFeature.ARTIST_ID || "",
-      });
+      };
       // Existing photos from feature record
       setPhotos([]);
     } else {
       // Default blank template for new room
-      setFormData({
+      start = {
         SHEET: "",
         FEATURE_ID: "",
         SHEET_DATE: new Date().toISOString().substring(0, 10),
@@ -183,9 +189,11 @@ export default function FeatureForm({
         TIME_COUNT: "",
         VIDEO_COMMENTS: "",
         ARTIST_ID: "",
-      });
+      };
       setPhotos([]);
     }
+    setFormData(start);
+    setBaseline(start);
     setFeedback(null);
   }, [initialFeature, actionType, formResetKey, currentUser]);
 
@@ -204,11 +212,12 @@ export default function FeatureForm({
     }
     saveDraft(draftId, {
       formData,
+      baseline,
       photos: photos.map((p) => ({ ...p, file: undefined })),
       submitterNotes,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, formData, photos, submitterNotes]);
+  }, [draftId, formData, baseline, photos, submitterNotes]);
 
   useEffect(() => {
     setLastSubmitterName(submitterName);
@@ -255,8 +264,23 @@ export default function FeatureForm({
       photoNames.unshift(...initialFeature.photos);
     }
 
+    // Send what this person entered or changed. Untouched starting values
+    // (today's date, Region VI, ...) go separately and only fill in blanks
+    // on the master sheet when an admin approves it.
+    const changed = { SHEET: formData.SHEET };
+    const defaults = {};
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === "SHEET") return;
+      if (baseline && value === baseline[key]) {
+        if (value) defaults[key] = value;
+      } else {
+        changed[key] = value;
+      }
+    });
+
     const payload = {
-      ...formData,
+      ...changed,
+      _defaults: defaults,
       photos: Array.from(new Set(photoNames)),
     };
 

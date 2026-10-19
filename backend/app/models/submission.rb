@@ -50,6 +50,26 @@ class Submission < ApplicationRecord
   LONG_TEXT_FIELDS = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
 
+  # Payload key holding values the recorder left at the form's starting value
+  # (today's date, Region VI, ...). Those only fill in blanks on the master
+  # record, so a second person adding photos to a sheet doesn't overwrite it.
+  DEFAULTS_KEY = "_defaults".freeze
+
+  # Cleans a payload arriving from the field app. Blank values are dropped
+  # because a blank never erases master data; only a reviewer can clear a
+  # field. Older app versions send every field, which this also handles.
+  def self.clean_field_payload(raw)
+    raw = raw.to_unsafe_h if raw.respond_to?(:to_unsafe_h)
+    data = (raw || {}).to_h.stringify_keys
+    defaults = data.delete(DEFAULTS_KEY)
+    data = data.reject { |_k, v| v.nil? || (v.is_a?(String) && v.strip.empty?) }
+    if defaults.is_a?(Hash)
+      defaults = defaults.to_h.stringify_keys.reject { |k, v| v.to_s.strip.empty? || data.key?(k) }
+      data[DEFAULTS_KEY] = defaults if defaults.any?
+    end
+    data
+  end
+
   validates :status, inclusion: { in: %w[pending approved rejected] }
   validates :action_type, inclusion: { in: %w[create_new update_existing] }
 
@@ -69,18 +89,34 @@ class Submission < ApplicationRecord
     self.payload_data = hash.is_a?(Hash) ? hash.to_json : (hash || {}.to_json)
   end
 
-  # Returns the corresponding Feature from the master database if one exists
-  def master_feature
-    target = target_sheet.presence || payload["SHEET"].presence
-    return nil if target.blank?
-    Feature.find_by(sheet: target)
+  def defaults
+    payload[DEFAULTS_KEY] || {}
   end
 
-  # Value shown in the reviewer edit form: the submitted value, or the master
-  # record's value for fields the submission didn't touch.
+  def sheet_number
+    target_sheet.presence || payload["SHEET"].presence
+  end
+
+  # Other submissions for the same sheet still waiting for review.
+  def other_pending_for_sheet
+    return Submission.none if sheet_number.blank?
+    Submission.pending.where(target_sheet: sheet_number).where.not(id: id)
+  end
+
+  # Returns the corresponding Feature from the master database if one exists
+  def master_feature
+    return nil if sheet_number.blank?
+    Feature.find_by(sheet: sheet_number)
+  end
+
+  # The value this field will have once approved: what the recorder entered
+  # (or a reviewer's correction, where a blank means they cleared it), else
+  # the master record's value, else the form's starting value.
   def editable_value(key)
-    return payload[key] if payload.key?(key)
-    master_values[key]
+    data = payload
+    return data[key] if data.key?(key)
+    return master_values[key] if master_values[key].present?
+    defaults[key]
   end
 
   def master_values
@@ -89,7 +125,7 @@ class Submission < ApplicationRecord
 
   # True when the submission would change this field on the master record.
   def field_changed?(key)
-    payload.key?(key) && payload[key].to_s.strip != master_values[key].to_s.strip
+    editable_value(key).to_s.strip != master_values[key].to_s.strip
   end
 
   def changed_field_count
@@ -124,11 +160,11 @@ class Submission < ApplicationRecord
     # Check all keys in payload
     all_keys = (existing_hash.keys + payload.keys).uniq
     all_keys.each do |k|
-      next if k == "photos"
+      next if k == "photos" || k == DEFAULTS_KEY
       v_old = existing_hash[k].to_s.strip
-      v_new = payload[k].to_s.strip
+      v_new = editable_value(k).to_s.strip
       if v_old != v_new
-        diffs[k] = { old: existing_hash[k], new: payload[k] }
+        diffs[k] = { old: existing_hash[k], new: editable_value(k) }
       end
     end
 
@@ -138,12 +174,12 @@ class Submission < ApplicationRecord
   # Approve this submission and merge it into the Feature master table
   def approve!(reviewer_note = nil)
     ActiveRecord::Base.transaction do
-      sheet_val = target_sheet.presence || payload["SHEET"].presence
+      sheet_val = sheet_number
       raise "Missing Sheet Number in submission payload" if sheet_val.blank?
 
       feat = Feature.find_or_initialize_by(sheet: sheet_val)
-      
-      # Update master feature fields from payload
+
+      # Update master feature fields that this submission actually changes
       %w[
         feature_id sheet_date recorder_id researcher_id season
         region insula entrance structure_id sheet_type_id space_number
@@ -153,7 +189,7 @@ class Submission < ApplicationRecord
         file_number tape_number time_count video_comments artist_id
       ].each do |attr|
         key = attr.upcase
-        feat.send("#{attr}=", payload[key]) if payload.key?(key)
+        feat.send("#{attr}=", editable_value(key)) if field_changed?(key)
       end
 
       # Merge photos: keep existing + add any filenames/URLs from payload

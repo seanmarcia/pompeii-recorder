@@ -176,14 +176,19 @@
               <% end %>
             </td>
             <td>
-              <div class="cell-title">Sheet <%= sub.target_sheet.presence || payload["SHEET"] || "—" %></div>
+              <div class="cell-title">Sheet <%= sub.sheet_number || "—" %></div>
               <div class="cell-sub">
-                Reg <%= payload["REGION"].presence || "—" %> &bull; Ins <%= payload["INSULA"].presence || "—" %> &bull; Ent <%= payload["ENTRANCE"].presence || "—" %>
+                Reg <%= sub.editable_value("REGION").presence || "—" %> &bull; Ins <%= sub.editable_value("INSULA").presence || "—" %> &bull; Ent <%= sub.editable_value("ENTRANCE").presence || "—" %>
               </div>
+              <% if sub.status == "pending" && @pending_per_sheet[sub.target_sheet].to_i > 1 %>
+                <span class="badge badge-shared" title="Several people sent in this sheet. Review each one; approving merges them.">
+                  <%= @pending_per_sheet[sub.target_sheet] %> pending for this sheet
+                </span>
+              <% end %>
             </td>
             <td>
-              <div class="cell-title"><%= payload["SPACE_NUMBER"].presence || payload["STRUCTURE_ID"] || "Untitled Space" %></div>
-              <div class="cell-sub"><%= payload["FEATURE_TYPE_ID"].presence || payload["SHEET_TYPE_ID"] || "Record" %></div>
+              <div class="cell-title"><%= sub.editable_value("SPACE_NUMBER").presence || sub.editable_value("STRUCTURE_ID").presence || "Untitled Space" %></div>
+              <div class="cell-sub"><%= sub.editable_value("FEATURE_TYPE_ID").presence || sub.editable_value("SHEET_TYPE_ID").presence || "Record" %></div>
             </td>
             <td>
               <div class="cell-title"><%= sub.submitter_name.presence || "Anonymous" %></div>
