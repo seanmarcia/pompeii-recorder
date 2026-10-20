@@ -26,7 +26,7 @@ export const RECORDER_NAMES = [
   "Ted Xavier",
 ];
 
-export const RESEARCHER_NAMES = ["Lisa Khan", "Mary Meier", "Suzanne Stone"];
+export const RESEARCHER_NAMES = ["Lisa Kahn", "Mary Meier", "Suzanne Stone"];
 
 export const usernameFor = (fullName) => fullName.toLowerCase().replace(/ /g, "");
 

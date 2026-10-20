@@ -36,7 +36,7 @@ RECORDERS = [
   "Ted Xavier"
 ].freeze
 
-RESEARCHERS = ["Lisa Khan", "Mary Meier", "Suzanne Stone"].freeze
+RESEARCHERS = ["Lisa Kahn", "Mary Meier", "Suzanne Stone"].freeze
 
 # Admin logins that aren't researchers (so they don't appear in the Researcher
 # dropdown), keyed by username. They use the researcher password.
@@ -49,6 +49,12 @@ abort "Missing seed_passwords in credentials; see db/seeds/users.rb" unless reco
 
 # The original shared demo accounts had passwords published in the repo.
 User.where(username: %w[admin researcher]).destroy_all
+
+# Logins created under a misspelled name, renamed to the correct spelling.
+{ "lisakhan" => "lisakahn" }.each do |old, new|
+  User.where(username: old).update_all(username: new) unless User.exists?(username: new)
+  User.where(username: old).destroy_all
+end
 
 [[RECORDERS, "recorder", recorder_password], [RESEARCHERS, "admin", researcher_password]].each do |names, role, password|
   names.each do |full_name|
