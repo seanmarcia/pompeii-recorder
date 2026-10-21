@@ -36,12 +36,94 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", /FOOD AND DRINK IN ANCIENT POMPEII/
     assert_select "td", /Lararium shrine room/
+    assert_select "th", text: "Data Entered By"
   end
 
   test "GET /admin/submissions/:id shows submission detail" do
     get "/admin/submissions/#{@submission.id}"
     assert_response :success
     assert_select ".detail-title", /Submission ##{@submission.id}/
+    assert_select "tr[data-field='CATEGORY_ID'] strong", text: "Category"
+    assert_select "tr[data-field='USAGE_ID'] strong", text: "Usage Classification"
+    assert_select "div", text: "Your Name / Data Entered By"
+  end
+
+  test "category editor offers the same five choices as the field app" do
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select "tr[data-field='CATEGORY_ID'] td.value-cell[data-kind='category']" do |cells|
+      assert_equal [
+        "Commercial", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious"
+      ], JSON.parse(cells.first["data-options"])
+    end
+    assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='text']"
+  end
+
+  test "category corrections preserve usage and late usage through approval" do
+    usage = "Commercial | Bakery: Oven; Enclosed"
+    @submission.update!(payload: @submission.payload.merge("USAGE_ID" => usage))
+
+    [ "Commercial", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious" ].each do |category|
+      patch "/admin/submissions/#{@submission.id}", params: {
+        fields: { "CATEGORY_ID" => category }
+      }, as: :json
+
+      assert_response :success
+      assert_equal category, @submission.reload.payload["CATEGORY_ID"]
+      assert_equal usage, @submission.payload["USAGE_ID"]
+      row = response.parsed_body["rows"]["CATEGORY_ID"]
+      assert_match 'data-kind="category"', row
+      assert_match "data-options=", row
+    end
+
+    post "/admin/submissions/#{@submission.id}/approve"
+
+    assert_redirected_to admin_submission_path(@submission)
+    feature = Feature.find_by!(sheet: "8888")
+    assert_equal "Religious", feature.category_id
+    assert_equal usage, feature.usage_id
+  end
+
+  test "invalid category corrections fail without saving other field changes" do
+    original = @submission.payload
+    patch "/admin/submissions/#{@submission.id}", params: {
+      fields: { "SPACE_NUMBER" => "Changed room", "CATEGORY_ID" => "Other" }
+    }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_match "Category must be one of:", response.parsed_body["error"]
+    assert_equal original, @submission.reload.payload
+  end
+
+  test "category can be cleared like the optional field in the field app" do
+    @submission.update!(payload: @submission.payload.merge("CATEGORY_ID" => "Public"))
+    patch "/admin/submissions/#{@submission.id}", params: {
+      fields: { "CATEGORY_ID" => "" }
+    }, as: :json
+
+    assert_response :success
+    assert_equal "", @submission.reload.payload["CATEGORY_ID"]
+  end
+
+  test "legacy master categories are preserved when the reviewer leaves them unchanged" do
+    Feature.create!(sheet: "6083", category_id: "Domestic")
+    update = Submission.create!(
+      action_type: "update_existing",
+      target_sheet: "6083",
+      payload: { "SHEET" => "6083" }
+    )
+
+    get "/admin/submissions/#{update.id}"
+    assert_select "tr[data-field='CATEGORY_ID'] td.value-cell[data-kind='category'][data-value='Domestic']"
+
+    patch "/admin/submissions/#{update.id}", params: {
+      fields: { "CATEGORY_ID" => "Domestic" }
+    }, as: :json
+
+    assert_response :success
+    assert_not update.reload.payload.key?("CATEGORY_ID")
+    post "/admin/submissions/#{update.id}/approve"
+    assert_equal "Domestic", Feature.find_by!(sheet: "6083").category_id
   end
 
   test "POST /admin/submissions/:id/approve merges to master Feature and updates status" do
@@ -76,6 +158,31 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}"
     assert_select "tr[data-field='SPACE_NUMBER'] td.value-cell.editable[data-value='Lararium shrine room']"
     assert_select "tr[data-field='ARTIST_ID'] td.value-cell.editable", /click to add/
+  end
+
+  test "view mode shows pending sheet data and submitter without editors or review actions" do
+    attributes = @submission.attributes
+    assert_no_difference [ "Feature.count", "Submission.count" ] do
+      get admin_submission_path(@submission, mode: "view")
+    end
+    assert_response :success
+    assert_select "td.value-cell.editable", count: 0
+    assert_select "textarea, input, select", count: 0
+    assert_select "form", count: 0
+    assert_select "td", /Lararium shrine room/
+    assert_select "div", text: "Field Team Alpha"
+    assert_select "a[href='#{admin_submission_path(@submission)}']", text: "Review / Edit Submission"
+    assert_equal attributes, @submission.reload.attributes
+  end
+
+  test "view mode also supports approved and rejected submissions" do
+    %w[approved rejected].each do |status|
+      @submission.update!(status: status, reviewed_at: Time.current)
+      get admin_submission_path(@submission, mode: "view")
+      assert_response :success
+      assert_select "td.value-cell.editable, form", count: 0
+      assert_select ".detail-title .badge", text: status
+    end
   end
 
   test "PATCH /admin/submissions/:id saves reviewer corrections that are merged on approval" do

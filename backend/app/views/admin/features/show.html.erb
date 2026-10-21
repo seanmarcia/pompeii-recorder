@@ -1,0 +1,42 @@
+<%= link_to "Back to Master Sheets", admin_features_path, class: "btn btn-outline" %>
+<h2>Sheet #<%= @feature.sheet %> &mdash; Read Only</h2>
+<p>This is the saved master record. Viewing does not change the sheet or any submissions.</p>
+<% Submission::EDITABLE_FIELDS.each do |section, fields| %>
+  <section style="margin: 1.5rem 0;">
+    <h3><%= section %></h3>
+    <dl style="display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 0.5rem 1rem;">
+      <% fields.each do |key, label| %>
+        <dt><strong><%= label %></strong></dt>
+        <dd style="white-space: pre-wrap; overflow-wrap: anywhere;"><%= @values[key].presence || "Not recorded" %></dd>
+      <% end %>
+    </dl>
+  </section>
+<% end %>
+<section>
+  <h3>Field Photos</h3>
+  <% @photo_submissions.each do |submission| %>
+    <% submission.photos.each do |photo| %>
+      <figure style="margin: 1rem 0;">
+        <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy", style: "max-width: 100%; max-height: 360px;" %>
+        <figcaption><%= photo.filename %></figcaption>
+      </figure>
+    <% end %>
+  <% end %>
+  <% if @feature.photos.any? %>
+    <ul><% @feature.photos.each do |photo| %><li><%= photo %></li><% end %></ul>
+  <% else %>
+    <p>No photo filenames recorded.</p>
+  <% end %>
+</section>
+<section style="margin-top: 1.5rem;">
+  <h3>Submitted / Reviewed Sheets</h3>
+  <ul>
+    <% @submissions.each do |submission| %>
+      <li>
+        <%= link_to "View Submission ##{submission.id}", admin_submission_path(submission, mode: "view") %>
+        &mdash; <%= submission.status %>
+      </li>
+    <% end %>
+  </ul>
+  <% if @submissions.empty? %><p>No submissions for this sheet.</p><% end %>
+</section>

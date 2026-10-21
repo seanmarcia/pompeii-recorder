@@ -24,8 +24,8 @@ class Submission < ApplicationRecord
       "SHEET_TYPE_ID" => "Sheet Type",
       "FEATURE_TYPE_ID" => "Feature Type",
       "SPACE_TYPE_ID" => "Space Type",
-      "USAGE_ID" => "Category",
-      "CATEGORY_ID" => "Usage Classification"
+      "CATEGORY_ID" => "Category",
+      "USAGE_ID" => "Usage Classification"
     },
     "Interpretation" => {
       "NEGATIVE_FEATURE" => "Negative Feature (T/F)",
@@ -49,6 +49,13 @@ class Submission < ApplicationRecord
 
   LONG_TEXT_FIELDS = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
+  CATEGORY_OPTIONS = [
+    "Commercial",
+    "Public",
+    "Commercial-Domestic",
+    "Domestic-Commercial",
+    "Religious"
+  ].freeze
 
   validates :status, inclusion: { in: %w[pending approved rejected] }
   validates :action_type, inclusion: { in: %w[create_new update_existing] }
@@ -105,6 +112,10 @@ class Submission < ApplicationRecord
       next unless EDITABLE_FIELDS.values.any? { |fields| fields.key?(key) }
       next if key == "SHEET" && action_type == "update_existing"
       value = value.to_s.strip
+      if key == "CATEGORY_ID" && value.present? && !CATEGORY_OPTIONS.include?(value) && value != editable_value(key).to_s.strip
+        errors.add(:base, "Category must be one of: #{CATEGORY_OPTIONS.join(', ')}.")
+        raise ActiveRecord::RecordInvalid.new(self)
+      end
       next if !data.key?(key) && value == editable_value(key).to_s.strip
       data[key] = value
     end

@@ -35,4 +35,25 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
     assert_equal false, json["authenticated"]
   end
+
+  test "POST /api/v1/auth/login authenticates Lisa Kahn with the correct username" do
+    User.create!(
+      username: "lisakahn",
+      full_name: "Lisa Kahn",
+      email: "lisakahn@fdpompeii.org",
+      password: "test-password",
+      role: "admin"
+    )
+
+    post "/api/v1/auth/login", params: {
+      username: "lisakahn",
+      password: "test-password"
+    }, as: :json
+
+    assert_response :success
+    user = response.parsed_body["user"]
+    assert_equal "lisakahn", user["username"]
+    assert_equal "Lisa Kahn", user["full_name"]
+    assert_equal "admin", user["role"]
+  end
 end

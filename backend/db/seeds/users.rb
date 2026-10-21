@@ -31,7 +31,7 @@ RECORDERS = [
   "Ted Xavier"
 ].freeze
 
-RESEARCHERS = ["Lisa Khan", "Mary Meier", "Suzanne Stone"].freeze
+RESEARCHERS = [ "Lisa Kahn", "Mary Meier", "Suzanne Stone" ].freeze
 
 passwords = Rails.application.credentials.seed_passwords || {}
 recorder_password = passwords[:recorder].presence

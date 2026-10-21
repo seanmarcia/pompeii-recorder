@@ -26,6 +26,7 @@ module Admin
 
     # GET /admin/submissions/:id
     def show
+      @read_only = params[:mode] == "view"
       @diff = @submission.compute_diff
       @master = @submission.master_feature
       @payload = @submission.payload
