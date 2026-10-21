@@ -21,8 +21,7 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
   test "master sheets catalog supports search and view links" do
     get admin_features_path, params: { q: "Read-only shrine" }
     assert_response :success
-    assert_select "td", text: "Read-only shrine"
-    assert_select "a[href='#{admin_feature_path(@feature.sheet)}']", text: "View Sheet"
+    assert_select "a.room-title[href='#{admin_feature_path(@feature.sheet)}']", text: /Read-only shrine/
   end
 
   test "viewing a master sheet shows stored values without editable fields or writes" do
@@ -31,7 +30,8 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
       get admin_feature_path(@feature.sheet)
     end
     assert_response :success
-    assert_select "h2", /Read Only/
+    assert_select ".readonly-pill", /Read only/
+    assert_select "h2", /Read-only shrine/
     assert_select "dd", text: "Religious"
     assert_select "dd", text: "Domestic | Shrine: Niche"
     assert_select "dd", text: "<script>not executable</script>"
@@ -63,5 +63,41 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_login_path
     get admin_feature_path(@feature.sheet)
     assert_redirected_to admin_login_path
+  end
+
+  def sheet_numbers
+    css_select(".sheet-tag").map { |tag| tag.text.strip }
+  end
+
+  test "every search word must match somewhere on the sheet" do
+    Feature.create!(sheet: "s-1", space_number: "Taberna", description: "Counter with three dolia", recorder_id: "Sera Baker")
+    Feature.create!(sheet: "s-2", space_number: "Kitchen", description: "Hearth and a dolium")
+    get admin_features_path, params: { q: "dolia sera" }
+    assert_equal [ "s-1" ], sheet_numbers
+    get admin_features_path, params: { q: "\"three dolia\"" }
+    assert_equal [ "s-1" ], sheet_numbers
+    assert_select "mark", text: "three dolia"
+  end
+
+  test "an address searches by location" do
+    Feature.create!(sheet: "a-1", region: "VI", insula: "17", entrance: "42")
+    Feature.create!(sheet: "a-2", region: "VI", insula: "17", entrance: "5")
+    Feature.create!(sheet: "a-3", region: "VII", insula: "17", entrance: "42")
+    get admin_features_path, params: { q: "VI.17.42" }
+    assert_equal [ "a-1" ], sheet_numbers
+    get admin_features_path, params: { q: "vi 17" }
+    assert_equal [ "a-2", "a-1" ], sheet_numbers
+  end
+
+  test "filters narrow results and sorting by location orders regions numerically" do
+    Feature.create!(sheet: "f-1", region: "IX", category_id: "Commercial", recorder_id: "Sera Baker")
+    Feature.create!(sheet: "f-2", region: "II", category_id: "Commercial", photographer_id: "Sera Baker")
+    Feature.create!(sheet: "f-3", region: "V", category_id: "Domestic")
+    get admin_features_path, params: { q: "f-", category: "Commercial" }
+    assert_equal [ "f-2", "f-1" ], sheet_numbers
+    get admin_features_path, params: { q: "f-", person: "Sera Baker" }
+    assert_equal [ "f-2", "f-1" ], sheet_numbers
+    get admin_features_path, params: { q: "f-" }
+    assert_equal [ "f-2", "f-3", "f-1" ], sheet_numbers
   end
 end

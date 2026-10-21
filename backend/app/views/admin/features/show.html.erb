@@ -1,42 +1,176 @@
-<%= link_to "Back to Master Sheets", admin_features_path, class: "btn btn-outline" %>
-<h2>Sheet #<%= @feature.sheet %> &mdash; Read Only</h2>
-<p>This is the saved master record. Viewing does not change the sheet or any submissions.</p>
-<% Submission::EDITABLE_FIELDS.each do |section, fields| %>
-  <section style="margin: 1.5rem 0;">
-    <h3><%= section %></h3>
-    <dl style="display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 0.5rem 1rem;">
-      <% fields.each do |key, label| %>
-        <dt><strong><%= label %></strong></dt>
-        <dd style="white-space: pre-wrap; overflow-wrap: anywhere;"><%= @values[key].presence || "Not recorded" %></dd>
+<style>
+  .sheet-page { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+  .sheet-back { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+  .sheet-back:hover { color: var(--terracotta); }
+
+  .sheet-hero {
+    background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--terracotta);
+    border-radius: 14px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(60, 40, 20, 0.1);
+  }
+  .hero-top { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .sheet-tag { font-family: monospace; font-weight: 700; font-size: 0.85rem; color: #7a5228; background: var(--surface-elevated); padding: 0.15rem 0.5rem; border-radius: 4px; }
+  .readonly-pill { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.55rem; }
+  .sheet-title { font-family: var(--font-serif); font-size: clamp(1.5rem, 4vw, 2.1rem); line-height: 1.2; margin-top: 0.6rem; overflow-wrap: anywhere; }
+  .sheet-address { color: var(--text-muted); margin-top: 0.3rem; }
+  .hero-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
+  .hero-tag { font-size: 0.8rem; font-weight: 600; border-radius: 999px; padding: 0.2rem 0.7rem; background: rgba(138, 59, 30, 0.1); color: #6c2c14; }
+  .hero-tag.cat { background: rgba(165, 114, 63, 0.16); color: #6c4a26; }
+  .hero-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid #eadfca; }
+  .label-sm, .hero-facts dt, .sheet-fields dt { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .hero-facts dd { margin-top: 0.2rem; font-weight: 600; }
+  .is-empty { color: var(--text-muted); font-weight: 400; }
+
+  .sheet-section { background: var(--surface); border: 1px solid #e7dcc7; border-radius: 14px; padding: 1.25rem 1.5rem 1.5rem; }
+  .section-head { display: flex; align-items: center; gap: 0.75rem; padding-bottom: 0.75rem; margin-bottom: 1.1rem; border-bottom: 1px solid #e7dcc7; }
+  .section-head h3 { font-size: 1.05rem; }
+  .section-num { font-family: var(--font-serif); font-size: 0.85rem; font-weight: 700; color: var(--terracotta); border: 1px solid var(--border); border-radius: 6px; padding: 0.1rem 0.45rem; }
+  .sheet-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem 1.5rem; }
+  .sheet-fields .is-long { grid-column: 1 / -1; }
+  .sheet-fields dd { margin-top: 0.25rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sheet-fields .is-long dd {
+    font-family: var(--font-serif); font-size: 1.02rem; line-height: 1.6; background: var(--bg);
+    border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 0.75rem 1rem;
+  }
+  .flag { display: inline-block; font-size: 0.8rem; font-weight: 700; border-radius: 999px; padding: 0.1rem 0.6rem; background: var(--surface-elevated); color: var(--text-muted); }
+  .flag.yes { background: rgba(79, 121, 66, 0.14); color: var(--success); }
+  .not-recorded { color: var(--text-muted); font-size: 0.82rem; margin-top: 1.1rem; padding-top: 0.75rem; border-top: 1px dashed #e7dcc7; }
+  .not-recorded strong { font-weight: 700; }
+  .none { color: var(--text-muted); font-size: 0.9rem; }
+
+  .photo-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.9rem; }
+  .photo-grid li { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+  .photo-grid img, .photo-placeholder { width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-elevated); }
+  .photo-grid img { display: block; object-fit: cover; transition: transform 0.15s ease; }
+  .photo-grid a:hover img { transform: scale(1.02); }
+  .photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 1.75rem; opacity: 0.7; }
+  .photo-grid span { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .history { list-style: none; }
+  .history li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.7rem 0; border-bottom: 1px solid #eadfca; }
+  .history li:last-child { border-bottom: none; }
+  .history a { font-weight: 600; color: var(--terracotta); text-decoration: none; }
+  .history a:hover { text-decoration: underline; }
+  .history .meta { color: var(--text-muted); font-size: 0.85rem; }
+</style>
+
+<% long_text = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS] %>
+<% yes_no = Submission::BOOLEAN_FIELDS %>
+<% address = [ (@feature.structure_id if @feature.space_number.present? && @feature.structure_id.present?), ("Region #{@feature.region}" if @feature.region.present?), ("Insula #{@feature.insula}" if @feature.insula.present?), ("Entrance #{@feature.entrance}" if @feature.entrance.present?) ].compact %>
+<% format_date = ->(value) { Date.parse(value.to_s[0, 10]).strftime("%B %-d, %Y") rescue value.to_s } %>
+<% section_count = Submission::EDITABLE_FIELDS.size %>
+
+<div class="sheet-page">
+  <div>
+    <%= link_to "← Back to Master Sheets", request.referer&.include?(admin_features_path) ? request.referer : admin_features_path, class: "sheet-back" %>
+  </div>
+
+  <header class="sheet-hero">
+    <div class="hero-top">
+      <span class="sheet-tag">Sheet #<%= @feature.sheet %></span>
+      <span class="readonly-pill">Read only</span>
+    </div>
+    <h2 class="sheet-title"><%= @feature.space_number.presence || @feature.structure_id.presence || "Sheet #{@feature.sheet}" %></h2>
+    <p class="sheet-address"><%= address.any? ? address.join(" · ") : "Location not recorded" %></p>
+    <% tags = [ @feature.sheet_type_id, @feature.feature_type_id, @feature.space_type_id ].map(&:presence).compact %>
+    <% if tags.any? || @feature.category_id.present? %>
+      <div class="hero-tags">
+        <% tags.each do |t| %><span class="hero-tag"><%= t %></span><% end %>
+        <% if @feature.category_id.present? %><span class="hero-tag cat"><%= @feature.category_id %></span><% end %>
+      </div>
+    <% end %>
+    <dl class="hero-facts">
+      <% { "Date" => (format_date.(@feature.sheet_date) if @feature.sheet_date.present?), "Season" => @feature.season,
+           "Researcher" => @feature.researcher_id, "Recorder" => @feature.recorder_id }.each do |label, value| %>
+        <div>
+          <dt><%= label %></dt>
+          <dd class="<%= "is-empty" if value.blank? %>"><%= value.presence || "—" %></dd>
+        </div>
       <% end %>
     </dl>
+  </header>
+
+  <% Submission::EDITABLE_FIELDS.each_with_index do |(section, fields), index| %>
+    <% recorded = fields.select { |key, _| yes_no.include?(key) || @values[key].present? } %>
+    <% missing = fields.reject { |key, _| recorded.key?(key) } %>
+    <section class="sheet-section">
+      <div class="section-head">
+        <span class="section-num"><%= format("%02d", index + 1) %></span>
+        <h3><%= section %></h3>
+      </div>
+      <% if recorded.any? %>
+        <dl class="sheet-fields">
+          <% recorded.each do |key, label| %>
+            <div class="<%= "is-long" if long_text.include?(key) %>">
+              <dt><%= label %></dt>
+              <% if yes_no.include?(key) %>
+                <dd><span class="flag <%= "yes" if @values[key] == "T" %>"><%= @values[key] == "T" ? "Yes" : "No" %></span></dd>
+              <% elsif key == "SHEET_DATE" %>
+                <dd><%= format_date.(@values[key]) %></dd>
+              <% else %>
+                <dd><%= @values[key] %></dd>
+              <% end %>
+            </div>
+          <% end %>
+        </dl>
+        <% if missing.any? %>
+          <p class="not-recorded"><strong>Not recorded:</strong> <%= missing.values.join(", ") %></p>
+        <% end %>
+      <% else %>
+        <p class="none">Nothing recorded in this section yet.</p>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% uploaded = @photo_submissions.flat_map { |s| s.photos.to_a } %>
+  <% uploaded_names = uploaded.map { |p| p.filename.to_s } %>
+  <% names_only = @feature.photos.reject { |name| uploaded_names.include?(name.to_s) } %>
+  <section class="sheet-section">
+    <div class="section-head">
+      <span class="section-num"><%= format("%02d", section_count + 1) %></span>
+      <h3>Field Photos (<%= uploaded.size + names_only.size %>)</h3>
+    </div>
+    <% if uploaded.any? || names_only.any? %>
+      <ul class="photo-grid">
+        <% uploaded.each do |photo| %>
+          <li>
+            <%= link_to url_for(photo), target: "_blank", rel: "noopener" do %>
+              <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy" %>
+            <% end %>
+            <span title="<%= photo.filename %>"><%= photo.filename %></span>
+          </li>
+        <% end %>
+        <% names_only.each do |name| %>
+          <li>
+            <div class="photo-placeholder" aria-hidden="true">📷</div>
+            <span title="<%= name %>"><%= name %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="none">No photos recorded.</p>
+    <% end %>
   </section>
-<% end %>
-<section>
-  <h3>Field Photos</h3>
-  <% @photo_submissions.each do |submission| %>
-    <% submission.photos.each do |photo| %>
-      <figure style="margin: 1rem 0;">
-        <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy", style: "max-width: 100%; max-height: 360px;" %>
-        <figcaption><%= photo.filename %></figcaption>
-      </figure>
+
+  <section class="sheet-section">
+    <div class="section-head">
+      <span class="section-num"><%= format("%02d", section_count + 2) %></span>
+      <h3>Submission History (<%= @submissions.size %>)</h3>
+    </div>
+    <% if @submissions.any? %>
+      <ul class="history">
+        <% @submissions.each do |submission| %>
+          <li>
+            <%= link_to "Submission ##{submission.id}", admin_submission_path(submission, mode: "view") %>
+            <span class="badge badge-<%= submission.status %>"><%= submission.status %></span>
+            <span class="meta">
+              <%= submission.submitter_name.presence || "Unknown" %> &bull;
+              <%= submission.created_at.strftime("%B %-d, %Y") %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="none">No submissions for this sheet yet.</p>
     <% end %>
-  <% end %>
-  <% if @feature.photos.any? %>
-    <ul><% @feature.photos.each do |photo| %><li><%= photo %></li><% end %></ul>
-  <% else %>
-    <p>No photo filenames recorded.</p>
-  <% end %>
-</section>
-<section style="margin-top: 1.5rem;">
-  <h3>Submitted / Reviewed Sheets</h3>
-  <ul>
-    <% @submissions.each do |submission| %>
-      <li>
-        <%= link_to "View Submission ##{submission.id}", admin_submission_path(submission, mode: "view") %>
-        &mdash; <%= submission.status %>
-      </li>
-    <% end %>
-  </ul>
-  <% if @submissions.empty? %><p>No submissions for this sheet.</p><% end %>
-</section>
+  </section>
+</div>
