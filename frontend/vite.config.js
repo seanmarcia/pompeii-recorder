@@ -16,10 +16,16 @@ function offlineServiceWorker() {
       outDir = config.build.outDir
     },
     closeBundle() {
-      writeFileSync(
-        join(outDir, 'heic-to-LICENSE.txt'),
-        readFileSync(new URL('./node_modules/heic-to/LICENSE', import.meta.url)),
-      )
+      for (const [dependency, source, filename] of [
+        ['heic-to', 'LICENSE', 'heic-to-LICENSE.txt'],
+        ['@imagemagick/magick-wasm', 'LICENSE', 'magick-wasm-LICENSE.txt'],
+        ['@imagemagick/magick-wasm', 'NOTICE', 'magick-wasm-NOTICE.txt'],
+      ]) {
+        writeFileSync(
+          join(outDir, filename),
+          readFileSync(new URL(`./node_modules/${dependency}/${source}`, import.meta.url)),
+        )
+      }
       const files = []
       const walk = (dir) => {
         for (const name of readdirSync(dir)) {
@@ -46,7 +52,7 @@ function offlineServiceWorker() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), offlineServiceWorker()],
-  optimizeDeps: { include: ['heic-to/csp'] },
+  optimizeDeps: { include: ['heic-to/csp', '@imagemagick/magick-wasm'] },
   // GitHub Pages serves from /pompeii-recorder/; the fdpompeii.org build sets VITE_BASE=/.
   base: process.env.VITE_BASE || '/pompeii-recorder/',
   // Keep built files out of /assets, which the Rails backend uses for its own.

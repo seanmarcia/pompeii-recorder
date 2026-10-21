@@ -84,8 +84,8 @@ export default function FeatureForm({
   // they don't have to retype it every time.
   useEffect(() => {
     const savedName = getLastSubmitterName();
-    if (savedName) setSubmitterName(savedName);
-    else if (currentUser?.full_name) setSubmitterName(currentUser.full_name);
+    if (RECORDER_OPTIONS.includes(savedName)) setSubmitterName(savedName);
+    else if (RECORDER_OPTIONS.includes(currentUser?.full_name)) setSubmitterName(currentUser.full_name);
   }, []);
 
   // Sync state when initialFeature changes
@@ -844,13 +844,20 @@ export default function FeatureForm({
         <div className="form-section submit-bar-section">
           <div className="form-grid-2">
             <div className="form-field">
-              <label>Your Name / Data Entered By</label>
-              <input
-                type="text"
+              <label htmlFor="submitter-name">Your Name / Data Entered By</label>
+              <select
+                id="submitter-name"
+                name="submitter_name"
                 value={submitterName}
                 onChange={(e) => setSubmitterName(e.target.value)}
-                placeholder="e.g. Dr. Sean Marcia"
-              />
+              >
+                <option value="">Select Data Entered By</option>
+                {RECORDER_OPTIONS.map((recorder) => (
+                  <option key={recorder} value={recorder}>
+                    {recorder}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label>Field Notes for the Reviewer</label>

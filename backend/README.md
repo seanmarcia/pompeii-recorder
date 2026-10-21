@@ -39,7 +39,7 @@ rejection controls; **Review / Edit Submission** returns to the normal workflow.
 Viewing is restricted to the same admin accounts as the existing review portal
 and does not alter master records or submissions.
 
-HEIC/HEIF images from the field client arrive as compressed JPEG attachments;
+HEIC/HEIF and Photoshop PSD images from the field client arrive as compressed JPEG attachments;
 conversion happens on the device before online upload or offline storage.
 
 This README would normally document whatever steps are necessary to get the

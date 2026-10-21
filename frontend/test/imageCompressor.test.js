@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, mock, test } from "node:test";
-import { compressImage, isHeicFile } from "../src/lib/imageCompressor.js";
+import { compressImage, isHeicFile, isPsdFile } from "../src/lib/imageCompressor.js";
 
 const MAX_BYTES = 1024 * 1024;
 const originals = new Map();
@@ -66,6 +66,17 @@ test("detects iPhone MIME types and case-insensitive HEIC/HEIF extensions", () =
     assert.equal(isHeicFile({ name, type: "application/octet-stream" }), true);
   }
   assert.equal(isHeicFile({ name: "photo.jpg", type: "image/jpeg" }), false);
+});
+
+test("detects PSD extensions and Photoshop MIME types, including missing MIME information", () => {
+  for (const type of ["image/vnd.adobe.photoshop", "image/psd", "image/x-photoshop", "application/photoshop", "application/x-photoshop"]) {
+    assert.equal(isPsdFile({ type, name: "photo" }), true);
+  }
+  for (const type of ["", "application/octet-stream"]) {
+    assert.equal(isPsdFile({ type, name: "field.PSD" }), true);
+  }
+  assert.equal(isPsdFile({ type: "image/jpeg", name: "field.jpg" }), false);
+  assert.equal(isPsdFile({ type: "", name: "field.psd.jpg" }), false);
 });
 
 test("outputs a correctly named JPEG with matching preview bytes and bounded dimensions", async () => {

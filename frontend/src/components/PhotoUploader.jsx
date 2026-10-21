@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { compressImage, isHeicFile } from "../lib/imageCompressor";
+import { compressImage, isHeicFile, isPsdFile } from "../lib/imageCompressor";
 
 export default function PhotoUploader({ photos, setPhotos, onProcessingChange }) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -18,7 +18,8 @@ export default function PhotoUploader({ photos, setPhotos, onProcessingChange })
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        setProcessingStatus(`${isHeicFile(file) ? "Converting HEIC and resizing" : "Resizing"} photo ${i + 1} of ${files.length} to < 1MB...`);
+        const format = isPsdFile(file) ? "PSD" : isHeicFile(file) ? "HEIC" : null;
+        setProcessingStatus(`${format ? `Converting ${format} and resizing` : "Resizing"} photo ${i + 1} of ${files.length} to < 1MB...`);
 
         try {
           const compressed = await compressImage(file);
@@ -37,7 +38,10 @@ export default function PhotoUploader({ photos, setPhotos, onProcessingChange })
           });
         } catch (err) {
           console.error("Image compression error:", err);
-          alert(`Failed to compress ${file.name}: ${err.message}`);
+          const hint = isPsdFile(file)
+            ? " Try resaving as an RGB PSD with Maximize Compatibility enabled, or export JPEG/PNG."
+            : "";
+          alert(`Failed to compress ${file.name}: ${err.message}${hint}`);
         }
       }
 
@@ -79,7 +83,7 @@ export default function PhotoUploader({ photos, setPhotos, onProcessingChange })
           ref={fileInputRef}
           onChange={(e) => handleFiles(e.target.files)}
           multiple
-          accept="image/*,.heic,.heif,image/heic,image/heif,image/heic-sequence,image/heif-sequence"
+          accept="image/*,.heic,.heif,.psd,image/heic,image/heif,image/heic-sequence,image/heif-sequence,image/vnd.adobe.photoshop,application/photoshop,application/x-photoshop"
           disabled={isProcessing}
           style={{ display: "none" }}
         />
@@ -88,7 +92,7 @@ export default function PhotoUploader({ photos, setPhotos, onProcessingChange })
           <strong>Click to select</strong> or drag and drop field excavation photos here
         </div>
         <div className="dropzone-sub">
-          iPhone HEIC/HEIF photos supported. Photos are converted to JPEG and resized to <strong>&lt; 1 MB</strong> on this device, including offline.
+          iPhone HEIC/HEIF and Photoshop PSD files supported. Photos are converted to JPEG and resized to <strong>&lt; 1 MB</strong> on this device, including offline.
         </div>
       </div>
 

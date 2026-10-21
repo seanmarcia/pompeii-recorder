@@ -22,6 +22,11 @@ export function isHeicFile(file) {
   return /^image\/hei[cf](?:-sequence)?$/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || "");
 }
 
+export function isPsdFile(file) {
+  return /^(image|application)\/(?:vnd\.adobe\.photoshop|(?:x-)?photoshop|(?:x-)?psd)$/i.test(file.type)
+    || /\.psd$/i.test(file.name || "");
+}
+
 function readDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -72,8 +77,12 @@ export async function compressImage(file, options = {}) {
     throw new Error("Maximum photo dimension must be a positive integer.");
   }
 
+  const isPsd = isPsdFile(file);
   let source = file;
-  if (isHeicFile(file)) {
+  if (isPsd) {
+    const { decodePsd } = await import("./psdDecoder.js");
+    source = await decodePsd(file, maxDimension);
+  } else if (isHeicFile(file)) {
     const { heicTo } = await import("heic-to/csp");
     source = await heicTo({ blob: file, type: "image/jpeg", quality: 0.95 });
   }

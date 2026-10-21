@@ -2,22 +2,35 @@
 
 ## Field photos
 
-JPEG, PNG, and iPhone HEIC/HEIF photos can be selected or dragged into the sheet.
-HEIC/HEIF files are decoded on the device, converted to JPEG, and resized to a
+JPEG, PNG, iPhone HEIC/HEIF photos, and Photoshop PSD files can be selected or
+dragged into the sheet. HEIC/HEIF and PSD files are decoded on the device,
+converted to JPEG, and resized to a
 maximum dimension of 2048 pixels. Every accepted output is strictly below
 1,048,576 bytes, with further resizing when needed. Invalid or unconvertible
 files show an error and are not added. Submission waits for photo processing.
 
 The JPEG preview, draft, offline outbox, and upload all use the same compressed
 image bytes. No external image conversion service is used. The production
-service worker caches the decoder along with the app, so conversion works offline
+service worker caches both decoders along with the app, so conversion works offline
 after the app has been opened and cached once.
 
 HEIC decoding uses [heic-to](https://github.com/hoppergee/heic-to), licensed under
 LGPL-3.0-or-later. Its license is included as `heic-to-LICENSE.txt` in production
 builds. The decoder is a separate, lazy-loaded bundle.
 
+PSD decoding uses [ImageMagick WebAssembly](https://github.com/dlemstra/magick-wasm),
+including support for CMYK files with extra channels. Its license and third-party
+notices are included in production builds. PSD conversion reads the first
+document image (the merged preview), not an individual layer; layers are not
+kept in the JPEG. For best compatibility, save PSDs with **Maximize Compatibility**
+enabled in Photoshop. Transparent areas are flattened onto white, and the image
+is converted to sRGB. The approximately 15 MB WebAssembly runtime is bundled and
+cached with the app; it does not upload the PSD to a server.
+
 ## Viewing sheets
+
+The **Your Name / Data Entered By** field uses the same dropdown names and order
+as **Recorder Name**, and remembers a valid selection for subsequent sheets.
 
 Choose **View an Existing Sheet**, or **View Sheet** on a catalog card, to read
 the saved master sheet. This works with the cached offline catalog and does not
