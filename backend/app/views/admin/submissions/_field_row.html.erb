@@ -3,8 +3,16 @@
 <% master_val = submission.master_values[key] %>
 <% changed = !is_new && submission.field_changed?(key) %>
 <% locked = key == "SHEET" && submission.action_type == "update_existing" %>
-<% editable = submission.status == "pending" && !locked %>
-<% kind = Submission::LONG_TEXT_FIELDS.include?(key) ? "textarea" : (Submission::BOOLEAN_FIELDS.include?(key) ? "boolean" : "text") %>
+<% editable = submission.status == "pending" && !locked && !local_assigns.fetch(:read_only, false) %>
+<% kind = if key == "CATEGORY_ID"
+            "category"
+          elsif Submission::LONG_TEXT_FIELDS.include?(key)
+            "textarea"
+          elsif Submission::BOOLEAN_FIELDS.include?(key)
+            "boolean"
+          else
+            "text"
+          end %>
 <% old_html, new_html = changed && master_val.present? && value.present? ? word_diff_html(master_val, value) : [nil, nil] %>
 <tr class="field-row<%= " changed-row" if changed %>" data-field="<%= key %>">
   <td>
@@ -28,6 +36,7 @@
       <% if editable %>
         tabindex="0" title="Click to edit"
         data-kind="<%= kind %>" data-value="<%= value %>"
+        <% if kind == "category" %>data-options="<%= Submission::CATEGORY_OPTIONS.to_json %>"<% end %>
       <% end %>>
     <span class="value-display">
       <% if new_html %>

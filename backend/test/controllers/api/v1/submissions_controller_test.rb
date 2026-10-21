@@ -53,4 +53,21 @@ class Api::V1::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, json["synced_count"]
     assert_equal 2, Submission.count
   end
+
+  test "converted iPhone JPEGs attach to the review submission with their new filename" do
+    photo = Rack::Test::UploadedFile.new(
+      StringIO.new("\xFF\xD8\xFF\xD9".b), "image/jpeg", original_filename: "iphone.jpg"
+    )
+    post "/api/v1/submissions", params: {
+      payload: { "SHEET" => "heic-converted", "photos" => [ "iphone.jpg" ] }.to_json,
+      photos: [ photo ]
+    }
+
+    assert_response :created
+    submission = Submission.find(response.parsed_body["submission_id"])
+    assert_equal [ "iphone.jpg" ], submission.payload["photos"]
+    assert_equal "iphone.jpg", submission.photos.first.filename.to_s
+    assert_equal "image/jpeg", submission.photos.first.content_type
+    assert_equal 1, submission.photos.count
+  end
 end

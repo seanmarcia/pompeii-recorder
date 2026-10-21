@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node --test test/*.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@imagemagick/magick-wasm": "^0.0.44",
+    "heic-to": "^1.6.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

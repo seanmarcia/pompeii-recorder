@@ -11,7 +11,13 @@ import {
   getOutbox,
   removeFromOutbox,
 } from "./storage";
-import { RECORDER_NAMES, RECORDER_OFFLINE_CHECK, usernameFor } from "../data/people";
+import {
+  RECORDER_NAMES,
+  RESEARCHER_NAMES,
+  RECORDER_OFFLINE_CHECK,
+  RESEARCHER_OFFLINE_CHECK,
+  usernameFor,
+} from "../data/people";
 
 // Empty string = same site as the app (the fdpompeii.org build).
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:3000";
@@ -37,7 +43,8 @@ export async function checkBackendStatus() {
  * Authenticates user credentials.
  * Checks online against Rails API /api/v1/auth/login.
  * If Rails is offline, accepts anyone who has signed in on this device before
- * (see rememberOfflineLogin), and any recorder via the hashed shared password.
+ * (see rememberOfflineLogin), and any listed recorder or researcher via their
+ * group's hashed shared password.
  */
 export async function loginClient(username, password) {
   const cleanUser = username.trim();
@@ -67,7 +74,7 @@ export async function loginClient(username, password) {
   }
 
   const offlineUser =
-    (await checkOfflineLogin(cleanUser, cleanPass)) || (await checkRecorderOfflineLogin(cleanUser, cleanPass));
+    (await checkOfflineLogin(cleanUser, cleanPass)) || (await checkFieldOfflineLogin(cleanUser, cleanPass));
   if (offlineUser) {
     return { success: true, user: offlineUser, isOnline: false };
   }
@@ -108,12 +115,14 @@ async function rememberOfflineLogin(username, password, user) {
   }
 }
 
-// Any recorder can also sign in offline on a device they haven't used before,
-// checked against the hashed shared recorder password.
-async function checkRecorderOfflineLogin(username, password) {
-  const fullName = RECORDER_NAMES.find((name) => usernameFor(name) === username.toLowerCase());
+// Named field users can sign in offline on a new device with their group's password.
+async function checkFieldOfflineLogin(username, password) {
+  const fullName = [...RECORDER_NAMES, ...RESEARCHER_NAMES].find(
+    (name) => usernameFor(name) === username.toLowerCase()
+  );
   if (!fullName || !globalThis.crypto?.subtle) return null;
-  const { salt, iterations, hash } = RECORDER_OFFLINE_CHECK;
+  const isResearcher = RESEARCHER_NAMES.includes(fullName);
+  const { salt, iterations, hash } = isResearcher ? RESEARCHER_OFFLINE_CHECK : RECORDER_OFFLINE_CHECK;
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations, hash: "SHA-256" },
@@ -121,7 +130,9 @@ async function checkRecorderOfflineLogin(username, password) {
     256
   );
   const hex = Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, "0")).join("");
-  return hex === hash ? { username: usernameFor(fullName), full_name: fullName, role: "recorder" } : null;
+  return hex === hash
+    ? { username: usernameFor(fullName), full_name: fullName, role: isResearcher ? "admin" : "recorder" }
+    : null;
 }
 
 async function checkOfflineLogin(username, password) {

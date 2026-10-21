@@ -44,23 +44,11 @@ const GATE_OPTIONS = [
 const USAGE_OPTIONS = ["Commercial", "Domestic"];
 
 const CATEGORY_OPTIONS = [
-  "Architectural Element",
-  "Circulation",
   "Commercial",
-  "Commercial Service",
-  "Commercial-Domestic",
-  "Decoration",
-  "Domestic",
-  "Domestic-Commercial",
-  "Food preparation",
-  "Production",
   "Public",
+  "Commercial-Domestic",
+  "Domestic-Commercial",
   "Religious",
-  "Religious / Cult",
-  "Sanitary",
-  "Storage",
-  "Water catchment",
-  "Other",
 ];
 
 export default function FeatureForm({
@@ -80,6 +68,7 @@ export default function FeatureForm({
   const [submitterName, setSubmitterName] = useState("");
   const [submitterNotes, setSubmitterNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
   // Unsaved sheet content is drafted to localStorage under this key so it
@@ -99,8 +88,8 @@ export default function FeatureForm({
   // they don't have to retype it every time.
   useEffect(() => {
     const savedName = getLastSubmitterName();
-    if (savedName) setSubmitterName(savedName);
-    else if (currentUser?.full_name) setSubmitterName(currentUser.full_name);
+    if (RECORDER_OPTIONS.includes(savedName)) setSubmitterName(savedName);
+    else if (RECORDER_OPTIONS.includes(currentUser?.full_name)) setSubmitterName(currentUser.full_name);
   }, []);
 
   // Sync state when initialFeature changes
@@ -249,6 +238,10 @@ export default function FeatureForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isProcessingPhotos) {
+      alert("Please wait for your photos to finish processing before submitting.");
+      return;
+    }
 
     if (!formData.SHEET?.trim()) {
       alert("Please enter a Sheet Number for this archaeological record.");
@@ -635,6 +628,17 @@ export default function FeatureForm({
           <div className="form-grid-4" style={{ marginTop: "1rem" }}>
             <div className="form-field">
               <label>Category</label>
+              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
+                <option value="">Select Category</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Usage Classification</label>
               <select
                 name="USAGE_ID"
                 value={selectedUsageClassification}
@@ -649,21 +653,10 @@ export default function FeatureForm({
                   }))
                 }
               >
-                <option value="">Select Category</option>
+                <option value="">Select Usage Classification</option>
                 {USAGE_OPTIONS.map((u) => (
                   <option key={u} value={u}>
                     {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Usage Classification</label>
-              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
-                <option value="">Select Usage Classification</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
                   </option>
                 ))}
               </select>
@@ -781,7 +774,7 @@ export default function FeatureForm({
             <span className="section-num">05</span>
             <h3>Field Photos &bull; Auto-Compressed to &lt; 1MB</h3>
           </div>
-          <PhotoUploader photos={photos} setPhotos={setPhotos} />
+          <PhotoUploader photos={photos} setPhotos={setPhotos} onProcessingChange={setIsProcessingPhotos} />
         </div>
 
         {/* SECTION 6: Archive & Documentation */}
@@ -875,13 +868,20 @@ export default function FeatureForm({
         <div className="form-section submit-bar-section">
           <div className="form-grid-2">
             <div className="form-field">
-              <label>Your Name / Field Researcher ID</label>
-              <input
-                type="text"
+              <label htmlFor="submitter-name">Your Name / Data Entered By</label>
+              <select
+                id="submitter-name"
+                name="submitter_name"
                 value={submitterName}
                 onChange={(e) => setSubmitterName(e.target.value)}
-                placeholder="e.g. Dr. Sean Marcia"
-              />
+              >
+                <option value="">Select Data Entered By</option>
+                {RECORDER_OPTIONS.map((recorder) => (
+                  <option key={recorder} value={recorder}>
+                    {recorder}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-field">
               <label>Field Notes for the Reviewer</label>
@@ -898,9 +898,11 @@ export default function FeatureForm({
             <button
               type="submit"
               className="btn-submit-sheet"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isProcessingPhotos}
             >
-              {isSubmitting
+              {isProcessingPhotos
+                ? "Processing photos..."
+                : isSubmitting
                 ? "Submitting..."
                 : isOnline
                 ? "Send to Review Queue →"

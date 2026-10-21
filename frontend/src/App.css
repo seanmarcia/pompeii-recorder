@@ -1176,8 +1176,34 @@
   border-top: 1px solid var(--border-subtle);
   padding-top: 0.75rem;
   display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+.sheet-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.sheet-view-toolbar small,
+.sheet-view-notice {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.sheet-view-notice { margin: 1rem 0; }
+.sheet-view-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.sheet-view-fields dt { font-weight: 600; color: var(--text-secondary); }
+.sheet-view-fields dd { margin: 0.25rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sheet-view-photos { padding-left: 1.5rem; overflow-wrap: anywhere; }
+.sheet-view-photos img { display: block; max-width: 100%; max-height: 360px; margin: 1rem 0; }
 
 .btn-edit-room {
   background: var(--surface-elevated);

@@ -1,46 +1,58 @@
 import React, { useState, useRef } from "react";
-import { compressImage } from "../lib/imageCompressor";
+import { compressImage, isHeicFile, isPsdFile } from "../lib/imageCompressor";
 
-export default function PhotoUploader({ photos, setPhotos }) {
+export default function PhotoUploader({ photos, setPhotos, onProcessingChange }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState("");
   const fileInputRef = useRef(null);
+  const processingRef = useRef(false);
 
   const handleFiles = async (files) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || processingRef.current) return;
+    processingRef.current = true;
     setIsProcessing(true);
+    onProcessingChange?.(true);
 
-    const newPhotos = [...photos];
+    const newPhotos = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setProcessingStatus(`Resizing photo ${i + 1} of ${files.length} to < 1MB...`);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const format = isPsdFile(file) ? "PSD" : isHeicFile(file) ? "HEIC" : null;
+        setProcessingStatus(`${format ? `Converting ${format} and resizing` : "Resizing"} photo ${i + 1} of ${files.length} to < 1MB...`);
 
-      try {
-        const compressed = await compressImage(file);
-        newPhotos.push({
-          id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          name: compressed.file.name,
-          file: compressed.file,
-          dataUrl: compressed.dataUrl,
-          originalSize: compressed.originalSize,
-          compressedSize: compressed.compressedSize,
-          originalFormatted: compressed.originalFormatted,
-          compressedFormatted: compressed.compressedFormatted,
-          width: compressed.width,
-          height: compressed.height,
-          isUnder1MB: compressed.isUnder1MB,
-        });
-      } catch (err) {
-        console.error("Image compression error:", err);
-        alert(`Failed to compress ${file.name}: ${err.message}`);
+        try {
+          const compressed = await compressImage(file);
+          newPhotos.push({
+            id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            name: compressed.file.name,
+            file: compressed.file,
+            dataUrl: compressed.dataUrl,
+            originalSize: compressed.originalSize,
+            compressedSize: compressed.compressedSize,
+            originalFormatted: compressed.originalFormatted,
+            compressedFormatted: compressed.compressedFormatted,
+            width: compressed.width,
+            height: compressed.height,
+            isUnder1MB: compressed.isUnder1MB,
+          });
+        } catch (err) {
+          console.error("Image compression error:", err);
+          const hint = isPsdFile(file)
+            ? " Try resaving as an RGB PSD with Maximize Compatibility enabled, or export JPEG/PNG."
+            : "";
+          alert(`Failed to compress ${file.name}: ${err.message}${hint}`);
+        }
       }
-    }
 
-    setPhotos(newPhotos);
-    setIsProcessing(false);
-    setProcessingStatus("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+      if (newPhotos.length) setPhotos((current) => [...current, ...newPhotos]);
+    } finally {
+      processingRef.current = false;
+      setIsProcessing(false);
+      setProcessingStatus("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onProcessingChange?.(false);
+    }
   };
 
   const onDrop = (e) => {
@@ -71,7 +83,8 @@ export default function PhotoUploader({ photos, setPhotos }) {
           ref={fileInputRef}
           onChange={(e) => handleFiles(e.target.files)}
           multiple
-          accept="image/*"
+          accept="image/*,.heic,.heif,.psd,image/heic,image/heif,image/heic-sequence,image/heif-sequence,image/vnd.adobe.photoshop,application/photoshop,application/x-photoshop"
+          disabled={isProcessing}
           style={{ display: "none" }}
         />
         <div className="dropzone-icon">&#128247;</div>
@@ -79,7 +92,7 @@ export default function PhotoUploader({ photos, setPhotos }) {
           <strong>Click to select</strong> or drag and drop field excavation photos here
         </div>
         <div className="dropzone-sub">
-          Automatic in-browser resizing strictly guarantees all photos are <strong>&lt; 1 MB</strong> before upload
+          iPhone HEIC/HEIF and Photoshop PSD files supported. Photos are converted to JPEG and resized to <strong>&lt; 1 MB</strong> on this device, including offline.
         </div>
       </div>
 

@@ -26,10 +26,18 @@ below for what that means in practice.
 the frontend talks to; it defaults to `http://localhost:3000`, which isn't
 reachable from a deployed site. Without a real backend:
 
-- Login falls back to the hardcoded offline credentials.
+- Listed recorders and researchers can sign in offline with their group's
+  password, even without a prior online login on that browser/device. Only
+  PBKDF2 password verifiers are bundled, not plaintext passwords.
 - The room catalog falls back to the bundled `public/features.json` snapshot.
 - Submissions save to the browser's local offline outbox only - they are
   never synced anywhere until a real backend is configured.
+
+Offline sign-in requires HTTPS or localhost for Web Crypto. The app must have
+been opened once with a connection so its files can be cached; no successful
+online login is required for listed field users. When a group's password changes,
+regenerate its verifier in `frontend/src/data/people.js` and rebuild the frontend.
+The Rails admin portal still requires a running backend.
 
 To connect the deployed frontend to a real Rails backend:
 

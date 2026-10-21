@@ -274,6 +274,17 @@
 
 <div>
   <a href="/admin" class="back-link">&larr; Back to Submissions Queue</a>
+  <% if @read_only %>
+    <p>Read-only sheet view. No edits or review actions are enabled.</p>
+    <% if @submission.status == "pending" %>
+      <%= link_to "Review / Edit Submission", admin_submission_path(@submission), class: "btn btn-outline" %>
+    <% end %>
+  <% else %>
+    <%= link_to "View Sheet (Read Only)", admin_submission_path(@submission, mode: "view"), class: "btn btn-outline" %>
+  <% end %>
+  <% if @master %>
+    <%= link_to "View Master Sheet", admin_feature_path(@master.sheet), class: "btn btn-outline" %>
+  <% end %>
 
   <div class="detail-header">
     <div>
@@ -316,7 +327,7 @@
           <% end %>
         </div>
 
-        <% if @submission.status == "pending" %>
+        <% if @submission.status == "pending" && !@read_only %>
           <p class="edit-hint">&#9998; Click any value to correct it or fill in a missed detail. Changes save automatically.</p>
         <% end %>
 
@@ -334,7 +345,7 @@
             <% Submission::EDITABLE_FIELDS.each do |section, fields| %>
               <tr class="section-row"><td colspan="<%= @diff[:is_new] ? 2 : 3 %>"><%= section %></td></tr>
               <% fields.each do |key, label| %>
-                <%= render "field_row", submission: @submission, key: key, label: label, is_new: @diff[:is_new] %>
+                <%= render "field_row", submission: @submission, key: key, label: label, is_new: @diff[:is_new], read_only: @read_only %>
               <% end %>
             <% end %>
             <% extra_keys = @payload.keys - Submission::EDITABLE_FIELDS.values.flat_map(&:keys) - ["photos", Submission::DEFAULTS_KEY] %>
@@ -396,7 +407,7 @@
         <div class="card-title">Submitter Information</div>
         <div style="display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.88rem;">
           <div>
-            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Archaeologist / Submitter</div>
+            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">Your Name / Data Entered By</div>
             <div style="font-weight: 600; color: var(--text);"><%= @submission.submitter_name.presence || "Field Researcher" %></div>
           </div>
           <div>
@@ -431,7 +442,7 @@
       <!-- Action Box -->
       <div class="card" style="border-color: <%= @submission.status == 'pending' ? 'var(--pending)' : 'var(--border)' %>;">
         <div class="card-title">Curation Actions</div>
-        <% if @submission.status == "pending" %>
+        <% if @submission.status == "pending" && !@read_only %>
           <div class="action-form">
             <%= form_with url: approve_admin_submission_path(@submission), method: :post do |f| %>
               <div class="form-group" style="margin-bottom: 1rem;">
@@ -455,7 +466,7 @@
               </button>
             <% end %>
           </div>
-        <% else %>
+        <% elsif @submission.status != "pending" %>
           <p style="color: var(--text-muted); font-size: 0.9rem;">
             This submission has already been <strong><%= @submission.status %></strong>.
           </p>
@@ -465,7 +476,7 @@
   </div>
 </div>
 
-<% if @submission.status == "pending" %>
+<% if @submission.status == "pending" && !@read_only %>
 <script>
   (function () {
     const table = document.getElementById("field-table");
@@ -481,11 +492,21 @@
       const display = cell.querySelector(".value-display");
       let editor;
 
-      if (kind === "boolean") {
+      if (kind === "boolean" || kind === "category") {
         editor = document.createElement("select");
-        [["T", "True (T)"], ["F", "False (F)"]].forEach(([v, text]) => {
+        const options = kind === "category"
+          ? [["", "Select Category"], ...JSON.parse(cell.dataset.options).map(value => [value, value])]
+          : [["T", "True (T)"], ["F", "False (F)"]];
+        const selected = kind === "boolean" ? original || "F" : original;
+        if (kind === "category" && original && !options.some(([value]) => value === original)) {
+          const legacy = new Option(`Current: ${original}`, original, true, true);
+          legacy.hidden = true;
+          legacy.disabled = true;
+          editor.add(legacy);
+        }
+        options.forEach(([v, text]) => {
           const opt = new Option(text, v);
-          opt.selected = (original || "F") === v;
+          opt.selected = selected === v;
           editor.add(opt);
         });
       } else if (kind === "textarea") {
@@ -510,7 +531,7 @@
       editor.focus();
       // Caret at the end rather than select-all, so a stray keystroke can't
       // wipe a long description.
-      if (kind !== "boolean") editor.setSelectionRange(editor.value.length, editor.value.length);
+      if (editor.tagName !== "SELECT") editor.setSelectionRange(editor.value.length, editor.value.length);
 
       let done = false;
       const finish = (save) => {
@@ -539,7 +560,7 @@
         }
       });
       editor.addEventListener("blur", () => finish(true));
-      if (kind === "boolean") editor.addEventListener("change", () => finish(true));
+      if (kind === "boolean" || kind === "category") editor.addEventListener("change", () => finish(true));
     }
 
     function save_(cell, value, onError) {

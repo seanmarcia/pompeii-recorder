@@ -25,6 +25,7 @@ Rails.application.routes.draw do
   namespace :admin do
     get "/", to: "submissions#index", as: :root
     get "export_master", to: "submissions#export_master"
+    resources :features, only: [:index, :show], param: :sheet
     resources :submissions, only: [:index, :show, :update] do
       member do
         post :approve

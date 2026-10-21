@@ -18,6 +18,40 @@ export function formatBytes(bytes, decimals = 1) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+export function isHeicFile(file) {
+  return /^image\/hei[cf](?:-sequence)?$/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || "");
+}
+
+export function isPsdFile(file) {
+  return /^(image|application)\/(?:vnd\.adobe\.photoshop|(?:x-)?photoshop|(?:x-)?psd)$/i.test(file.type)
+    || /\.psd$/i.test(file.name || "");
+}
+
+function readDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read image file"));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Invalid or unsupported image format"));
+    };
+    img.src = url;
+  });
+}
+
 /**
  * Compresses an image File or Blob so that the output size is strictly < 1MB.
  *
@@ -38,92 +72,68 @@ export function formatBytes(bytes, decimals = 1) {
 export async function compressImage(file, options = {}) {
   const originalSize = file.size;
   const fileName = file.name || `photo_${Date.now()}.jpg`;
+  const maxDimension = options.maxDimension ?? INITIAL_MAX_DIMENSION;
+  if (!Number.isInteger(maxDimension) || maxDimension < 1) {
+    throw new Error("Maximum photo dimension must be a positive integer.");
+  }
 
-  // If already < 1MB and not exceeding initial dimension, still convert to standard JPEG
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Failed to read image file"));
+  const isPsd = isPsdFile(file);
+  let source = file;
+  if (isPsd) {
+    const { decodePsd } = await import("./psdDecoder.js");
+    source = await decodePsd(file, maxDimension);
+  } else if (isHeicFile(file)) {
+    const { heicTo } = await import("heic-to/csp");
+    source = await heicTo({ blob: file, type: "image/jpeg", quality: 0.95 });
+  }
+  const img = await loadImage(source);
+  const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+  let width = Math.max(1, Math.round(img.width * scale));
+  let height = Math.max(1, Math.round(img.height * scale));
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Your browser could not initialize photo processing.");
 
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Invalid image format"));
-
-      img.onload = async () => {
-        let { width, height } = img;
-        let maxDim = options.maxDimension || INITIAL_MAX_DIMENSION;
-
-        // Downscale dimensions if needed
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        // Helper to render onto canvas and export as blob
-        const renderBlob = (w, h, quality) => {
-          canvas.width = w;
-          canvas.height = h;
-          ctx.clearRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-
-          return new Promise((res) => {
-            canvas.toBlob(
-              (blob) => res(blob),
-              "image/jpeg",
-              quality
-            );
-          });
-        };
-
-        // Iteratively adjust quality or dimensions until < TARGET_MAX_BYTES
-        let quality = 0.88;
-        let currentW = width;
-        let currentH = height;
-        let blob = await renderBlob(currentW, currentH, quality);
-
-        // Quality reduction loop
-        while (blob.size > TARGET_MAX_BYTES && quality > 0.35) {
-          quality -= 0.12;
-          blob = await renderBlob(currentW, currentH, quality);
-        }
-
-        // If still > TARGET_MAX_BYTES, scale dimensions down further
-        while (blob.size > TARGET_MAX_BYTES && currentW > 600) {
-          currentW = Math.round(currentW * 0.8);
-          currentH = Math.round(currentH * 0.8);
-          blob = await renderBlob(currentW, currentH, quality);
-        }
-
-        const compressedFile = new File([blob], fileName.replace(/\.[^/.]+$/, ".jpg"), {
-          type: "image/jpeg",
-          lastModified: Date.now(),
-        });
-
-        const dataUrl = canvas.toDataURL("image/jpeg", quality);
-
-        resolve({
-          file: compressedFile,
-          dataUrl,
-          originalSize,
-          compressedSize: blob.size,
-          originalFormatted: formatBytes(originalSize),
-          compressedFormatted: formatBytes(blob.size),
-          width: currentW,
-          height: currentH,
-          isUnder1MB: blob.size < MAX_BYTES,
-        });
-      };
-
-      img.src = event.target.result;
-    };
-
-    reader.readAsDataURL(file);
+  const renderBlob = (quality) => new Promise((resolve, reject) => {
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not encode this photo as JPEG."));
+    }, "image/jpeg", quality);
   });
+
+  let quality = 0.88;
+  let blob = await renderBlob(quality);
+  while (blob.size > TARGET_MAX_BYTES && quality > 0.35) {
+    quality = Math.max(0.35, quality - 0.12);
+    blob = await renderBlob(quality);
+  }
+  while (blob.size > TARGET_MAX_BYTES && Math.max(width, height) > 1) {
+    width = Math.max(1, Math.floor(width * 0.8));
+    height = Math.max(1, Math.floor(height * 0.8));
+    blob = await renderBlob(quality);
+  }
+  if (blob.size >= MAX_BYTES) {
+    throw new Error("Could not shrink this photo below 1 MB. Please choose another image.");
+  }
+
+  const compressedFile = new File([blob], `${fileName.replace(/\.[^/.]+$/, "")}.jpg`, {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+  const dataUrl = await readDataUrl(blob);
+
+  return {
+    file: compressedFile,
+    dataUrl,
+    originalSize,
+    compressedSize: blob.size,
+    originalFormatted: formatBytes(originalSize),
+    compressedFormatted: formatBytes(blob.size),
+    width,
+    height,
+    isUnder1MB: true,
+  };
 }

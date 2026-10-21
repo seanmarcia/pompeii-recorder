@@ -1,0 +1,32 @@
+<h2>Master Sheets</h2>
+<p>View saved catalog sheets without editing them.</p>
+<%= form_with url: admin_features_path, method: :get do |form| %>
+  <%= form.label :q, "Search by sheet, room, structure, or description" %>
+  <%= form.search_field :q, value: @query %>
+  <%= form.submit "Search" %>
+<% end %>
+<p><%= @total %> matching sheet(s)</p>
+<table style="width: 100%; margin: 1rem 0; text-align: left;">
+  <thead><tr><th>Sheet</th><th>Location</th><th>Room / Structure</th><th>Category</th><th>Action</th></tr></thead>
+  <tbody>
+    <% @features.each do |feature| %>
+      <tr>
+        <td><%= feature.sheet %></td>
+        <td><%= [feature.region, feature.insula, feature.entrance].join(".") %></td>
+        <td><%= feature.space_number.presence || feature.structure_id.presence || "Not recorded" %></td>
+        <td><%= feature.category_id.presence || "Not recorded" %></td>
+        <td><%= link_to "View Sheet", admin_feature_path(feature.sheet), class: "btn btn-outline" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+<% if @features.empty? %><p>No matching sheets.</p><% end %>
+<nav aria-label="Catalog pages">
+  <% if @page > 1 %>
+    <%= link_to "Previous", admin_features_path(q: @query, page: @page - 1), class: "btn btn-outline" %>
+  <% end %>
+  <span>Page <%= @page %></span>
+  <% if @page * @page_size < @total %>
+    <%= link_to "Next", admin_features_path(q: @query, page: @page + 1), class: "btn btn-outline" %>
+  <% end %>
+</nav>

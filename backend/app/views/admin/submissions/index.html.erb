@@ -154,7 +154,7 @@
           <th>Type</th>
           <th>Sheet / Location</th>
           <th>Room / Structure</th>
-          <th>Submitter</th>
+          <th>Data Entered By</th>
           <th>Photos</th>
           <th>Submitted</th>
           <th>Status</th>
@@ -211,6 +211,7 @@
               <span class="badge badge-<%= sub.status %>"><%= sub.status %></span>
             </td>
             <td>
+              <%= link_to "View Sheet", admin_submission_path(sub, mode: "view"), class: "btn btn-outline" %>
               <a href="/admin/submissions/<%= sub.id %>" class="btn btn-outline" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
                 <%= sub.action_type == "create_new" ? "Review Sheet" : "Review Updates" %> &rarr;
               </a>
