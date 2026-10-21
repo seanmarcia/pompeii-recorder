@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 export default function BrowseView({
   features,
   onSelectFeature,
+  onViewFeature,
   onNewRoom,
   dataSource,
   onPullRooms,
@@ -145,6 +146,13 @@ export default function BrowseView({
               )}
 
               <div className="card-footer-actions">
+                <button
+                  type="button"
+                  className="btn-edit-room"
+                  onClick={() => onViewFeature(f)}
+                >
+                  View Sheet
+                </button>
                 <button
                   type="button"
                   className="btn-edit-room"

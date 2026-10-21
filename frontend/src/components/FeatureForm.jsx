@@ -44,23 +44,11 @@ const GATE_OPTIONS = [
 const USAGE_OPTIONS = ["Commercial", "Domestic"];
 
 const CATEGORY_OPTIONS = [
-  "Architectural Element",
-  "Circulation",
   "Commercial",
-  "Commercial Service",
-  "Commercial-Domestic",
-  "Decoration",
-  "Domestic",
-  "Domestic-Commercial",
-  "Food preparation",
-  "Production",
   "Public",
+  "Commercial-Domestic",
+  "Domestic-Commercial",
   "Religious",
-  "Religious / Cult",
-  "Sanitary",
-  "Storage",
-  "Water catchment",
-  "Other",
 ];
 
 export default function FeatureForm({
@@ -76,6 +64,7 @@ export default function FeatureForm({
   const [submitterName, setSubmitterName] = useState("");
   const [submitterNotes, setSubmitterNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
   // Unsaved sheet content is drafted to localStorage under this key so it
@@ -240,6 +229,10 @@ export default function FeatureForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isProcessingPhotos) {
+      alert("Please wait for your photos to finish processing before submitting.");
+      return;
+    }
 
     if (!formData.SHEET?.trim()) {
       alert("Please enter a Sheet Number for this archaeological record.");
@@ -611,6 +604,17 @@ export default function FeatureForm({
           <div className="form-grid-4" style={{ marginTop: "1rem" }}>
             <div className="form-field">
               <label>Category</label>
+              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
+                <option value="">Select Category</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>Usage Classification</label>
               <select
                 name="USAGE_ID"
                 value={selectedUsageClassification}
@@ -625,21 +629,10 @@ export default function FeatureForm({
                   }))
                 }
               >
-                <option value="">Select Category</option>
+                <option value="">Select Usage Classification</option>
                 {USAGE_OPTIONS.map((u) => (
                   <option key={u} value={u}>
                     {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Usage Classification</label>
-              <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
-                <option value="">Select Usage Classification</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
                   </option>
                 ))}
               </select>
@@ -757,7 +750,7 @@ export default function FeatureForm({
             <span className="section-num">05</span>
             <h3>Field Photos &bull; Auto-Compressed to &lt; 1MB</h3>
           </div>
-          <PhotoUploader photos={photos} setPhotos={setPhotos} />
+          <PhotoUploader photos={photos} setPhotos={setPhotos} onProcessingChange={setIsProcessingPhotos} />
         </div>
 
         {/* SECTION 6: Archive & Documentation */}
@@ -851,7 +844,7 @@ export default function FeatureForm({
         <div className="form-section submit-bar-section">
           <div className="form-grid-2">
             <div className="form-field">
-              <label>Your Name / Field Researcher ID</label>
+              <label>Your Name / Data Entered By</label>
               <input
                 type="text"
                 value={submitterName}
@@ -874,9 +867,11 @@ export default function FeatureForm({
             <button
               type="submit"
               className="btn-submit-sheet"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isProcessingPhotos}
             >
-              {isSubmitting
+              {isProcessingPhotos
+                ? "Processing photos..."
+                : isSubmitting
                 ? "Submitting..."
                 : isOnline
                 ? "Send to Review Queue →"

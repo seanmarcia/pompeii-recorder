@@ -1,5 +1,33 @@
 # React + Vite
 
+## Field photos
+
+JPEG, PNG, and iPhone HEIC/HEIF photos can be selected or dragged into the sheet.
+HEIC/HEIF files are decoded on the device, converted to JPEG, and resized to a
+maximum dimension of 2048 pixels. Every accepted output is strictly below
+1,048,576 bytes, with further resizing when needed. Invalid or unconvertible
+files show an error and are not added. Submission waits for photo processing.
+
+The JPEG preview, draft, offline outbox, and upload all use the same compressed
+image bytes. No external image conversion service is used. The production
+service worker caches the decoder along with the app, so conversion works offline
+after the app has been opened and cached once.
+
+HEIC decoding uses [heic-to](https://github.com/hoppergee/heic-to), licensed under
+LGPL-3.0-or-later. Its license is included as `heic-to-LICENSE.txt` in production
+builds. The decoder is a separate, lazy-loaded bundle.
+
+## Viewing sheets
+
+Choose **View an Existing Sheet**, or **View Sheet** on a catalog card, to read
+the saved master sheet. This works with the cached offline catalog and does not
+create, overwrite, or show an unsaved draft. **Edit / Log Updates** remains a
+separate action. Photo filenames are retained; previews are available when the
+record includes a reachable image URL.
+
+Run `npm test` for compression and read-only rendering tests, `npm run build`
+for the production build, and `npm run lint` for lint checks.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

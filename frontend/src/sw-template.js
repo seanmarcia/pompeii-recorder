@@ -45,7 +45,8 @@ self.addEventListener("fetch", (event) => {
 
   // Built files: serve from cache, fetch and cache anything new.
   event.respondWith(
-    caches.match(request).then(
+    // Precache fetches and module requests can have different Origin headers.
+    caches.match(request, { ignoreVary: true }).then(
       (cached) =>
         cached ||
         fetch(request).then((response) => {

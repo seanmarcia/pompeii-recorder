@@ -41,7 +41,7 @@ export default function Header({
             </button>
             <button
               type="button"
-              className={`nav-btn ${activeTab === "browse" ? "active" : ""}`}
+              className={`nav-btn ${activeTab === "browse" || activeTab === "view" ? "active" : ""}`}
               onClick={() => setActiveTab("browse")}
             >
               <span>&#128269;</span> Browse Rooms ({catalogCount})

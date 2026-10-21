@@ -16,6 +16,10 @@ function offlineServiceWorker() {
       outDir = config.build.outDir
     },
     closeBundle() {
+      writeFileSync(
+        join(outDir, 'heic-to-LICENSE.txt'),
+        readFileSync(new URL('./node_modules/heic-to/LICENSE', import.meta.url)),
+      )
       const files = []
       const walk = (dir) => {
         for (const name of readdirSync(dir)) {
@@ -42,6 +46,7 @@ function offlineServiceWorker() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), offlineServiceWorker()],
+  optimizeDeps: { include: ['heic-to/csp'] },
   // GitHub Pages serves from /pompeii-recorder/; the fdpompeii.org build sets VITE_BASE=/.
   base: process.env.VITE_BASE || '/pompeii-recorder/',
   // Keep built files out of /assets, which the Rails backend uses for its own.

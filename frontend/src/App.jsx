@@ -7,6 +7,7 @@ import BrowseView from "./components/BrowseView";
 import OutboxView from "./components/OutboxView";
 import Login from "./components/Login";
 import LandingChoice from "./components/LandingChoice";
+import SheetView from "./components/SheetView";
 import { loadMasterFeatures, checkBackendStatus, syncOutbox, pullMasterFeatures } from "./lib/api";
 import { getOutbox, removeFromOutbox, clearOutbox } from "./lib/storage";
 
@@ -26,6 +27,7 @@ export default function App() {
 
   const [features, setFeatures] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const [viewedFeature, setViewedFeature] = useState(null);
   const [actionType, setActionType] = useState("create_new");
   const [activeTab, setActiveTab] = useState("landing"); // 'landing' | 'form' | 'browse' | 'outbox'
   const [isOnline, setIsOnline] = useState(false);
@@ -120,6 +122,12 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleViewFeature = (feature) => {
+    setViewedFeature(feature);
+    setActiveTab("view");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleNewRoom = () => {
     setSelectedFeature(null);
     setActionType("create_new");
@@ -208,7 +216,19 @@ export default function App() {
 
       <main className="app-main-content">
         {activeTab === "landing" && (
-          <LandingChoice onNewSheet={handleNewRoom} onEditSheet={() => setActiveTab("browse")} />
+          <LandingChoice
+            onNewSheet={handleNewRoom}
+            onEditSheet={() => setActiveTab("browse")}
+            onViewSheet={() => setActiveTab("browse")}
+          />
+        )}
+
+        {activeTab === "view" && viewedFeature && (
+          <SheetView
+            feature={viewedFeature}
+            onBack={() => setActiveTab("browse")}
+            onEdit={handleSelectFeature}
+          />
         )}
 
         {activeTab === "form" && (
@@ -235,6 +255,7 @@ export default function App() {
           <BrowseView
             features={features}
             onSelectFeature={handleSelectFeature}
+            onViewFeature={handleViewFeature}
             onNewRoom={handleNewRoom}
             dataSource={dataSource}
             onPullRooms={handlePullRooms}
