@@ -41,6 +41,8 @@
   .clear-link { color: var(--terracotta); font-weight: 600; text-decoration: none; margin-left: 0.5rem; }
   .clear-link:hover { text-decoration: underline; }
 
+  #catalog-results { transition: opacity 0.15s ease; }
+  #catalog-results.is-loading { opacity: 0.55; }
   .catalog-table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
   .catalog-table { width: 100%; border-collapse: collapse; }
   .catalog-table th {
@@ -107,16 +109,17 @@
       <label>
         <%= label %>
         <%= select_tag key, options_for_select(@options[key], @filters[key]), include_blank: "Any",
-              class: ("is-set" if @filters[key]), onchange: "this.form.requestSubmit()" %>
+              class: ("is-set" if @filters[key]) %>
       </label>
     <% end %>
     <label>
       Sort by
-      <%= select_tag :sort, options_for_select(Admin::FeaturesController::SORTS.invert, @sort), onchange: "this.form.requestSubmit()" %>
+      <%= select_tag :sort, options_for_select(Admin::FeaturesController::SORTS.invert, @sort) %>
     </label>
   </div>
 <% end %>
 
+<div id="catalog-results" aria-live="polite">
 <div class="result-bar">
   <span>
     <strong><%= number_with_delimiter(@total) %></strong> <%= @total == 1 ? "sheet" : "sheets" %>
@@ -198,3 +201,70 @@
     <% if @page < @page_count %><%= link_to "Next →", admin_features_path(link_params.(page: @page + 1)) %><% end %>
   </nav>
 <% end %>
+</div>
+
+<script>
+  // Live search: results update as you type or change a filter, without
+  // reloading the page. The form still works as a normal search without JS.
+  (() => {
+    const form = document.getElementById("catalog-search");
+    const results = document.getElementById("catalog-results");
+    if (!form || !results || !window.fetch) return;
+
+    let timer = null;
+    let controller = null;
+
+    const urlFor = (extra = {}) => {
+      const params = new URLSearchParams();
+      new FormData(form).forEach((value, key) => {
+        if (value !== "" && !(key === "sort" && value === "location")) params.set(key, value);
+      });
+      Object.entries(extra).forEach(([key, value]) => params.set(key, value));
+      const query = params.toString();
+      return form.action + (query ? `?${query}` : "");
+    };
+
+    const load = async (url) => {
+      controller?.abort();
+      controller = new AbortController();
+      results.classList.add("is-loading");
+      try {
+        const response = await fetch(url, { signal: controller.signal, headers: { Accept: "text/html" } });
+        if (!response.ok) throw new Error(response.status);
+        const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        const fresh = page.getElementById("catalog-results");
+        if (!fresh) throw new Error("missing results");
+        results.innerHTML = fresh.innerHTML;
+        history.replaceState(null, "", url);
+        form.querySelectorAll("select").forEach((select) => {
+          select.classList.toggle("is-set", select.name !== "sort" && select.value !== "");
+        });
+      } catch (error) {
+        if (error.name !== "AbortError") window.location = url;
+      } finally {
+        results.classList.remove("is-loading");
+      }
+    };
+
+    form.addEventListener("input", (event) => {
+      if (event.target.type !== "search") return;
+      clearTimeout(timer);
+      timer = setTimeout(() => load(urlFor()), 250);
+    });
+    form.addEventListener("change", (event) => {
+      if (event.target.tagName === "SELECT") load(urlFor());
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearTimeout(timer);
+      load(urlFor());
+    });
+    results.addEventListener("click", (event) => {
+      const link = event.target.closest(".pager a");
+      if (!link) return;
+      event.preventDefault();
+      load(link.href);
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  })();
+</script>
