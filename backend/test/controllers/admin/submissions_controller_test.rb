@@ -48,12 +48,12 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "div", text: "Your Name / Data Entered By"
   end
 
-  test "category editor offers the same five choices as the field app" do
+  test "category editor offers the same six choices as the field app" do
     get "/admin/submissions/#{@submission.id}"
 
     assert_select "tr[data-field='CATEGORY_ID'] td.value-cell[data-kind='category']" do |cells|
       assert_equal [
-        "Commercial", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious"
+        "Commercial", "Domestic", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious"
       ], JSON.parse(cells.first["data-options"])
     end
     assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='text']"
@@ -63,7 +63,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     usage = "Commercial | Bakery: Oven; Enclosed"
     @submission.update!(payload: @submission.payload.merge("USAGE_ID" => usage))
 
-    [ "Commercial", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious" ].each do |category|
+    [ "Commercial", "Domestic", "Public", "Commercial-Domestic", "Domestic-Commercial", "Religious" ].each do |category|
       patch "/admin/submissions/#{@submission.id}", params: {
         fields: { "CATEGORY_ID" => category }
       }, as: :json

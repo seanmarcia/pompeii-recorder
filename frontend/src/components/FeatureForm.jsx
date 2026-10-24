@@ -45,6 +45,7 @@ const USAGE_OPTIONS = ["Commercial", "Domestic"];
 
 const CATEGORY_OPTIONS = [
   "Commercial",
+  "Domestic",
   "Public",
   "Commercial-Domestic",
   "Domestic-Commercial",

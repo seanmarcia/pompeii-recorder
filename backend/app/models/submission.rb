@@ -51,6 +51,7 @@ class Submission < ApplicationRecord
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
   CATEGORY_OPTIONS = [
     "Commercial",
+    "Domestic",
     "Public",
     "Commercial-Domestic",
     "Domestic-Commercial",
