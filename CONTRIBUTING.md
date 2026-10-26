@@ -58,6 +58,26 @@ What changed, at a high level, and **why**.
 How to verify: steps, commands, expected results, and evidence already
 gathered. See "Verification" below for this project's verification bar.
 
+If there is nothing to run, say so — for example `None. Documentation only.`
+If the change cannot be verified from the PR (it needs the merge, or a UI
+bound to the default branch), state that instead of writing steps that
+cannot be performed. A test plan step must be performable from the PR
+itself.
+
+## Proportionality
+
+Scale the PR body down for trivial changes.
+
+## Linking issues
+
+If the change resolves a GitHub issue, say so in the PR body with a GitHub
+closing keyword — for example:
+
+> Fixes #123
+
+GitHub closes the linked issue when the PR merges. Put the keyword on its
+own line, in the `## Change Description` section or below it.
+
 ## Language
 
 Write agent-authored prose (Change Description, Test Plan) in Simplified
