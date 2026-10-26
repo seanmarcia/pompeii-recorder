@@ -58,6 +58,16 @@ What changed, at a high level, and **why**.
 How to verify: steps, commands, expected results, and evidence already
 gathered. See "Verification" below for this project's verification bar.
 
+## Linking issues
+
+If the change resolves a GitHub issue, say so in the PR body with a GitHub
+closing keyword — for example:
+
+> Fixes #123
+
+GitHub closes the linked issue when the PR merges. Put the keyword on its
+own line, in the `## Change Description` section or below it.
+
 ## Language
 
 Write agent-authored prose (Change Description, Test Plan) in Simplified
