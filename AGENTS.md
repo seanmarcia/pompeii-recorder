@@ -20,14 +20,13 @@ The macOS keychain helper fails in non-interactive agent shells; if a push ever 
 
 ## PR conventions
 
+**Before creating or editing any PR, read `CONTRIBUTING.md` (PR rules) and `.github/PULL_REQUEST_TEMPLATE.md` (body skeleton).** Apply the template's sections and its comment instructions; strip instruction comments from the final body.
+
 - **Open PRs as drafts.** Marking ready for review is a human decision, not an agent's.
-- **Body sections, in this order:**
-  1. `## Human Description` — the human author's section. **Agents never write here.** On PR edits, carry this section forward byte-for-byte.
-  2. `## Change Description` — what changed, at a high level, and **why**. Write for a reviewer deciding whether the change is sound, and for a future reader of the squashed commit. **Do not narrate commits or list files** — squash-merge collapses the branch to one commit, so per-commit detail describes things that will not exist, and reviewers have the diff and commit tab for the exhaustively curious. Name decisions and outcomes, not mechanisms. If a reviewer would need to open the diff to understand the sentence, the sentence is doing the diff's job — say what the change accomplishes instead. Prefer bullets that are one line each: a bullet that needs a paragraph of justification usually belongs in the reviewer guide (see below) or the tracker, not in the change list. Keep a short "Reviewer guide" note at the end for the judgment calls — the alternatives considered and rejected — so review effort goes where a human decision is needed.
-  3. `## Test Plan` — how to verify: steps, commands, expected results, and evidence already gathered.
-- **Title:** short — under ~50 characters. The title becomes the squash commit subject.
-- **Write agent-authored prose (Change Description, Test Plan) in Simplified Technical English (ASD-STE100):** short sentences, active voice, one topic per sentence, approved words only — no idioms, no jargon where a plain word exists.
-- No internal tracker, bead, or planning-document references in PR text; those stay in session-local notes.
+- **Title:** short — under ~50 characters, semantic prefix (`feat:`, `fix:`, `chore:`, …). The title becomes the squash commit subject.
+- **Body:** follows the template — `## Human Description` (human's section; agents never write there, carry it forward byte-for-byte on edits), `## Change Description` (what and why, not files or commit narration; short "Reviewer guide" note for judgment calls), `## Test Plan` (steps, commands, expected results, evidence).
+- **Write agent-authored prose** (Change Description, Test Plan) in Simplified Technical English (ASD-STE100): short sentences, active voice, one topic per sentence, approved words only — no idioms, no jargon where a plain word exists.
+- No internal tracker or planning-document references in PR text; those stay in session-local notes.
 
 ## Verification policy
 
