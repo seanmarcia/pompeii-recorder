@@ -58,6 +58,18 @@ What changed, at a high level, and **why**.
 How to verify: steps, commands, expected results, and evidence already
 gathered. See "Verification" below for this project's verification bar.
 
+## Proportionality
+
+Scale the PR body to the consequence of the change. Documentation-only and
+other trivial changes need less than code changes:
+
+- **Change Description:** a short list of what the change adds, or a
+  single sentence. Omit the reviewer guide when there are no judgment calls.
+- **Test Plan:** acceptable to state `None. Documentation only.` (or
+  similar) when there is nothing to run and nothing to reproduce.
+- A reviewer should not need to read more than a screenful to approve a
+  trivial change.
+
 ## Linking issues
 
 If the change resolves a GitHub issue, say so in the PR body with a GitHub
