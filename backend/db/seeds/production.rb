@@ -8,7 +8,8 @@
 #     recorder: ...
 #     researcher: ...
 #
-# Safe to re-run on its own: bin/rails runner db/seeds/users.rb
+# Safe to re-run on its own: bin/rails runner db/seeds/users/production.rb
+#
 
 RECORDERS = [
   "Lilly Andoe-Liccetti",
@@ -45,7 +46,7 @@ OTHER_ADMINS = { "carlost" => nil }.freeze
 passwords = Rails.application.credentials.seed_passwords || {}
 recorder_password = passwords[:recorder].presence
 researcher_password = passwords[:researcher].presence
-abort "Missing seed_passwords in credentials; see db/seeds/users.rb" unless recorder_password && researcher_password
+abort "Missing seed_passwords in credentials; see db/seeds/production.rb" unless recorder_password && researcher_password
 
 # The original shared demo accounts had passwords published in the repo.
 User.where(username: %w[admin researcher]).destroy_all

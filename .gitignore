@@ -1,2 +1,8 @@
 .claude/
 .serena/
+
+# Environment-specific agent notes (host, SSH, accounts) — never push
+AGENTS.local.md
+
+# OpenCode Playwright MCP artifacts (see opencode.json --output-dir)
+/tmp/

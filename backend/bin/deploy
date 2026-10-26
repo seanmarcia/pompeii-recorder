@@ -17,7 +17,7 @@ VERSION=$(git rev-parse HEAD)
 
 echo "==> Copying source to the server"
 rsync -az --partial --timeout=60 --delete \
-  --exclude .git/ --exclude .claude/ --exclude .serena/ --exclude node_modules/ --exclude frontend/dist/ \
+  --exclude .git/ --exclude .claude/ --exclude .serena/ --exclude node_modules/ --exclude frontend/dist/ --exclude tmp/ \
   --exclude 'backend/config/master.key' --exclude 'backend/config/credentials/*.key' --exclude 'backend/storage/*' \
   --exclude 'backend/log/*' --exclude 'backend/tmp/*' --exclude 'backend/.kamal/' \
   ../ "$SERVER:fdpompeii-src/"
