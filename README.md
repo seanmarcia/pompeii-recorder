@@ -22,3 +22,18 @@ cd backend && mise exec -- bin/rails server -p 3000
 # frontend
 cd frontend && npm run dev   # Vite dev server
 ```
+
+### Run both dev servers together
+
+Install [Homebrew](https://brew.sh) dependencies (overmind, which runs
+`Procfile.dev`):
+
+```bash
+brew bundle
+```
+
+Then start both servers with one command from the repo root:
+
+```bash
+overmind start -f Procfile.dev   # Rails :3000 + Vite :5173
+```

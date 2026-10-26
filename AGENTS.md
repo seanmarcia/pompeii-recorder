@@ -57,6 +57,7 @@ mise exec -- bin/rails runner db/seeds/dev.rb
 
 ### Dev servers and URLs
 
+- Start both with one command ([overmind](https://github.com/DarthSim/overmind)): `overmind start -f Procfile.dev` (Rails + Vite from the root `Procfile.dev`; overmind installs via `brew bundle` from the root `Brewfile`).
 - Backend: `bin/rails server -p 3000` → `http://localhost:3000` (admin review queue at `/admin`; API at `/api/v1/*`)
 - Frontend: `cd frontend && npm run dev` → Vite at **`http://localhost:5173/pompeii-recorder/`** — not the root. `/` 302-redirects there because `vite.config.js` sets `base: '/pompeii-recorder/'`.
 
