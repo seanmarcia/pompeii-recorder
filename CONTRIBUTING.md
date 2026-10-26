@@ -58,20 +58,15 @@ What changed, at a high level, and **why**.
 How to verify: steps, commands, expected results, and evidence already
 gathered. See "Verification" below for this project's verification bar.
 
+If there is nothing to run, say so — for example `None. Documentation only.`
+If the change cannot be verified from the PR (it needs the merge, or a UI
+bound to the default branch), state that instead of writing steps that
+cannot be performed. A test plan step must be performable from the PR
+itself.
+
 ## Proportionality
 
-Scale the PR body to the consequence of the change. Documentation-only and
-other trivial changes need less than code changes:
-
-- **Change Description:** a short list of what the change adds, or a
-  single sentence. Omit the reviewer guide when there are no judgment calls.
-- **Test Plan:** acceptable to state `None. Documentation only.` (or
-  similar) when there is nothing to run and nothing to reproduce.
-- A test plan step must be performable from the PR itself. A step that
-  needs the branch merged first, or that needs a GitHub UI bound to the
-  default branch, is not a test plan step. Do not write dead-end steps.
-- A reviewer should not need to read more than a screenful to approve a
-  trivial change.
+Scale the PR body down for trivial changes.
 
 ## Linking issues
 
