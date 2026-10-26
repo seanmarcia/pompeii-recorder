@@ -1,4 +1,6 @@
-load Rails.root.join("db", "seeds", "users.rb")
+# Shared master catalog import, then env-specific seeds.
+# Dev: db/seeds/development.rb (synthetic logins + review queue).
+# Production: db/seeds/production.rb (logins from encrypted credentials).
 
 # Import all Pompeii records from features.json
 features_file = Rails.root.join("db", "features.json")
@@ -66,3 +68,7 @@ if File.exist?(features_file)
 else
   puts "Warning: db/features.json not found, skipping full dataset import."
 end
+
+# Env-specific seeds (users; dev also adds the synthetic review queue).
+# Dev content is gated structurally: this file only exists for development.
+load Rails.root.join("db", "seeds", "#{Rails.env}.rb")
