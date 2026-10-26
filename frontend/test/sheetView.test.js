@@ -84,3 +84,37 @@ test("data entered by offers exactly the same names and order as the recorder dr
   assert.deepEqual(choices("submitter_name"), choices("RECORDER_ID"));
   assert.match(html, /<label for="submitter-name">Your Name \/ Data Entered By<\/label>/);
 });
+
+test("category offers only Commercial and Domestic on new sheets, with no usage classification select", () => {
+  const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
+  const select = (name) => {
+    const match = html.match(new RegExp(`<select[^>]*name="${name}"[^>]*>([\\s\\S]*?)</select>`));
+    return match ? match[1] : null;
+  };
+  const categoryOptions = Array.from(
+    (select("CATEGORY_ID") || "").matchAll(/<option value="([^"]+)"/g),
+    (m) => m[1]
+  );
+
+  assert.deepEqual(categoryOptions, [ "", "Commercial", "Domestic" ]);
+  assert.equal(select("USAGE_ID"), null, "Usage Classification select must be gone");
+  assert.doesNotMatch(html, /Usage Classification/);
+  assert.match(html, /<label>Late Usage<\/label>/, "Late Usage select must remain");
+});
+
+test("category keeps a legacy value selectable so an untouched sheet sends no change", () => {
+  const feature = {
+    SHEET: "6083",
+    SHEET_TYPE_ID: "Feature",
+    CATEGORY_ID: "Religious",
+    USAGE_ID: "Commercial | Bakery: Oven; Enclosed",
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(FeatureForm, { actionType: "update_existing", initialFeature: feature })
+  );
+  const select = html.match(/<select[^>]*name="CATEGORY_ID"[^>]*>([\s\S]*?)<\/select>/);
+  assert.ok(select, "Missing CATEGORY_ID select");
+  const options = Array.from(select[1].matchAll(/<option value="([^"]+)"/g), (m) => m[1]);
+  assert.deepEqual(options, [ "", "Commercial", "Domestic", "Religious" ]);
+  assert.match(select[0], /value="Religious" selected/);
+});
