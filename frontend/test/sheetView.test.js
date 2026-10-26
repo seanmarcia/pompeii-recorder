@@ -84,3 +84,20 @@ test("data entered by offers exactly the same names and order as the recorder dr
   assert.deepEqual(choices("submitter_name"), choices("RECORDER_ID"));
   assert.match(html, /<label for="submitter-name">Your Name \/ Data Entered By<\/label>/);
 });
+
+test("category offers only Commercial and Domestic on new sheets, with no usage classification select", () => {
+  const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
+  const select = (name) => {
+    const match = html.match(new RegExp(`<select[^>]*name="${name}"[^>]*>([\\s\\S]*?)</select>`));
+    return match ? match[1] : null;
+  };
+  const categoryOptions = Array.from(
+    (select("CATEGORY_ID") || "").matchAll(/<option value="([^"]*)"/g),
+    (m) => m[1]
+  );
+
+  assert.deepEqual(categoryOptions, [ "", "Commercial", "Domestic" ]);
+  assert.equal(select("USAGE_ID"), null, "Usage Classification select must be gone");
+  assert.doesNotMatch(html, /Usage Classification/);
+  assert.match(html, /<label>Late Usage<\/label>/, "Late Usage select must remain");
+});
