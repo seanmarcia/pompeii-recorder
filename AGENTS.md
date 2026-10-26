@@ -26,6 +26,7 @@ The macOS keychain helper fails in non-interactive agent shells; if a push ever 
 - **Title:** short — under ~50 characters, semantic prefix (`feat:`, `fix:`, `chore:`, …). The title becomes the squash commit subject.
 - **Body:** follows the template — `## Human Description` (human's section; agents never write there, carry it forward byte-for-byte on edits), `## Change Description` (what and why, not files or commit narration; short "Reviewer guide" note for judgment calls), `## Test Plan` (steps, commands, expected results, evidence).
 - **Write agent-authored prose** (Change Description, Test Plan) in Simplified Technical English (ASD-STE100): short sentences, active voice, one topic per sentence, approved words only — no idioms, no jargon where a plain word exists.
+- **Creating issues via the GitHub CLI:** the CLI does not apply the issue template — it posts exactly the body you pass. Build the body from `.github/ISSUE_TEMPLATE.md` manually (Summary / Current behavior / Expected behavior / Files involved / Notes), skipping sections that don't apply.
 - No internal tracker or planning-document references in PR text; those stay in session-local notes.
 
 ## Verification policy
