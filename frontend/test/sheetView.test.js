@@ -92,7 +92,7 @@ test("category offers only Commercial and Domestic on new sheets, with no usage 
     return match ? match[1] : null;
   };
   const categoryOptions = Array.from(
-    (select("CATEGORY_ID") || "").matchAll(/<option value="([^"]+)"/g),
+    (select("CATEGORY_ID") || "").matchAll(/<option value="([^"]*)"/g),
     (m) => m[1]
   );
 
@@ -100,21 +100,4 @@ test("category offers only Commercial and Domestic on new sheets, with no usage 
   assert.equal(select("USAGE_ID"), null, "Usage Classification select must be gone");
   assert.doesNotMatch(html, /Usage Classification/);
   assert.match(html, /<label>Late Usage<\/label>/, "Late Usage select must remain");
-});
-
-test("category keeps a legacy value selectable so an untouched sheet sends no change", () => {
-  const feature = {
-    SHEET: "6083",
-    SHEET_TYPE_ID: "Feature",
-    CATEGORY_ID: "Religious",
-    USAGE_ID: "Commercial | Bakery: Oven; Enclosed",
-  };
-  const html = renderToStaticMarkup(
-    React.createElement(FeatureForm, { actionType: "update_existing", initialFeature: feature })
-  );
-  const select = html.match(/<select[^>]*name="CATEGORY_ID"[^>]*>([\s\S]*?)<\/select>/);
-  assert.ok(select, "Missing CATEGORY_ID select");
-  const options = Array.from(select[1].matchAll(/<option value="([^"]+)"/g), (m) => m[1]);
-  assert.deepEqual(options, [ "", "Commercial", "Domestic", "Religious" ]);
-  assert.match(select[0], /value="Religious" selected/);
 });

@@ -49,14 +49,7 @@ class Submission < ApplicationRecord
 
   LONG_TEXT_FIELDS = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
-  CATEGORY_OPTIONS = [
-    "Commercial",
-    "Domestic",
-    "Public",
-    "Commercial-Domestic",
-    "Domestic-Commercial",
-    "Religious"
-  ].freeze
+  CATEGORY_OPTIONS = [ "Commercial", "Domestic" ].freeze
 
   # Payload key holding values the recorder left at the form's starting value
   # (today's date, Region VI, ...). Those only fill in blanks on the master

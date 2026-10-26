@@ -16,6 +16,7 @@ import {
 } from "../data/spaceTypes";
 import { LATE_USAGE_TYPES, attributesForLateUsageType } from "../data/lateUsage";
 import { formatUsageField, parseUsageField } from "../data/usageField";
+import { CATEGORY_OPTIONS, categoryOptionsFor } from "../data/categories";
 import {
   getDraft,
   saveDraft,
@@ -39,17 +40,6 @@ const GATE_OPTIONS = [
   "Sarno Gate",
   "Stabian Gate",
   "Vesuvius Gate",
-];
-
-const USAGE_OPTIONS = ["Commercial", "Domestic"];
-
-const CATEGORY_OPTIONS = [
-  "Commercial",
-  "Domestic",
-  "Public",
-  "Commercial-Domestic",
-  "Domestic-Commercial",
-  "Religious",
 ];
 
 export default function FeatureForm({
@@ -228,8 +218,9 @@ export default function FeatureForm({
   // Older imported sheets use "Space or Room" for the same sheet type.
   const isSpaceSheet = formData.SHEET_TYPE_ID === "Space" || formData.SHEET_TYPE_ID === "Space or Room";
 
-  // Usage Classification (Commercial/Domestic) and Late Usage (category + sub-categories)
-  // are separate selectors but combine into the single USAGE_ID field for storage.
+  // Usage Classification was retired from the form; Late Usage (category +
+  // sub-categories) remains and combines into the single USAGE_ID field with
+  // any classification parsed from a stored value.
   const {
     usageClassification: selectedUsageClassification,
     lateUsageTypeName: selectedLateUsageType,
@@ -630,34 +621,9 @@ export default function FeatureForm({
             <div className="form-field">
               <label>Category</label>
               <select name="CATEGORY_ID" value={formData.CATEGORY_ID || ""} onChange={handleChange}>
-                <option value="">Select Category</option>
-                {CATEGORY_OPTIONS.map((c) => (
+                {categoryOptionsFor(formData.CATEGORY_ID).map((c) => (
                   <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label>Usage Classification</label>
-              <select
-                name="USAGE_ID"
-                value={selectedUsageClassification}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    USAGE_ID: formatUsageField(
-                      e.target.value,
-                      selectedLateUsageType,
-                      selectedLateUsageAttributes
-                    ),
-                  }))
-                }
-              >
-                <option value="">Select Usage Classification</option>
-                {USAGE_OPTIONS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
+                    {c === "" ? "Select Category" : c}
                   </option>
                 ))}
               </select>
