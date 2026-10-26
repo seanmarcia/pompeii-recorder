@@ -67,6 +67,35 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal "IX", Feature.find_by(sheet: "503").region
   end
 
+  test "bibliography references merge into the master record on approval" do
+    sub = submit(
+      "SHEET" => "506", "DESCRIPTION" => "Oven in the north corner.",
+      "BIBLIOGRAPHY" => "Maiuri 1942, p. 123."
+    )
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "506")
+    assert_equal "Maiuri 1942, p. 123.", feat.bibliography
+  end
+
+  test "blank bibliography from the field app never erases a master value" do
+    Feature.create!(sheet: "507", bibliography: "García y Bellido 1950.", description: "Original text")
+    sub = submit("SHEET" => "507", "DESCRIPTION" => "More detail", "BIBLIOGRAPHY" => "")
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "507")
+    assert_equal "García y Bellido 1950.", feat.bibliography
+    assert_equal "More detail", feat.description
+  end
+
+  test "a reviewer correction to bibliography persists through approval" do
+    sub = submit("SHEET" => "508", "BIBLIOGRAPHY" => "Wrong reference.")
+    sub.apply_reviewer_edits!("BIBLIOGRAPHY" => "Della Corte 1958, tab. XII.")
+    sub.approve!
+
+    assert_equal "Della Corte 1958, tab. XII.", Feature.find_by(sheet: "508").bibliography
+  end
+
   test "other_pending_for_sheet finds the other people working on a sheet" do
     a = submit("SHEET" => "504", "DESCRIPTION" => "x")
     b = submit("SHEET" => "504", "photos" => [ "b.jpg" ])

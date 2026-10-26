@@ -37,6 +37,7 @@ class Feature < ApplicationRecord
       "MINORITY_REPORT" => minority_report,
       "DESCRIPTION" => description,
       "CONTIGUOUS_RELATIONSHIP" => contiguous_relationship,
+      "BIBLIOGRAPHY" => bibliography,
       "PHOTOGRAPHER_ID" => photographer_id,
       "BW_ROLL" => bw_roll,
       "COLOR_ROLL" => color_roll,
@@ -77,6 +78,7 @@ class Feature < ApplicationRecord
     feat.minority_report = hash["MINORITY_REPORT"]&.to_s
     feat.description = hash["DESCRIPTION"]&.to_s
     feat.contiguous_relationship = hash["CONTIGUOUS_RELATIONSHIP"]&.to_s
+    feat.bibliography = hash["BIBLIOGRAPHY"]&.to_s
     feat.photographer_id = hash["PHOTOGRAPHER_ID"]&.to_s
     feat.bw_roll = hash["BW_ROLL"]&.to_s
     feat.color_roll = hash["COLOR_ROLL"]&.to_s

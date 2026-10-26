@@ -31,6 +31,7 @@ class Submission < ApplicationRecord
       "NEGATIVE_FEATURE" => "Negative Feature (T/F)",
       "MINORITY_REPORT" => "Minority Report (Other Interpretation)",
       "DESCRIPTION" => "Archaeological Description",
+      "BIBLIOGRAPHY" => "Bibliography Reference(s)",
       "CONTIGUOUS_RELATIONSHIP" => "Contiguous Spatial Relationships"
     },
     "Archival Records & Media" => {
@@ -47,7 +48,7 @@ class Submission < ApplicationRecord
     }
   }.freeze
 
-  LONG_TEXT_FIELDS = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
+  LONG_TEXT_FIELDS = %w[DESCRIPTION BIBLIOGRAPHY CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
   CATEGORY_OPTIONS = [ "Commercial", "Domestic" ].freeze
 
@@ -189,7 +190,7 @@ class Submission < ApplicationRecord
         feature_id sheet_date recorder_id researcher_id season
         region insula entrance structure_id sheet_type_id space_number
         feature_type_id category_id space_type_id gate_id usage_id
-        negative_feature minority_report description contiguous_relationship
+        negative_feature minority_report description contiguous_relationship bibliography
         photographer_id bw_roll color_roll digital_image videographer_id
         file_number tape_number time_count video_comments artist_id
       ].each do |attr|

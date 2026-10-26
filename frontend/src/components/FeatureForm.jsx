@@ -120,6 +120,7 @@ export default function FeatureForm({
         NEGATIVE_FEATURE: initialFeature.NEGATIVE_FEATURE === "T" ? "T" : "F",
         MINORITY_REPORT: initialFeature.MINORITY_REPORT === "T" ? "T" : "F",
         DESCRIPTION: initialFeature.DESCRIPTION || "",
+        BIBLIOGRAPHY: initialFeature.BIBLIOGRAPHY || "",
         CONTIGUOUS_RELATIONSHIP: initialFeature.CONTIGUOUS_RELATIONSHIP || "",
         PHOTOGRAPHER_ID: initialFeature.PHOTOGRAPHER_ID || "",
         BW_ROLL: initialFeature.BW_ROLL || "",
@@ -158,6 +159,7 @@ export default function FeatureForm({
         NEGATIVE_FEATURE: "F",
         MINORITY_REPORT: "F",
         DESCRIPTION: "",
+        BIBLIOGRAPHY: "",
         CONTIGUOUS_RELATIONSHIP: "",
         PHOTOGRAPHER_ID: "",
         BW_ROLL: "",
@@ -720,6 +722,17 @@ export default function FeatureForm({
               value={formData.DESCRIPTION || ""}
               onChange={handleChange}
               placeholder="Detailed stratigraphic and architectural description of the room / feature..."
+            ></textarea>
+          </div>
+
+          <div className="form-field" style={{ marginBottom: "1rem" }}>
+            <label>Bibliography Reference(s)</label>
+            <textarea
+              name="BIBLIOGRAPHY"
+              rows={2}
+              value={formData.BIBLIOGRAPHY || ""}
+              onChange={handleChange}
+              placeholder="e.g. Maiuri 1942, p. 123..."
             ></textarea>
           </div>
 

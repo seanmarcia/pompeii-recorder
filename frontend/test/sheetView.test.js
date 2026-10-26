@@ -85,6 +85,41 @@ test("data entered by offers exactly the same names and order as the recorder dr
   assert.match(html, /<label for="submitter-name">Your Name \/ Data Entered By<\/label>/);
 });
 
+test("bibliography renders in the read-only sheet view after archaeological description", () => {
+  const feature = {
+    SHEET: "view-506",
+    DESCRIPTION: "Oven in the north corner.",
+    BIBLIOGRAPHY: "Maiuri 1942, p. 123.",
+  };
+  const html = renderToStaticMarkup(React.createElement(SheetView, { feature }));
+  const descIdx = html.indexOf("Archaeological Description");
+  const bibIdx = html.indexOf("Bibliography Reference(s)");
+  const contIdx = html.indexOf("Contiguous Spatial Relationships");
+  assert.ok(descIdx > -1, "missing Archaeological Description label");
+  assert.ok(bibIdx > -1, "missing Bibliography Reference(s) label");
+  assert.ok(bibIdx > descIdx, "bibliography must come after archaeological description");
+  assert.ok(contIdx === -1 || contIdx > bibIdx, "bibliography must come before contiguous relationships");
+  assert.match(html, /Maiuri 1942, p\. 123\./);
+});
+
+test("a blank bibliography shows up as not recorded rather than rendered text", () => {
+  const feature = { SHEET: "view-507", DESCRIPTION: "Oven." };
+  const html = renderToStaticMarkup(React.createElement(SheetView, { feature }));
+  assert.match(html, /Bibliography Reference\(s\)/);
+  assert.match(html, /Not recorded:/);
+});
+
+test("bibliography input sits after archaeological description on the form", () => {
+  const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
+  const descIdx = html.indexOf('name="DESCRIPTION"');
+  const bibIdx = html.indexOf('name="BIBLIOGRAPHY"');
+  const contIdx = html.indexOf('name="CONTIGUOUS_RELATIONSHIP"');
+  assert.ok(descIdx > -1, "missing DESCRIPTION textarea");
+  assert.ok(bibIdx > -1, "missing BIBLIOGRAPHY input");
+  assert.ok(bibIdx > descIdx, "bibliography must come after archaeological description");
+  assert.ok(contIdx > bibIdx, "bibliography must come before contiguous relationships");
+});
+
 test("category offers only Commercial and Domestic on new sheets, with no usage classification select", () => {
   const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
   const select = (name) => {
