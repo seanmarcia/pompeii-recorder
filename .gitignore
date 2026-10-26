@@ -1,2 +1,6 @@
 .claude/
 .serena/
+
+# OpenCode Playwright MCP artifacts (see opencode.json --output-dir)
+/tmp/
+.playwright-mcp/
