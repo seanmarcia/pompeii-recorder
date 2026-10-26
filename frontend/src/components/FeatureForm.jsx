@@ -16,7 +16,7 @@ import {
 } from "../data/spaceTypes";
 import { LATE_USAGE_TYPES, attributesForLateUsageType } from "../data/lateUsage";
 import { formatUsageField, parseUsageField } from "../data/usageField";
-import { CATEGORY_OPTIONS, categoryOptionsFor } from "../data/categories";
+import { categoryOptionsFor } from "../data/categories";
 import {
   getDraft,
   saveDraft,

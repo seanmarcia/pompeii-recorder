@@ -1,6 +1,7 @@
-// Usage Classification (Commercial/Domestic) and Late Usage (category + sub-categories)
-// are two separate selectors in the UI, but are combined into the single existing
-// USAGE_ID field for storage: "Commercial | Bakery: Oven; Enclosed".
+// USAGE_ID stores "Classification | Late Usage Type: attrs" as a single value.
+// The classification selector is retired from the form; a classification half
+// remains only when parsing a stored (legacy) value, and is preserved on
+// rebuild so touching Late Usage does not erase it.
 import { formatLateUsageType, parseLateUsageType } from "./lateUsage";
 
 export const USAGE_CLASSIFICATIONS = ["Commercial", "Domestic"];
