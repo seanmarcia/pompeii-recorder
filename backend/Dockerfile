@@ -11,6 +11,8 @@
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=4.0.5
+# Make sure NODE_VERSION matches the Node version in frontend/.node-version
+ARG NODE_VERSION=24.22.0
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
@@ -30,7 +32,7 @@ ENV RAILS_ENV="production" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
 # Build the field app (frontend/) to be served from the same site as the backend.
-FROM docker.io/library/node:24-slim AS frontend
+FROM docker.io/library/node:${NODE_VERSION}-slim AS frontend
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
