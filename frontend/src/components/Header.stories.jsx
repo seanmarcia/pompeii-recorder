@@ -1,26 +1,27 @@
-import React from 'react'
 import Header from '../components/Header.jsx'
 
+// The app renders the Header only when authenticated (App.jsx returns the
+// Login screen otherwise), so there is no signed-out Header state to story.
 export default {
   title: 'Header',
   component: Header,
 }
 
-export const SignedOut = {
+export const RecorderSignedIn = {
   args: {
     isOnline: true,
     outboxCount: 0,
     activeTab: 'start',
-    currentUser: null,
+    currentUser: { full_name: 'Sera Baker', username: 'serabaker', role: 'recorder' },
   },
 }
 
-export const SignedIn = {
+export const AdminSignedIn = {
   args: {
     isOnline: true,
     outboxCount: 0,
     activeTab: 'start',
-    currentUser: { name: 'Sera Baker', role: 'recorder' },
+    currentUser: { full_name: 'Carlos Fernandez', username: 'carlost', role: 'admin' },
   },
 }
 
@@ -31,6 +32,6 @@ export const OfflineWithOutbox = {
     isSyncing: false,
     activeTab: 'outbox',
     catalogCount: 42,
-    currentUser: { name: 'Sera Baker', role: 'recorder' },
+    currentUser: { full_name: 'Sera Baker', username: 'serabaker', role: 'recorder' },
   },
 }
