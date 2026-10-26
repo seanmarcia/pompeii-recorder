@@ -52,8 +52,9 @@ cd backend
 mise exec -- gem install bundler -v 4.0.10 --no-document
 mise exec -- bundle install
 mise exec -- bin/rails db:prepare
-mise exec -- bin/rails runner db/seeds/dev.rb
 ```
+
+On a fresh dev database, `db:prepare` runs the full seed chain: the features.json import (~4,959 master features), then `db/seeds/development.rb` (dev logins + the synthetic review queue). One command, no manual seed step, no credentials needed.
 
 ### Dev servers and URLs
 
@@ -63,10 +64,9 @@ mise exec -- bin/rails runner db/seeds/dev.rb
 
 ### Dev data
 
-- Seed with **`db/seeds/dev.rb`** (dev-only, synthetic) — **NOT** `db/seeds.rb`, which loads `db/seeds/users.rb` and aborts without `seed_passwords` in encrypted credentials ("Missing seed_passwords in credentials"). `bin/rails db:prepare` on a fresh database auto-runs `db/seeds.rb`; that abort is **benign in the dev flow** — just run `dev.rb` afterward.
-- **Re-run caveat (until fixed):** the 3-way pending-collision rows on sheet 99901 are not marker-tagged, so re-running `dev.rb` duplicates them. Currently not idempotent.
-- All dev logins get password `pompeiidev2026`; usernames are lowercase concatenated full names (e.g. `lisakahn`, `serabaker`). `carlost` is admin.
-- The seed imports the bundled legacy catalog (~4,959 features) from `backend/db/features.json`, only if the features table is empty, plus synthetic submissions reproducing reported symptoms (3-way pending collision on sheet **99901**; "overfilled" `update_existing` on sheet **6083**; a blank-submitter row).
+- Seeding is env-split: `db/seeds.rb` runs the shared features.json import, then loads `db/seeds/#{Rails.env}.rb`. Dev loads `db/seeds/development.rb` (synthetic logins + review queue); production loads `db/seeds/production.rb` (logins from encrypted credentials). The dev seed is gated structurally — it cannot run in production because `db:seed` there loads `production.rb` instead.
+- All dev logins get password `password123!`; usernames are lowercase concatenated full names (e.g. `lisakahn`, `serabaker`). `andreaadmin` (Andrea Admin) is the generic dev admin. Dev logins exist only for names a verification scenario or a real sheet references: the 3 researchers, the 99901 trio (Terry Bruno, Loretta Dimitruk, Lilly Lacetti), and the sheet-6083 chain (Linda Baxter, Sera Baker, Rob Brown).
+- The synthetic review queue reproduces reported symptoms: 3-way pending collision on new sheet **99901**, an "overfilled" `update_existing` on sheet **6083** (merge-clobber repro), and a blank-submitter row. **Idempotent (verified 2026-10-26):** re-running `db/seeds/development.rb` (e.g. `bin/rails runner db/seeds/development.rb`) destroys only `[dev-seed]`-tagged submissions, then recreates them — submission count stays at 5 across re-runs.
 - **DB is ground truth** for what a browser action persisted:
 
 ```bash
