@@ -732,7 +732,7 @@ export default function FeatureForm({
               rows={2}
               value={formData.BIBLIOGRAPHY || ""}
               onChange={handleChange}
-              placeholder="e.g. Maiuri 1942, p. 123..."
+              placeholder="e.g. Eschebach 57"
             ></textarea>
           </div>
 
