@@ -250,7 +250,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
   test "flags other pending submissions for the same sheet" do
     other = Submission.create!(
       action_type: "create_new", target_sheet: "8888", status: "pending",
-      submitter_name: "Photo Team", payload: { "SHEET" => "8888", "photos" => ["p.jpg"] }
+      submitter_name: "Photo Team", payload: { "SHEET" => "8888", "photos" => [ "p.jpg" ] }
     )
 
     get "/admin"

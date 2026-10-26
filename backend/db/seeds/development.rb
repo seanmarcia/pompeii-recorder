@@ -8,7 +8,7 @@
 #   - the queue destroys only [dev-seed]-tagged submissions, then recreates them
 
 DEV_PASSWORD = "password123!"
-RESEARCHERS = ["Lisa Kahn", "Mary Meier", "Suzanne Stone"].freeze
+RESEARCHERS = [ "Lisa Kahn", "Mary Meier", "Suzanne Stone" ].freeze
 # Logins only for names a verification scenario or a real sheet references:
 # - the 99901 trio (three-way new-sheet collision, see db/seeds/dev.rb)
 # - the sheet-6083 chain (recorder/researcher/photographer/artist)
@@ -57,7 +57,7 @@ end
     payload: { "SHEET" => "99901", "REGION" => "VI", "INSULA" => "4", "ENTRANCE" => "3",
                "SHEET_TYPE_ID" => "Space", "SPACE_TYPE_ID" => "Counter Room",
                "CATEGORY_ID" => "Commercial", "PHOTOGRAPHER_ID" => "Terry Bruno",
-               "photos" => ["99901_counter_north.jpg", "99901_counter_east.jpg"] } },
+               "photos" => [ "99901_counter_north.jpg", "99901_counter_east.jpg" ] } },
   { sub: "Loretta Dimitruk", note: "#{SYNTHETIC} Room description from the north corner.",
     payload: { "SHEET" => "99901", "REGION" => "VI", "INSULA" => "4", "ENTRANCE" => "3",
                "SHEET_TYPE_ID" => "Space", "SPACE_TYPE_ID" => "Counter Room",
@@ -91,7 +91,7 @@ if sheet6083
                             "RESEARCHER_ID" => "Suzanne Stone"
                           }))
   attach_photo!(s, "6083_oven_2026.png")
-  s.update!(payload: s.payload.merge("photos" => ["6083_oven_2026.png"]))
+  s.update!(payload: s.payload.merge("photos" => [ "6083_oven_2026.png" ]))
 end
 
 # (c) Symptom rows: blank submitter (backend default) and a researcher on record.

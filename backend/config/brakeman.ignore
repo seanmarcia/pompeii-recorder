@@ -1,0 +1,8 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "6c52210aff86e81f67ff1f92121fea96a1a7aecd780900b49c53cff44bbe5b8f",
+      "note": "False positive: region_order_sql interpolates ROMAN_REGIONS (a frozen constant of roman numerals) into Arel.sql for a sort CASE statement. No user input reaches the SQL; the sort value itself comes from a case on an allowlisted @sort parameter."
+    }
+  ]
+}

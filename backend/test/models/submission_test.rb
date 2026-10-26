@@ -21,7 +21,7 @@ class SubmissionTest < ActiveSupport::TestCase
       "PHOTOGRAPHER_ID" => "", "_defaults" => { "REGION" => "VI", "SHEET_DATE" => "2026-10-18" }
     )
     photographer = submit(
-      "SHEET" => "500", "PHOTOGRAPHER_ID" => "Sera Baker", "DESCRIPTION" => "", "photos" => ["a.jpg"],
+      "SHEET" => "500", "PHOTOGRAPHER_ID" => "Sera Baker", "DESCRIPTION" => "", "photos" => [ "a.jpg" ],
       "_defaults" => { "REGION" => "VI", "SHEET_DATE" => "2026-10-19" }
     )
 
@@ -33,7 +33,7 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal "Taberna", feat.space_number
     assert_equal "Sera Baker", feat.photographer_id
     assert_equal "VI", feat.region
-    assert_equal ["a.jpg"], feat.photos
+    assert_equal [ "a.jpg" ], feat.photos
     # Starting values only fill blanks; the first approved one stays.
     assert_equal "2026-10-19", feat.sheet_date.to_s[0, 10]
   end
@@ -69,9 +69,9 @@ class SubmissionTest < ActiveSupport::TestCase
 
   test "other_pending_for_sheet finds the other people working on a sheet" do
     a = submit("SHEET" => "504", "DESCRIPTION" => "x")
-    b = submit("SHEET" => "504", "photos" => ["b.jpg"])
+    b = submit("SHEET" => "504", "photos" => [ "b.jpg" ])
     submit("SHEET" => "505", "DESCRIPTION" => "y")
 
-    assert_equal [b], a.other_pending_for_sheet.to_a
+    assert_equal [ b ], a.other_pending_for_sheet.to_a
   end
 end
