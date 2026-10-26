@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Run the full check suite for both frontend and backend:
+# lint, static analysis, security scan, and tests.
+#
+# Usage: bin/check            # everything, fail-fast
+#        bin/check frontend   # just the frontend suite
+#        bin/check backend    # just the backend suite
+#
+# Exits nonzero if any check fails. Sectioned output so a failure
+# names the layer and the check that broke.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+target="${1:-all}"
+
+run() {
+  local layer="$1" check="$2"
+  echo ""
+  echo "==> [${layer}] ${check}"
+}
+
+fail() {
+  echo "FAIL: [${1}] ${2}" >&2
+  exit 1
+}
+
+frontend_checks() {
+  run frontend "oxlint"
+  (cd frontend && npx oxlint) || fail frontend oxlint
+
+  run frontend "node --test"
+  (cd frontend && npm test) || fail frontend "node --test"
+
+  run frontend "storybook (vitest project)"
+  (cd frontend && npm run test:storybook) || fail frontend storybook
+}
+
+backend_checks() {
+  run backend "rubocop"
+  (cd backend && mise exec -- bundle exec rubocop) || fail backend rubocop
+
+  run backend "brakeman"
+  (cd backend && mise exec -- bundle exec brakeman -q -z) || fail backend brakeman
+
+  run backend "minitest"
+  (cd backend && mise exec -- bin/rails test) || fail backend minitest
+}
+
+case "$target" in
+  frontend) frontend_checks ;;
+  backend)  backend_checks ;;
+  all)
+    frontend_checks
+    backend_checks
+    ;;
+  *)
+    echo "usage: bin/check [frontend|backend]" >&2
+    exit 64
+    ;;
+esac
+
+echo ""
+echo "==> all checks passed"
