@@ -67,6 +67,9 @@ other trivial changes need less than code changes:
   single sentence. Omit the reviewer guide when there are no judgment calls.
 - **Test Plan:** acceptable to state `None. Documentation only.` (or
   similar) when there is nothing to run and nothing to reproduce.
+- A test plan step must be performable from the PR itself. A step that
+  needs the branch merged first, or that needs a GitHub UI bound to the
+  default branch, is not a test plan step. Do not write dead-end steps.
 - A reviewer should not need to read more than a screenful to approve a
   trivial change.
 
