@@ -28,6 +28,7 @@ const SECTIONS = {
     NEGATIVE_FEATURE: "Negative Feature (T/F)",
     MINORITY_REPORT: "Minority Report (Other Interpretation)",
     DESCRIPTION: "Archaeological Description",
+    BIBLIOGRAPHY: "Bibliography Reference(s)",
     CONTIGUOUS_RELATIONSHIP: "Contiguous Spatial Relationships",
   },
   "Archival Records & Media": {
@@ -44,7 +45,7 @@ const SECTIONS = {
   },
 };
 
-const LONG_TEXT = new Set(["DESCRIPTION", "CONTIGUOUS_RELATIONSHIP", "VIDEO_COMMENTS"]);
+const LONG_TEXT = new Set(["DESCRIPTION", "BIBLIOGRAPHY", "CONTIGUOUS_RELATIONSHIP", "VIDEO_COMMENTS"]);
 const YES_NO = new Set(["NEGATIVE_FEATURE", "MINORITY_REPORT"]);
 
 const isBlank = (value) => value == null || String(value).trim() === "";

@@ -53,7 +53,7 @@
   .history .meta { color: var(--text-muted); font-size: 0.85rem; }
 </style>
 
-<% long_text = %w[DESCRIPTION CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS] %>
+<% long_text = %w[DESCRIPTION BIBLIOGRAPHY CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS] %>
 <% yes_no = Submission::BOOLEAN_FIELDS %>
 <% address = [ (@feature.structure_id if @feature.space_number.present? && @feature.structure_id.present?), ("Region #{@feature.region}" if @feature.region.present?), ("Insula #{@feature.insula}" if @feature.insula.present?), ("Entrance #{@feature.entrance}" if @feature.entrance.present?) ].compact %>
 <% format_date = ->(value) { Date.parse(value.to_s[0, 10]).strftime("%B %-d, %Y") rescue value.to_s } %>

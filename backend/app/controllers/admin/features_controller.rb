@@ -8,6 +8,7 @@ module Admin
     # Columns a search term is matched against.
     SEARCH_COLUMNS = %w[
       sheet feature_id space_number structure_id description contiguous_relationship
+      bibliography
       sheet_type_id feature_type_id space_type_id category_id usage_id gate_id
       recorder_id researcher_id photographer_id artist_id videographer_id
       digital_image bw_roll color_roll file_number tape_number video_comments
