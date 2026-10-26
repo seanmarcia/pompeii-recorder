@@ -37,7 +37,7 @@ RECORDERS = [
   "Ted Xavier"
 ].freeze
 
-RESEARCHERS = ["Lisa Kahn", "Mary Meier", "Suzanne Stone"].freeze
+RESEARCHERS = [ "Lisa Kahn", "Mary Meier", "Suzanne Stone" ].freeze
 
 # Admin logins that aren't researchers (so they don't appear in the Researcher
 # dropdown), keyed by username. They use the researcher password.
@@ -57,7 +57,7 @@ User.where(username: %w[admin researcher]).destroy_all
   User.where(username: old).destroy_all
 end
 
-[[RECORDERS, "recorder", recorder_password], [RESEARCHERS, "admin", researcher_password]].each do |names, role, password|
+[ [ RECORDERS, "recorder", recorder_password ], [ RESEARCHERS, "admin", researcher_password ] ].each do |names, role, password|
   names.each do |full_name|
     username = full_name.downcase.delete(" ")
     user = User.find_or_initialize_by(username: username)

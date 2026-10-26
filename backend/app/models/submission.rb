@@ -168,7 +168,7 @@ class Submission < ApplicationRecord
 
     existing_hash = existing.as_json_pompeii
     diffs = {}
-    
+
     # Check all keys in payload
     all_keys = (existing_hash.keys + payload.keys).uniq
     all_keys.each do |k|

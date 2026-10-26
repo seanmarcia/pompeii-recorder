@@ -3,8 +3,8 @@ module Admin
     layout "admin"
     skip_before_action :verify_authenticity_token, raise: false
     before_action :require_admin_login
-    before_action :set_submission, only: [:show, :update, :approve, :reject]
-    before_action :require_pending, only: [:update]
+    before_action :set_submission, only: [ :show, :update, :approve, :reject ]
+    before_action :require_pending, only: [ :update ]
 
     # GET /admin or /admin/submissions
     def index
@@ -17,15 +17,15 @@ module Admin
       }
 
       @submissions = case @filter
-                     when "approved" then Submission.approved
-                     when "rejected" then Submission.rejected
-                     when "all"      then Submission.recent
-                     else                 Submission.pending
-                     end
+      when "approved" then Submission.approved
+      when "rejected" then Submission.rejected
+      when "all"      then Submission.recent
+      else                 Submission.pending
+      end
 
       # How many pending submissions each sheet has, to flag sheets that
       # several people are recording at once.
-      @pending_per_sheet = Submission.where(status: "pending").where.not(target_sheet: [nil, ""]).group(:target_sheet).count
+      @pending_per_sheet = Submission.where(status: "pending").where.not(target_sheet: [ nil, "" ]).group(:target_sheet).count
     end
 
     # GET /admin/submissions/:id
@@ -46,8 +46,8 @@ module Admin
       labels = Submission::EDITABLE_FIELDS.values.reduce(:merge)
 
       rows = edits.keys.select { |k| labels.key?(k) }.to_h do |key|
-        [key, render_to_string(partial: "field_row", formats: [:html],
-                               locals: { submission: @submission, key: key, label: labels[key], is_new: is_new })]
+        [ key, render_to_string(partial: "field_row", formats: [ :html ],
+                               locals: { submission: @submission, key: key, label: labels[key], is_new: is_new }) ]
       end
       render json: { rows: rows, changed_count: @submission.changed_field_count }
     rescue StandardError => e

@@ -3,6 +3,12 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { defineConfig } from 'vite'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
+import { playwright } from '@vitest/browser-playwright'
+
+const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // After a production build, write dist/sw.js from src/sw-template.js with the
 // list of every built file baked in, so the service worker can cache the whole
@@ -57,4 +63,23 @@ export default defineConfig({
   base: process.env.VITE_BASE || '/pompeii-recorder/',
   // Keep built files out of /assets, which the Rails backend uses for its own.
   build: { assetsDir: 'field-assets' },
+  // The Storybook component tests run through vitest in a real browser
+  // (playwright/chromium); stories are picked up from .storybook/main.js.
+  test: {
+    projects: [
+      {
+        extends: true,
+        plugins: [storybookTest({ configDir: path.join(dirname, '.storybook') })],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
+  },
 })

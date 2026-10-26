@@ -1,7 +1,7 @@
 module Admin
   class SessionsController < ApplicationController
     layout "admin"
-    skip_before_action :verify_authenticity_token, raise: false, only: [:create, :destroy]
+    skip_before_action :verify_authenticity_token, raise: false, only: [ :create, :destroy ]
 
     def new
       redirect_to admin_root_path if logged_in? && current_user.admin?

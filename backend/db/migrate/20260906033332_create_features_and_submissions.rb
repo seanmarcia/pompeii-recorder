@@ -38,7 +38,7 @@ class CreateFeaturesAndSubmissions < ActiveRecord::Migration[8.1]
     end
 
     add_index :features, :sheet, unique: true
-    add_index :features, [:region, :insula, :entrance]
+    add_index :features, [ :region, :insula, :entrance ]
 
     create_table :submissions do |t|
       t.string :action_type, null: false, default: "create_new" # "create_new" or "update_existing"

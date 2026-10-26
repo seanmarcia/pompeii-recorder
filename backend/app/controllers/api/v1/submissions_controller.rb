@@ -14,13 +14,13 @@ module Api
         # Parse payload data
         raw_payload = params[:payload]
         payload = case raw_payload
-                  when String
+        when String
                     JSON.parse(raw_payload) rescue {}
-                  when ActionController::Parameters, Hash
+        when ActionController::Parameters, Hash
                     raw_payload.to_unsafe_h
-                  else
+        else
                     {}
-                  end
+        end
 
         payload = Submission.clean_field_payload(payload)
         target_sheet ||= payload["SHEET"]

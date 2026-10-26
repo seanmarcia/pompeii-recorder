@@ -11,7 +11,7 @@ module Admin
 
       # Avoid the O(n*m) DP table blowing up on huge fields.
       if old_tokens.length * new_tokens.length > 4_000_000
-        return [ERB::Util.html_escape(old_text), ERB::Util.html_escape(new_text)]
+        return [ ERB::Util.html_escape(old_text), ERB::Util.html_escape(new_text) ]
       end
 
       old_marked, new_marked = word_lcs_diff(old_tokens, new_tokens)
@@ -19,7 +19,7 @@ module Admin
       old_html = old_marked.map { |text, status| wrap_token(text, status == :removed ? "diff-removed" : nil) }.join
       new_html = new_marked.map { |text, status| wrap_token(text, status == :added ? "diff-added" : nil) }.join
 
-      [old_html.html_safe, new_html.html_safe]
+      [ old_html.html_safe, new_html.html_safe ]
     end
 
     private
@@ -37,7 +37,7 @@ module Admin
       dp = Array.new(m + 1) { Array.new(n + 1, 0) }
       (m - 1).downto(0) do |i|
         (n - 1).downto(0) do |j|
-          dp[i][j] = a[i] == b[j] ? dp[i + 1][j + 1] + 1 : [dp[i + 1][j], dp[i][j + 1]].max
+          dp[i][j] = a[i] == b[j] ? dp[i + 1][j + 1] + 1 : [ dp[i + 1][j], dp[i][j + 1] ].max
         end
       end
 
@@ -47,27 +47,27 @@ module Admin
       new_marked = []
       while i < m && j < n
         if a[i] == b[j]
-          old_marked << [a[i], :common]
-          new_marked << [b[j], :common]
+          old_marked << [ a[i], :common ]
+          new_marked << [ b[j], :common ]
           i += 1
           j += 1
         elsif dp[i + 1][j] >= dp[i][j + 1]
-          old_marked << [a[i], :removed]
+          old_marked << [ a[i], :removed ]
           i += 1
         else
-          new_marked << [b[j], :added]
+          new_marked << [ b[j], :added ]
           j += 1
         end
       end
       while i < m
-        old_marked << [a[i], :removed]
+        old_marked << [ a[i], :removed ]
         i += 1
       end
       while j < n
-        new_marked << [b[j], :added]
+        new_marked << [ b[j], :added ]
         j += 1
       end
-      [old_marked, new_marked]
+      [ old_marked, new_marked ]
     end
   end
 end
