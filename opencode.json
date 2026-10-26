@@ -9,7 +9,9 @@
           "-y",
           "@playwright/mcp@0.0.83",
           "--output-dir",
-          "tmp/.playwright-mcp"
+          "tmp/.playwright-mcp",
+          "--output-max-size",
+          "10485760"
         ]
       }
     }
