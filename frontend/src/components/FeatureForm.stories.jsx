@@ -1,5 +1,5 @@
 import FeatureForm from './FeatureForm.jsx'
-import { expect, within } from 'storybook/test'
+import { expect, within, userEvent, waitFor } from 'storybook/test'
 import { RECORDER_NAMES } from '../data/people.js'
 
 // Category is restricted to Commercial/Domestic for new entries and any
@@ -61,6 +61,57 @@ export const LegacyCategoryStaysSelectable = {
     // The legacy value rides along after the restricted choices, preselected.
     await expect(options).toEqual(['', 'Commercial', 'Domestic', 'Religious'])
     await expect(select.value).toBe('Religious')
+
+    // The stored composite USAGE_ID hydrates the Late Usage select.
+    const lateUsage = canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]')
+    await waitFor(async () => {
+      await expect(lateUsage.value).toBe('Bakery')
+    })
+  },
+}
+
+export const CategoryAndLateUsageStayIndependent = {
+  args: {
+    actionType: 'update_existing',
+    initialFeature: {
+      SHEET: '6083',
+      SHEET_TYPE_ID: 'Feature',
+      CATEGORY_ID: 'Religious',
+      USAGE_ID: 'Commercial | Bakery: Oven; Enclosed',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+    const lateUsage = await waitFor(async () => {
+      await expect(
+        canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]').value
+      ).toBe('Bakery')
+      return canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]')
+    })
+
+    // Correcting the legacy category does not touch the late usage half.
+    await userEvent.selectOptions(category, 'Domestic')
+    await expect(category.value).toBe('Domestic')
+    await expect(lateUsage.value).toBe('Bakery')
+
+    // Switching late usage to a type with listed attributes reveals the
+    // "X Attributes" group; Bakery had none, so the group was absent.
+    await expect(
+      canvas.queryByText('Bakery Attributes')
+    ).not.toBeInTheDocument()
+    await userEvent.selectOptions(lateUsage, 'Colonnade (Arcade)')
+    await expect(
+      canvas.getByText('Colonnade (Arcade) Attributes')
+    ).toBeInTheDocument()
+
+    // Checking an attribute chips it into the multiselect trigger — the
+    // control that rebuilds USAGE_ID on change. (Assert on the trigger, not
+    // getByText: the open panel also renders "Forum" as an option label.)
+    const attributeTrigger = canvas.getByRole('button', { name: 'Colonnade (Arcade) attributes' })
+    await userEvent.click(attributeTrigger)
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Forum' }))
+    await expect(attributeTrigger.textContent).toContain('Forum')
   },
 }
 
