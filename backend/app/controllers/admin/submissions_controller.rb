@@ -121,17 +121,18 @@ module Admin
         blank, named = submissions.partition { |s| s.researcher_name.blank? }
         named.sort_by! { |s| s.researcher_name.to_s.downcase }
         named.reverse! if @dir == "desc"
-        blank.sort_by! { |s| -s.created_at.to_i }
+        blank.sort_by! { |s| -s.created_at.to_f }
         named + blank
       when "submitted"
-        submissions.sort_by! { |s| s.created_at.to_i }
+        submissions.sort_by! { |s| s.created_at.to_f }
         submissions.reverse! if @dir == "desc"
         submissions
       else
         sign = (@dir == "asc") ? 1 : -1
         # Numeric sheet order; newest first inside a sheet cluster in both
-        # directions (negated created_at is the constant secondary key).
-        submissions.sort_by { |s| [sign * s.sheet_number.to_i, -s.created_at.to_i] }
+        # directions. to_f (not to_i) keeps sub-second creation order —
+        # seeded queues create several submissions within one second.
+        submissions.sort_by { |s| [sign * s.sheet_number.to_i, -s.created_at.to_f] }
       end
     end
   end

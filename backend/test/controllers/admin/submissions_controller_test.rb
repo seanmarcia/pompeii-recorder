@@ -307,10 +307,14 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
   test "queue defaults to sheet number descending with newest first inside each sheet cluster" do
     now = Time.current
+    # The pair below sits inside the SAME second (X.1 and X.9): the seed
+    # data's collision trio is created within one second, so whole-second
+    # keys cannot order a sheet cluster correctly.
+    second = Time.zone.at(Time.current.to_i + 0.9)
     older = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
-      created_at: now - 2.hours, payload: { "SHEET" => "99901" })
+      created_at: second - 0.8, payload: { "SHEET" => "99901" })
     newer = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
-      created_at: now, payload: { "SHEET" => "99901" })
+      created_at: second, payload: { "SHEET" => "99901" })
     Submission.create!(action_type: "create_new", target_sheet: "6083", status: "pending",
       created_at: now - 1.hour, payload: { "SHEET" => "6083" })
     Submission.create!(action_type: "create_new", target_sheet: "1002", status: "pending",
