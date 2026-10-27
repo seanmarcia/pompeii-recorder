@@ -11,7 +11,7 @@ module Admin
 
     # GET /admin or /admin/submissions
     def index
-      @filter = params[:status].presence || "pending"
+      @filter = %w[pending approved rejected all].include?(params[:status]) ? params[:status] : "pending"
       @query = params[:q].to_s.strip
       @sort = SORT_KEYS.include?(params[:sort]) ? params[:sort] : "sheet"
       @dir = SORT_DIRECTIONS.include?(params[:dir]) ? params[:dir] : "desc"
@@ -34,7 +34,10 @@ module Admin
       # #researcher_name methods the view uses — keeps what is matched,
       # ordered, and shown in one place.
       submissions = scope.to_a
-      submissions = submissions.select { |s| queue_matches?(s) } if @query.present?
+      if @query.present?
+        q = @query.downcase
+        submissions = submissions.select { |s| queue_matches?(s, q) }
+      end
       @submissions = queue_sort(submissions)
 
       # How many pending submissions each sheet has, to flag sheets that
@@ -108,8 +111,7 @@ module Admin
 
     # Partial, case-insensitive match on sheet number or the sheet's
     # researcher (payload value with master-record fallback).
-    def queue_matches?(submission)
-      q = @query.downcase
+    def queue_matches?(submission, q)
       submission.sheet_number.to_s.downcase.include?(q) ||
         submission.researcher_name.to_s.downcase.include?(q)
     end
@@ -117,10 +119,15 @@ module Admin
     def queue_sort(submissions)
       case @sort
       when "researcher"
-        # Named researchers alphabetical; blanks always last.
+        # Named researchers alphabetical; blanks always last. Rows sharing
+        # a researcher stay newest-first in both directions.
         blank, named = submissions.partition { |s| s.researcher_name.blank? }
-        named.sort_by! { |s| s.researcher_name.to_s.downcase }
-        named.reverse! if @dir == "desc"
+        named.sort_by! { |s| [s.researcher_name.to_s.downcase, -s.created_at.to_f] }
+        if @dir == "desc"
+          named.replace(named.group_by { |s| s.researcher_name.to_s.downcase }
+                              .sort_by { |name, _group| name }.reverse
+                              .flat_map { |_name, group| group })
+        end
         blank.sort_by! { |s| -s.created_at.to_f }
         named + blank
       when "submitted"
@@ -128,11 +135,15 @@ module Admin
         submissions.reverse! if @dir == "desc"
         submissions
       else
+        # Numeric sheet order, newest first inside a cluster in both
+        # directions. Sheets without a number sort last (the API can create
+        # them). to_f (not to_i) keeps sub-second creation order — seeded
+        # queues create several submissions within one second.
+        blank, numbered = submissions.partition { |s| s.sheet_number.to_s.strip.empty? }
         sign = (@dir == "asc") ? 1 : -1
-        # Numeric sheet order; newest first inside a sheet cluster in both
-        # directions. to_f (not to_i) keeps sub-second creation order —
-        # seeded queues create several submissions within one second.
-        submissions.sort_by { |s| [sign * s.sheet_number.to_i, -s.created_at.to_f] }
+        numbered.sort_by! { |s| [sign * s.sheet_number.to_i, -s.created_at.to_f] }
+        blank.sort_by! { |s| -s.created_at.to_f }
+        numbered + blank
       end
     end
   end

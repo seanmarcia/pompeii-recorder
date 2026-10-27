@@ -349,18 +349,25 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
       created_at: now, payload: { "SHEET" => "500" })
     Submission.create!(action_type: "create_new", target_sheet: "1002", status: "pending",
       created_at: now, payload: { "SHEET" => "1002" })
+    Submission.create!(action_type: "create_new", status: "pending",
+      payload: { "SPACE_NUMBER" => "no sheet row" })
 
     get "/admin?sort=sheet&dir=asc"
     body = response.body
     assert body.index("Sheet 500") < body.index("Sheet 1002"), "numeric ascending: 500 before 1002"
     assert body.index("Sheet 1002") < body.index("Sheet 99901")
     assert body.index("##{newer.id}</span>") < body.index("##{older.id}</span>"), "newest first inside a cluster even ascending"
+    assert body.index("no sheet row") > body.index("Sheet 99901"), "rows without a sheet number sort last"
   end
 
   test "researcher header sorts alphabetically with blanks last in both directions" do
+    now = Time.current
     Feature.create!(sheet: "6083", researcher_id: "Sera Baker")
     Submission.create!(action_type: "create_new", target_sheet: "1111", status: "pending",
       payload: { "SHEET" => "1111", "RESEARCHER_ID" => "Zoe Adams", "SPACE_NUMBER" => "zoe room" })
+    Submission.create!(action_type: "create_new", target_sheet: "3333", status: "pending",
+      created_at: now - 5.hours,
+      payload: { "SHEET" => "3333", "RESEARCHER_ID" => "Zoe Adams", "SPACE_NUMBER" => "zoe older room" })
     Submission.create!(action_type: "create_new", target_sheet: "2222", status: "pending",
       payload: { "SHEET" => "2222", "RESEARCHER_ID" => "Anna Bell", "SPACE_NUMBER" => "anna room" })
     Submission.create!(action_type: "update_existing", target_sheet: "6083", status: "pending",
@@ -372,12 +379,14 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     body = response.body
     assert body.index("anna room") < body.index("sera room")
     assert body.index("sera room") < body.index("zoe room")
-    assert body.index("zoe room") < body.index("blank room"), "blank researcher sorts last ascending"
+    assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first ascending"
+    assert body.index("zoe older room") < body.index("blank room"), "blank researcher sorts last ascending"
 
     get "/admin?sort=researcher&dir=desc"
     body = response.body
     assert body.index("zoe room") < body.index("sera room")
     assert body.index("sera room") < body.index("anna room")
+    assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first descending"
     assert body.index("anna room") < body.index("blank room"), "blank researcher still last descending"
   end
 
@@ -411,6 +420,17 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".tabs-nav a[href=?]", "/admin?dir=asc&q=608&sort=sheet&status=approved"
     assert_select "input[name='status'][value='approved']", count: 1
     assert_select "input[name='sort'][value='sheet']", count: 1
+
+    # Default state: first click on Sheet flips to asc, other headers start
+    # at their natural direction.
+    get "/admin"
+    assert_select "a[href=?]", "/admin?dir=asc&sort=sheet&status=pending"
+    assert_select "a[href=?]", "/admin?dir=asc&sort=researcher&status=pending"
+    assert_select "a[href=?]", "/admin?dir=desc&sort=submitted&status=pending"
+
+    # Clear drops the query but keeps the tab and sort.
+    get "/admin?q=608"
+    assert_select "a[href=?]", "/admin?dir=desc&sort=sheet&status=pending"
   end
 
   test "search matches partial sheet numbers" do
@@ -451,7 +471,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin?q=zzz"
     assert_response :success
     assert_select "table.submissions-table", count: 0
-    assert_match /zzz/, response.body
+    assert_select "h3", /zzz/
   end
 
   test "search composes with the status tabs" do
