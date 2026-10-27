@@ -27,9 +27,9 @@ The review page uses the same field labels as the frontend: Category, Usage
 Classification, and Your Name / Data Entered By. The queue identifies the
 submitter as Data Entered By.
 
-Category corrections use the same five choices: Commercial, Public,
-Commercial-Domestic, Domestic-Commercial, and Religious. Older category values
-remain visible and are preserved unless a reviewer replaces or clears them.
+Category corrections use the same four choices as the field app: Commercial,
+Domestic, Religion, and Public. Older category values remain visible and are
+preserved unless a reviewer replaces or clears them.
 Usage classification and late-usage details remain stored together in `USAGE_ID`.
 
 The **Master Sheets** navigation link opens a searchable, paginated catalog with

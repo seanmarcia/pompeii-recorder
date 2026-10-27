@@ -4,7 +4,7 @@
 // rebuild so touching Late Usage does not erase it.
 import { formatLateUsageType, parseLateUsageType } from "./lateUsage";
 
-export const USAGE_CLASSIFICATIONS = ["Commercial", "Domestic"];
+export const USAGE_CLASSIFICATIONS = ["Commercial", "Domestic", "Religion", "Public"];
 
 export function formatUsageField(usageClassification, lateUsageTypeName, lateUsageAttributes = []) {
   const lateUsageValue = formatLateUsageType(lateUsageTypeName, lateUsageAttributes);

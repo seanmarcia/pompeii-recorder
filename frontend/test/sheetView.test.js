@@ -131,7 +131,7 @@ test("bibliography input sits after archaeological description on the form", () 
   assert.ok(contIdx > bibIdx, "bibliography must come before contiguous relationships");
 });
 
-test("category offers only Commercial and Domestic on new sheets, with no usage classification select", () => {
+test("category offers the four category-sheet choices on new sheets, with no usage classification select", () => {
   const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
   const select = (name) => {
     const match = html.match(new RegExp(`<select[^>]*name="${name}"[^>]*>([\\s\\S]*?)</select>`));
@@ -142,7 +142,7 @@ test("category offers only Commercial and Domestic on new sheets, with no usage 
     (m) => m[1]
   );
 
-  assert.deepEqual(categoryOptions, [ "", "Commercial", "Domestic" ]);
+  assert.deepEqual(categoryOptions, [ "", "Commercial", "Domestic", "Religion", "Public" ]);
   assert.equal(select("USAGE_ID"), null, "Usage Classification select must be gone");
   assert.doesNotMatch(html, /Usage Classification/);
   assert.match(html, /<label>Late Usage<\/label>/, "Late Usage select must remain");
