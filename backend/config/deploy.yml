@@ -46,6 +46,9 @@ env:
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
     SOLID_QUEUE_IN_PUMA: true
+    # The field app is built into public/ at the site root (Dockerfile: VITE_BASE=/),
+    # so the deployed admin header's "Field Client" link points here.
+    FIELD_CLIENT_URL: "https://fdpompeii.org/"
 
     # Set number of processes dedicated to Solid Queue (default: 1)
     # JOB_CONCURRENCY: 3

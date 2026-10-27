@@ -233,7 +233,7 @@
       <% else %>
         <a href="/admin/login" class="btn btn-outline">Sign In</a>
       <% end %>
-      <a href="http://localhost:5173" target="_blank" class="btn btn-terracotta" title="Open the field logging React client">
+      <a href="<%= ENV.fetch("FIELD_CLIENT_URL", "http://localhost:5173") %>" target="_blank" rel="noopener noreferrer" class="btn btn-terracotta" title="Open the field logging React client">
         Field Client &rarr;
       </a>
     </div>
