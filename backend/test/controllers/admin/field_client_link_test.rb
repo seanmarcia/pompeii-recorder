@@ -31,11 +31,11 @@ class Admin::FieldClientLinkTest < ActionDispatch::IntegrationTest
   end
 
   test "Field Client link uses FIELD_CLIENT_URL when set" do
-    ENV["FIELD_CLIENT_URL"] = "https://fdpompeii.org/"
+    ENV["FIELD_CLIENT_URL"] = "https://field-client.example.org/"
     get "/admin"
 
     assert_response :success
     assert_select "a[title='Open the field logging React client'][href=?]",
-                  "https://fdpompeii.org/"
+                  "https://field-client.example.org/"
   end
 end
