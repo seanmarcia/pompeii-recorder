@@ -19,12 +19,12 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "master sheet photo grid renders attached photos whole with metadata dimension hints" do
-    @submission.update!(status: "approved")
-    @submission.photos.attach(
+    @feature.update!(photos: [ "portrait_test.jpg" ])
+    @feature.field_photos.attach(
       io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
       filename: "portrait_test.jpg", content_type: "image/jpeg"
     )
-    @submission.photos.first.blob.analyze
+    @feature.field_photos.first.blob.analyze
 
     get admin_feature_path(@feature.sheet)
 
@@ -41,6 +41,23 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/max-height:\s*240px/, styles)
     assert_no_match(/object-fit:\s*cover/, styles)
     assert_no_match(/aspect-ratio:\s*4\s*\/\s*3/, styles)
+  end
+
+  test "the photo grid shows the feature's own photos, not approved submissions' uploads" do
+    # An approved submission carries a blob that was never linked to the
+    # feature (a pre-backfill row). The master sheet is a view of the master
+    # record: the name stays a placeholder until the blob is linked to it.
+    @submission.update!(status: "approved")
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "iphone.jpg", content_type: "image/jpeg"
+    )
+
+    get admin_feature_path(@feature.sheet)
+
+    assert_response :success
+    assert_select ".photo-grid img", count: 0
+    assert_select ".photo-placeholder", count: 1
   end
 
   test "master sheets catalog supports search and view links" do
