@@ -39,10 +39,10 @@
 
   .photo-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.9rem; }
   .photo-grid li { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
-  .photo-grid img, .photo-placeholder { width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-elevated); }
-  .photo-grid img { display: block; object-fit: cover; transition: transform 0.15s ease; }
+  .photo-grid img, .photo-placeholder { max-width: 100%; max-height: 240px; width: auto; height: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-elevated); }
+  .photo-grid img { display: block; transition: transform 0.15s ease; }
   .photo-grid a:hover img { transform: scale(1.02); }
-  .photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 1.75rem; opacity: 0.7; }
+  .photo-placeholder { display: flex; align-items: center; justify-content: center; min-width: 100%; min-height: 120px; font-size: 1.75rem; opacity: 0.7; }
   .photo-grid span { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .history { list-style: none; }
@@ -134,7 +134,7 @@
         <% uploaded.each do |photo| %>
           <li>
             <%= link_to url_for(photo), target: "_blank", rel: "noopener" do %>
-              <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy" %>
+              <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy", **photo_dimension_attributes(photo) %>
             <% end %>
             <span title="<%= photo.filename %>"><%= photo.filename %></span>
           </li>
