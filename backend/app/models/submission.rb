@@ -99,6 +99,13 @@ class Submission < ApplicationRecord
     target_sheet.presence || payload["SHEET"].presence
   end
 
+  # The researcher (PR) this sheet belongs to: what the recorder entered,
+  # else the master record's researcher. The queue's PR column, sort, and
+  # search all read this one method so they can never disagree.
+  def researcher_name
+    editable_value("RESEARCHER_ID").presence
+  end
+
   # Other submissions for the same sheet still waiting for review.
   def other_pending_for_sheet
     return Submission.none if sheet_number.blank?

@@ -22,6 +22,33 @@ module Admin
       [ old_html.html_safe, new_html.html_safe ]
     end
 
+    # Builds /admin URLs that carry the queue's current state (tab, search,
+    # sort) so sort links, tabs, and the clear button never drop a filter.
+    # to_query sorts the keys, which keeps the hrefs deterministic.
+    def queue_url(overrides = {})
+      parts = {
+        "status" => overrides.key?("status") ? overrides["status"] : @filter,
+        "q" => overrides.key?("q") ? overrides["q"] : @query.presence,
+        "sort" => overrides.key?("sort") ? overrides["sort"] : @sort,
+        "dir" => overrides.key?("dir") ? overrides["dir"] : @dir
+      }
+      parts.compact_blank!
+      "/admin?#{parts.to_query}"
+    end
+
+    # Sort header link: flips direction when the column is already active,
+    # otherwise starts at the column's natural direction (newest-first for
+    # Submitted, alphabetical for the others).
+    def queue_sort_link(label, key)
+      dir = if @sort == key
+        (@dir == "asc") ? "desc" : "asc"
+      else
+        (key == "submitted") ? "desc" : "asc"
+      end
+      arrow = (@sort == key) ? ((@dir == "asc") ? " ↑" : " ↓") : ""
+      link_to("#{label}#{arrow}", queue_url("sort" => key, "dir" => dir))
+    end
+
     private
 
     def wrap_token(text, css_class)
