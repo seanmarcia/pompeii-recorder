@@ -16,7 +16,9 @@ class FeaturePhotoBackfill
 
   def run!
     stats = { attached: 0, unmatched_photos: 0, skipped_no_feature: 0 }
-    Submission.approved.with_attached_photos.find_each do |submission|
+    # Unordered walk: find_each ignores the approved scope's ORDER BY, and
+    # the result does not depend on order.
+    Submission.where(status: "approved").with_attached_photos.find_each do |submission|
       feature = Feature.find_by(sheet: submission.sheet_number)
       if feature.nil?
         stats[:skipped_no_feature] += 1

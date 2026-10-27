@@ -33,7 +33,7 @@ module Api
 
       # GET /api/v1/features/:sheet
       def show
-        feature = Feature.find_by(sheet: params[:sheet])
+        feature = Feature.with_attached_field_photos.find_by(sheet: params[:sheet])
         if feature
           render json: feature_json(feature)
         else

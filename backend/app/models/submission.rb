@@ -65,11 +65,25 @@ class Submission < ApplicationRecord
     data = (raw || {}).to_h.stringify_keys
     defaults = data.delete(DEFAULTS_KEY)
     data = data.reject { |_k, v| v.nil? || (v.is_a?(String) && v.strip.empty?) }
+    data["photos"] = photo_names_only(data["photos"]) if data["photos"].is_a?(Array)
     if defaults.is_a?(Hash)
       defaults = defaults.to_h.stringify_keys.reject { |k, v| v.to_s.strip.empty? || data.key?(k) }
       data[DEFAULTS_KEY] = defaults if defaults.any?
     end
     data
+  end
+
+  # The edit flow echoes the master's photo list back in the payload, and that
+  # list carries URLs for photos linked to the master record. Keep only the
+  # filename: photos_data holds names, and a URL would survive approval as a
+  # second, host-specific entry next to the name it points at.
+  def self.photo_names_only(photos)
+    photos.map do |photo|
+      next photo unless photo.is_a?(String) && photo.match?(%r{\Ahttps?://}i)
+      CGI.unescape(File.basename(URI.parse(photo).path))
+    rescue URI::InvalidURIError, ArgumentError
+      photo
+    end
   end
 
   validates :status, inclusion: { in: %w[pending approved rejected] }

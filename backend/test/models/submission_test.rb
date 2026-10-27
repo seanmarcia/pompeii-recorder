@@ -165,4 +165,20 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal 2, feat.field_photos.count, "each device's photo stays distinct evidence"
     assert_equal [ "IMG_1.jpg" ], feat.photos, "the name still merges to one entry"
   end
+
+  test "photo URLs echoed back by the edit form store and merge as filenames" do
+    Feature.create!(sheet: "514", photos: [ "IMG_1.jpg" ])
+    url = "http://localhost:3000/rails/storage/abc123/9001%20IMG_E0380.jpg"
+    sub = submit("SHEET" => "514", "photos" => [ url, "new.jpg" ])
+
+    assert_equal [ "9001 IMG_E0380.jpg", "new.jpg" ], sub.payload["photos"],
+                 "a URL echoes only its filename into the stored payload"
+
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "514")
+    assert_equal [ "IMG_1.jpg", "9001 IMG_E0380.jpg", "new.jpg" ], feat.photos
+    assert feat.photos.none? { |photo| photo.to_s.start_with?("http") },
+           "host-specific URLs must never land in photos_data"
+  end
 end

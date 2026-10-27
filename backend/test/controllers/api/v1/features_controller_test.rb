@@ -71,6 +71,24 @@ class Api::V1::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_match(%r{\Ahttp://.*IMG_1\.jpg\z}, photos.first)
   end
 
+  test "a name shared by two linked photos serves one URL, not two entries" do
+    @feature.photos = [ "IMG_1.jpg" ]
+    @feature.save!
+    2.times do
+      @feature.field_photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: "IMG_1.jpg", content_type: "image/jpeg"
+      )
+    end
+
+    get "/api/v1/features/#{@feature.sheet}"
+
+    assert_response :success
+    photos = JSON.parse(response.body)["photos"]
+    assert_equal 1, photos.size, "the name list stays the source of truth for the count"
+    assert_match(%r{\Ahttp://.*IMG_1\.jpg\z}, photos.first)
+  end
+
   test "GET /api/v1/features?download=true keeps the name-only pompeiifd schema" do
     @feature.photos = [ "IMG_1.jpg" ]
     @feature.save!
