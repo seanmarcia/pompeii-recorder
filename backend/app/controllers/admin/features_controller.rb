@@ -67,7 +67,6 @@ module Admin
       @feature = Feature.find_by!(sheet: params[:sheet])
       @values = @feature.as_json_pompeii
       @submissions = Submission.where(target_sheet: @feature.sheet).recent
-      @photo_submissions = @submissions.approved.with_attached_photos
     end
 
     private

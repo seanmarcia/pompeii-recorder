@@ -121,7 +121,7 @@
     </section>
   <% end %>
 
-  <% uploaded = @photo_submissions.flat_map { |s| s.photos.to_a } %>
+  <% uploaded = @feature.field_photos.to_a %>
   <% uploaded_names = uploaded.map { |p| p.filename.to_s } %>
   <% names_only = @feature.photos.reject { |name| uploaded_names.include?(name.to_s) } %>
   <section class="sheet-section">

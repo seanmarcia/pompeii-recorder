@@ -213,6 +213,16 @@ class Submission < ApplicationRecord
 
       feat.save!
 
+      # Link this submission's photo blobs to the master feature. The names
+      # merged above are dead references without them. Attaching reuses the
+      # existing blobs — a row insert, no byte copy — and the submission
+      # keeps its own attachments as evidence.
+      names = new_photos.map(&:to_s)
+      photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
+        next if feat.field_photos.where(blob_id: photo.blob_id).exists?
+        feat.field_photos.attach(photo.blob)
+      end
+
       self.status = "approved"
       self.reviewed_at = Time.current
       self.reviewer_notes = reviewer_note if reviewer_note.present?

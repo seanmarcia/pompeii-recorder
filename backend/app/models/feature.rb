@@ -1,4 +1,11 @@
 class Feature < ApplicationRecord
+  # Photo bytes carried into the master record: attached on approval
+  # (Submission#approve!) or by the backfill for approvals that predate the
+  # linkage. Kept in a separate association because `photos`/`photos=` are
+  # the photos_data name list, which stays the source of truth for what a
+  # sheet's photos are called.
+  has_many_attached :field_photos
+
   validates :sheet, presence: true, uniqueness: true
 
   scope :ordered, -> { order(:region, :insula, :entrance, :sheet) }
@@ -12,6 +19,14 @@ class Feature < ApplicationRecord
 
   def photos=(list)
     self.photos_data = list.is_a?(Array) ? list.to_json : (list || [].to_json)
+  end
+
+  # The photo attachment serving a name from photos_data, if the photo's
+  # bytes reached the master record. Names that exist only as text —
+  # paper-era names, rejected-submission photos, renamed files — resolve to
+  # nothing and keep their placeholder.
+  def field_photo_for(name)
+    field_photos.detect { |attachment| attachment.filename.to_s == name.to_s }
   end
 
   def as_json_pompeii
