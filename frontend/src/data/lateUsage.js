@@ -61,9 +61,11 @@ export function lateUsageOptionsFor(category, storedTypeName) {
   return [...names, ...extra];
 }
 
-// Sub-category options for a selected type. Base is the type's own list
-// (whichever category sheet defines it), unioned with any stored attributes so
-// a legacy value keeps its attributes selectable instead of dropping them.
+// Sub-category options for a selected type. `category` is unused today: base
+// is the type's own list (whichever category sheet defines it), so the
+// parameter exists for callers that pass it and for a future per-category
+// attribute split. Stored attributes are unioned in so a legacy value keeps
+// them selectable instead of dropping them.
 export function attributesForLateUsageType(category, typeName, storedAttributes = []) {
   const own =
     Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes || [];

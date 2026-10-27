@@ -14,7 +14,7 @@ import {
   formatSpaceType,
   parseSpaceType,
 } from "../data/spaceTypes";
-import { lateUsageOptionsFor, attributesForLateUsageType, formatLateUsageType, parseLateUsageType } from "../data/lateUsage";
+import { lateUsageOptionsFor, attributesForLateUsageType } from "../data/lateUsage";
 import { formatUsageField, parseUsageField } from "../data/usageField";
 import { categoryOptionsFor } from "../data/categories";
 import {
