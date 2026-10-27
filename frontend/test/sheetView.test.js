@@ -136,3 +136,15 @@ test("category offers only Commercial and Domestic on new sheets, with no usage 
   assert.doesNotMatch(html, /Usage Classification/);
   assert.match(html, /<label>Late Usage<\/label>/, "Late Usage select must remain");
 });
+
+test("a fresh sheet with no category offers no late usage types", () => {
+  // Static render never runs effects, so formData stays empty — this asserts
+  // the blank-category path only. Category-driven lists are exercised in
+  // lateUsage.test.js (helpers) and in the browser (review acceptance).
+  const html = renderToStaticMarkup(React.createElement(FeatureForm, { actionType: "create_new" }));
+  const select = html.match(new RegExp(`<select[^>]*name="LATE_USAGE_TYPE"[^>]*>([\\s\\S]*?)</select>`));
+  assert.ok(select, "Missing LATE_USAGE_TYPE select");
+  const options = Array.from(select[1].matchAll(/<option value="([^"]*)"/g), (m) => m[1]);
+  assert.deepEqual(options, [ "" ]);
+  assert.doesNotMatch(select[1], /Basilica|Tomb|Temple|House/);
+});

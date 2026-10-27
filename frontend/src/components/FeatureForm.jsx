@@ -14,7 +14,7 @@ import {
   formatSpaceType,
   parseSpaceType,
 } from "../data/spaceTypes";
-import { LATE_USAGE_TYPES, attributesForLateUsageType } from "../data/lateUsage";
+import { lateUsageOptionsFor, attributesForLateUsageType, formatLateUsageType, parseLateUsageType } from "../data/lateUsage";
 import { formatUsageField, parseUsageField } from "../data/usageField";
 import { categoryOptionsFor } from "../data/categories";
 import {
@@ -222,13 +222,19 @@ export default function FeatureForm({
 
   // Usage Classification was retired from the form; Late Usage (category +
   // sub-categories) remains and combines into the single USAGE_ID field with
-  // any classification parsed from a stored value.
+  // any classification parsed from a stored value. The offered types follow
+  // the sheet's Category (issue #17); a stored legacy type stays selectable.
   const {
     usageClassification: selectedUsageClassification,
     lateUsageTypeName: selectedLateUsageType,
     lateUsageAttributes: selectedLateUsageAttributes,
   } = parseUsageField(formData.USAGE_ID);
-  const lateUsageAttributeOptions = attributesForLateUsageType(selectedLateUsageType);
+  const lateUsageOptions = lateUsageOptionsFor(formData.CATEGORY_ID, selectedLateUsageType);
+  const lateUsageAttributeOptions = attributesForLateUsageType(
+    formData.CATEGORY_ID,
+    selectedLateUsageType,
+    selectedLateUsageAttributes
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -646,9 +652,9 @@ export default function FeatureForm({
                 }
               >
                 <option value="">Select Late Usage</option>
-                {LATE_USAGE_TYPES.map((lu) => (
-                  <option key={lu.name} value={lu.name}>
-                    {lu.name}
+                {lateUsageOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
                   </option>
                 ))}
               </select>

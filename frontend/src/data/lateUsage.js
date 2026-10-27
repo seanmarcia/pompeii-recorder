@@ -1,74 +1,74 @@
-// Late Usage categories and their optional sub-categories, from
-// "Late Usage (terms and subcategories)". Sub-categories are multi-select; a
-// selected category + its selected sub-categories are combined into a single
-// "Type: Sub1; Sub2" string, the same pattern used for Feature Type and Space Type.
-export const LATE_USAGE_TYPES = [
+// Late Usage categories and their optional sub-categories, split per sheet
+// category (issue #17): the 2026 Commercial and Domestic category sheets carry
+// different "Late Usage of Structure" lists. Options follow the sheet's
+// Category (CATEGORY_ID); a stored value that falls outside the category's
+// list stays selectable so an untouched sheet keeps its value instead of
+// silently blanking — the same pattern as Category (data/categories.js).
+//
+// Sub-categories are multi-select; a selected category + its selected
+// sub-categories are combined into a single "Type: Sub1; Sub2" string, the
+// same pattern used for Feature Type and Space Type.
+//
+// Deprecated types: the old merged list contained values on neither 2026
+// sheet (Amphitheater, Basilica, Temple, Tomb, ...). A sheet that already
+// stores one keeps it visible; new sheets cannot select them (no category
+// list offers them, and a blank category offers nothing).
+
+export const COMMERCIAL_LATE_USAGE_TYPES = [
   { name: "Agricultural", attributes: ["Olive Grove", "Orchard", "Vineyard", "Other"] },
-  { name: "Amphitheater", attributes: [] },
-  { name: "Apartment", attributes: [] },
-  { name: "Aqueduct", attributes: [] },
-  { name: "Association structure", attributes: [] },
   { name: "Bakery", attributes: [] },
-  { name: "Basilica", attributes: [] },
-  { name: "Bath", attributes: [] },
-  { name: "Ceramic workshop", attributes: [] },
-  { name: "Colonnade (Arcade)", attributes: ["Forum", "Paving stones"] },
-  { name: "Crossroad Shrine", attributes: [] },
-  { name: "Distribution center", attributes: ["Food", "Drink"] },
-  { name: "Food and drink processing", attributes: [] },
-  { name: "Food and drink shop", attributes: ["Small", "Large", "Other"] },
-  { name: "Gate", attributes: ["Lodging", "Tower"] },
-  { name: "Gladiatorial barracks", attributes: [] },
-  { name: "Gymnasium", attributes: [] },
   { name: "Hotel/Inn", attributes: [] },
-  { name: "House", attributes: ["Farm", "Villa, city", "Villa, outside walls"] },
-  { name: "House Shop", attributes: [] },
-  { name: "Market", attributes: ["Building", "Cattle", "Vegetable", "Weights"] },
-  { name: "Public space", attributes: ["Forum", "Intersections", "Open Areas", "Other"] },
-  {
-    name: "Public water",
-    attributes: [
-      "Reservoir",
-      "Distribution Center",
-      "Storage",
-      "Tower",
-      "Aqueduct",
-      "Fountain, Public",
-    ],
-  },
+  { name: "Market Building", attributes: ["Cattle", "Vegetable"] },
+  { name: "Food Distribution Center", attributes: [] },
+  { name: "Drink Distribution Center", attributes: [] },
+  { name: "Food & Drink Shop", attributes: ["Small", "Large", "Food processing", "Other"] },
   { name: "Restaurant", attributes: [] },
-  { name: "Sewers", attributes: ["Large", "Storm", "Small", "Under sidewalk"] },
-  { name: "Shop", attributes: [] },
-  { name: "Shop House", attributes: [] },
-  { name: "Storage/warehouse", attributes: ["Ice", "Granary"] },
-  { name: "Street shrine", attributes: [] },
-  { name: "Temple", attributes: ["Complex"] },
-  { name: "Theater", attributes: ["Small", "Large"] },
-  {
-    name: "Tomb",
-    attributes: [
-      "Aedicula",
-      "Altar",
-      "Arch",
-      "Bustum",
-      "Chamber",
-      "Columella",
-      "Enclosure",
-      "Exedra",
-      "House",
-      "Podium",
-      "Schola (Bench)",
-      "Temple",
-      "Tholos",
-      "Triclinium",
-      "Tumulus",
-      "Other",
-    ],
-  },
+  { name: "Shop-House", attributes: [] },
+  { name: "Space for Public Eating and Drinking", attributes: [] },
+  { name: "Storage", attributes: [] },
+  { name: "Thermopolium", attributes: [] },
+  { name: "Warehouse/Granary", attributes: [] },
+  { name: "Other", attributes: [] },
 ];
 
-export function attributesForLateUsageType(typeName) {
-  return LATE_USAGE_TYPES.find((t) => t.name === typeName)?.attributes || [];
+export const DOMESTIC_LATE_USAGE_TYPES = [
+  { name: "Apartment", attributes: [] },
+  { name: "Farm House", attributes: [] },
+  { name: "House", attributes: [] },
+  { name: "House-Shop", attributes: [] },
+  { name: "Space - Public Eating and Drinking", attributes: [] },
+  { name: "Villa rustica", attributes: [] },
+  { name: "Villa Urbana", attributes: [] },
+  { name: "Other", attributes: [] },
+];
+
+const LISTS_BY_CATEGORY = {
+  Commercial: COMMERCIAL_LATE_USAGE_TYPES,
+  Domestic: DOMESTIC_LATE_USAGE_TYPES,
+};
+
+// The types offered for a sheet category. Blank (or unknown) category offers
+// nothing: pick a Category first. Order is the category sheet's order.
+export function lateUsageTypesFor(category) {
+  return LISTS_BY_CATEGORY[category] || [];
+}
+
+// Options for the Late Usage select: the category's types, keeping a stored
+// legacy value selectable when it falls outside that list.
+export function lateUsageOptionsFor(category, storedTypeName) {
+  const names = lateUsageTypesFor(category).map((t) => t.name);
+  const extra = storedTypeName && !names.includes(storedTypeName) ? [storedTypeName] : [];
+  return [...names, ...extra];
+}
+
+// Sub-category options for a selected type. Base is the type's own list
+// (whichever category sheet defines it), unioned with any stored attributes so
+// a legacy value keeps its attributes selectable instead of dropping them.
+export function attributesForLateUsageType(category, typeName, storedAttributes = []) {
+  const own =
+    Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes || [];
+  const stored = Array.isArray(storedAttributes) ? storedAttributes : [];
+  return [...new Set([...own, ...stored])];
 }
 
 // Combine a Late Usage category and its selected sub-categories into a single value.
