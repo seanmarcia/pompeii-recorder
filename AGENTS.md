@@ -75,7 +75,15 @@ sqlite3 backend/storage/development.sqlite3 "SELECT ... FROM submissions ORDER B
 
 Never trust only UI feedback.
 
-### Driving the browser (Playwright MCP)
+### Image input
+
+The primary model in most sessions may not support image input. When a task requires reading a photo or image (e.g. transcribing the printed category sheets), **delegate the image reading to a subagent running a vision-capable model** instead of failing the task:
+
+- Preferred: spawn a subagent on **`openrouter/z-ai/glm-5.3-flashx`** (paid OpenRouter model — the one we're already paying for).
+- **Do not use `opencode/glm-5.3-flash-free`.** It works until it hits the free usage limit mid-task and then hard-fails the subagent — this has cost us an hour before. The free model only becomes an option if the user explicitly asks for it.
+- Give the subagent the image file paths, the sections to transcribe, and instructions to preserve exact printed spelling/case and to flag unreadable text rather than guess.
+
+## Driving the browser (Playwright MCP)
 
 **Golden rule: drive the page with snapshot refs, never DOM-order finders.** Use the dedicated interaction tools with `ref=eNN` refs from `browser_snapshot` — **not** hand-rolled DOM queries in `browser_evaluate`. Snapshot refs are **per-snapshot**: re-snapshot after every navigation or state change before interacting.
 
