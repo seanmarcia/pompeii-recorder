@@ -102,6 +102,32 @@
     margin-bottom: 1rem;
     opacity: 0.6;
   }
+  .queue-search {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .queue-search input[type="search"] {
+    flex: 1;
+    max-width: 420px;
+    min-width: 220px;
+    padding: 0.65rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .queue-search .result-note {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  table.submissions-table th a {
+    color: inherit;
+    text-decoration: none;
+  }
 </style>
 
 <div class="stats-grid">
@@ -123,28 +149,47 @@
 </div>
 
 <nav class="tabs-nav">
-  <a href="/admin?status=pending" class="tab-link <%= 'active' if @filter == 'pending' %>">
+  <a href="<%= queue_url("status" => "pending") %>" class="tab-link <%= 'active' if @filter == 'pending' %>">
     Pending Queue (<%= @counts[:pending] %>)
   </a>
-  <a href="/admin?status=approved" class="tab-link <%= 'active' if @filter == 'approved' %>">
+  <a href="<%= queue_url("status" => "approved") %>" class="tab-link <%= 'active' if @filter == 'approved' %>">
     Approved (<%= @counts[:approved] %>)
   </a>
-  <a href="/admin?status=rejected" class="tab-link <%= 'active' if @filter == 'rejected' %>">
+  <a href="<%= queue_url("status" => "rejected") %>" class="tab-link <%= 'active' if @filter == 'rejected' %>">
     Rejected (<%= @counts[:rejected] %>)
   </a>
-  <a href="/admin?status=all" class="tab-link <%= 'active' if @filter == 'all' %>">
+  <a href="<%= queue_url("status" => "all") %>" class="tab-link <%= 'active' if @filter == 'all' %>">
     All History (<%= @counts[:total] %>)
   </a>
 </nav>
+
+<form action="/admin" method="get" class="queue-search">
+  <input type="hidden" name="status" value="<%= @filter %>">
+  <input type="hidden" name="sort" value="<%= @sort %>">
+  <input type="hidden" name="dir" value="<%= @dir %>">
+  <input type="search" name="q" value="<%= @query %>" placeholder="Search by sheet number or researcher name&hellip;" aria-label="Search the queue">
+  <button type="submit" class="btn btn-outline">Search</button>
+  <% if @query.present? %>
+    <a href="<%= queue_url("q" => nil) %>" class="btn btn-outline">Clear</a>
+    <span class="result-note"><%= @submissions.length %> result<%= "s" if @submissions.length != 1 %></span>
+  <% end %>
+</form>
 
 <div class="table-card">
   <% if @submissions.empty? %>
     <div class="empty-state">
       <div class="empty-state-icon">&#9782;</div>
-      <h3>No <%= @filter %> submissions in queue</h3>
-      <p style="margin-top: 0.5rem; font-size: 0.9rem;">
-        When field archaeologists submit new room logs or updates from the client app, they will appear here for review.
-      </p>
+      <% if @query.present? %>
+        <h3>No <%= @filter %> submissions match &ldquo;<%= @query %>&rdquo;</h3>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+          Try a different sheet number or researcher name, or clear the search to see the whole queue.
+        </p>
+      <% else %>
+        <h3>No <%= @filter %> submissions in queue</h3>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+          When field archaeologists submit new room logs or updates from the client app, they will appear here for review.
+        </p>
+      <% end %>
     </div>
   <% else %>
     <table class="submissions-table">
@@ -152,11 +197,11 @@
         <tr>
           <th>ID</th>
           <th>Type</th>
-          <th>Sheet / Location</th>
+          <th><%= queue_sort_link "Sheet / Location", "sheet" %></th>
           <th>Room / Structure</th>
-          <th>Data Entered By</th>
+          <th><%= queue_sort_link "Researcher (PR)", "researcher" %></th>
           <th>Photos</th>
-          <th>Submitted</th>
+          <th><%= queue_sort_link "Submitted", "submitted" %></th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -190,11 +235,8 @@
               <div class="cell-title"><%= sub.editable_value("SPACE_NUMBER").presence || sub.editable_value("STRUCTURE_ID").presence || "Untitled Space" %></div>
               <div class="cell-sub"><%= sub.editable_value("FEATURE_TYPE_ID").presence || sub.editable_value("SHEET_TYPE_ID").presence || "Record" %></div>
             </td>
-            <td>
-              <div class="cell-title"><%= sub.submitter_name.presence || "Anonymous" %></div>
-              <% if sub.submitter_notes.present? %>
-                <div class="cell-sub" title="<%= sub.submitter_notes %>">&ldquo;<%= truncate(sub.submitter_notes, length: 30) %>&rdquo;</div>
-              <% end %>
+            <td class="pr-cell">
+              <div class="cell-title"><%= sub.researcher_name || "—" %></div>
             </td>
             <td>
               <% photo_count = sub.photos.attached? ? sub.photos.count : (payload["photos"]&.size || 0) %>

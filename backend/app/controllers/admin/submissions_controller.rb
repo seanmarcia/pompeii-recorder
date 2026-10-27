@@ -6,9 +6,15 @@ module Admin
     before_action :set_submission, only: [ :show, :update, :approve, :reject ]
     before_action :require_pending, only: [ :update ]
 
+    SORT_KEYS = %w[sheet researcher submitted].freeze
+    SORT_DIRECTIONS = %w[asc desc].freeze
+
     # GET /admin or /admin/submissions
     def index
-      @filter = params[:status].presence || "pending"
+      @filter = %w[pending approved rejected all].include?(params[:status]) ? params[:status] : "pending"
+      @query = params[:q].to_s.strip
+      @sort = SORT_KEYS.include?(params[:sort]) ? params[:sort] : "sheet"
+      @dir = SORT_DIRECTIONS.include?(params[:dir]) ? params[:dir] : "desc"
       @counts = {
         pending: Submission.pending.count,
         approved: Submission.approved.count,
@@ -16,12 +22,23 @@ module Admin
         total: Submission.count
       }
 
-      @submissions = case @filter
+      scope = case @filter
       when "approved" then Submission.approved
       when "rejected" then Submission.rejected
       when "all"      then Submission.recent
       else                 Submission.pending
       end
+
+      # The queue renders every row of the filtered tab (no pagination), so
+      # searching and sorting in Ruby — on the same #sheet_number /
+      # #researcher_name methods the view uses — keeps what is matched,
+      # ordered, and shown in one place.
+      submissions = scope.to_a
+      if @query.present?
+        q = @query.downcase
+        submissions = submissions.select { |s| queue_matches?(s, q) }
+      end
+      @submissions = queue_sort(submissions)
 
       # How many pending submissions each sheet has, to flag sheets that
       # several people are recording at once.
@@ -90,6 +107,44 @@ module Admin
     def require_pending
       return if @submission.status == "pending"
       render json: { error: "Only pending submissions can be edited." }, status: :unprocessable_entity
+    end
+
+    # Partial, case-insensitive match on sheet number or the sheet's
+    # researcher (payload value with master-record fallback).
+    def queue_matches?(submission, q)
+      submission.sheet_number.to_s.downcase.include?(q) ||
+        submission.researcher_name.to_s.downcase.include?(q)
+    end
+
+    def queue_sort(submissions)
+      case @sort
+      when "researcher"
+        # Named researchers alphabetical; blanks always last. Rows sharing
+        # a researcher stay newest-first in both directions.
+        blank, named = submissions.partition { |s| s.researcher_name.blank? }
+        named.sort_by! { |s| [s.researcher_name.to_s.downcase, -s.created_at.to_f] }
+        if @dir == "desc"
+          named.replace(named.group_by { |s| s.researcher_name.to_s.downcase }
+                              .sort_by { |name, _group| name }.reverse
+                              .flat_map { |_name, group| group })
+        end
+        blank.sort_by! { |s| -s.created_at.to_f }
+        named + blank
+      when "submitted"
+        submissions.sort_by! { |s| s.created_at.to_f }
+        submissions.reverse! if @dir == "desc"
+        submissions
+      else
+        # Numeric sheet order, newest first inside a cluster in both
+        # directions. Sheets without a number sort last (the API can create
+        # them). to_f (not to_i) keeps sub-second creation order — seeded
+        # queues create several submissions within one second.
+        blank, numbered = submissions.partition { |s| s.sheet_number.to_s.strip.empty? }
+        sign = (@dir == "asc") ? 1 : -1
+        numbered.sort_by! { |s| [sign * s.sheet_number.to_i, -s.created_at.to_f] }
+        blank.sort_by! { |s| -s.created_at.to_f }
+        numbered + blank
+      end
     end
   end
 end

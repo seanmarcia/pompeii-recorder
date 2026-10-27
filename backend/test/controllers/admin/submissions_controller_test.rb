@@ -36,7 +36,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", /FOOD AND DRINK IN ANCIENT POMPEII/
     assert_select "td", /Lararium shrine room/
-    assert_select "th", text: "Data Entered By"
+    assert_select "th", /Researcher \(PR\)/
   end
 
   test "GET /admin/submissions/:id shows submission detail" do
@@ -282,5 +282,210 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}"
     assert_select ".flash-info", /Another pending submission exists/
     assert_select ".flash-info a[href=?]", "/admin/submissions/#{other.id}"
+  end
+
+  # --- Issue #6: researcher (PR) column, sheet-cluster sort, search ---
+
+  test "queue replaces data entered by with researcher column showing payload, master fallback, and blank" do
+    Feature.create!(sheet: "6083", researcher_id: "Sera Baker")
+    Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      payload: { "SHEET" => "99901", "RESEARCHER_ID" => "Lisa Kahn", "SPACE_NUMBER" => "lisa room" })
+    Submission.create!(action_type: "update_existing", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "DESCRIPTION" => "Rechecked plaster", "SPACE_NUMBER" => "sera room" })
+    Submission.create!(action_type: "create_new", target_sheet: "7777", status: "pending",
+      payload: { "SHEET" => "7777", "SPACE_NUMBER" => "blank room" })
+
+    get "/admin"
+    assert_response :success
+    assert_select "th", /Researcher \(PR\)/
+    assert css_select("th").none? { |th| th.text.include?("Data Entered By") }
+    assert_select "td.pr-cell .cell-title", text: "Lisa Kahn"
+    assert_select "td.pr-cell .cell-title", text: "Sera Baker"
+    blank_pr_cells = css_select("td.pr-cell .cell-title").count { |cell| cell.text.strip == "—" }
+    assert_equal 2, blank_pr_cells, "expected two rows with no researcher anywhere (7777 and the 8888 baseline)"
+  end
+
+  test "queue defaults to sheet number descending with newest first inside each sheet cluster" do
+    now = Time.current
+    # The pair below sits inside the SAME second (X.1 and X.9): the seed
+    # data's collision trio is created within one second, so whole-second
+    # keys cannot order a sheet cluster correctly.
+    second = Time.zone.at(Time.current.to_i + 0.9)
+    older = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      created_at: second - 0.8, payload: { "SHEET" => "99901" })
+    newer = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      created_at: second, payload: { "SHEET" => "99901" })
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "pending",
+      created_at: now - 1.hour, payload: { "SHEET" => "6083" })
+    Submission.create!(action_type: "create_new", target_sheet: "1002", status: "pending",
+      created_at: now, payload: { "SHEET" => "1002" })
+    Submission.create!(action_type: "create_new", target_sheet: "500", status: "pending",
+      created_at: now, payload: { "SHEET" => "500" })
+    Submission.create!(action_type: "create_new", target_sheet: "300", status: "approved",
+      reviewed_at: now - 1.minute, payload: { "SHEET" => "300", "SPACE_NUMBER" => "approved high sheet" })
+    Submission.create!(action_type: "create_new", target_sheet: "200", status: "approved",
+      reviewed_at: now, payload: { "SHEET" => "200", "SPACE_NUMBER" => "approved low sheet" })
+
+    get "/admin"
+    body = response.body
+    assert body.index("Sheet 99901") < body.index("Sheet 6083"), "99901 cluster should come before 6083"
+    assert body.index("Sheet 6083") < body.index("Sheet 1002"), "6083 should come before 1002"
+    assert body.index("Sheet 1002") < body.index("Sheet 500"), "sheet order should be numeric, not lexicographic"
+    assert body.index("##{newer.id}</span>") < body.index("##{older.id}</span>"), "newest first inside a sheet cluster"
+
+    get "/admin?status=approved"
+    body = response.body
+    assert body.index("approved high sheet") < body.index("approved low sheet"),
+      "approved tab should cluster by sheet number, not reviewed_at"
+  end
+
+  test "sheet header link sorts numerically ascending with newest first inside clusters" do
+    now = Time.current
+    older = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      created_at: now - 2.hours, payload: { "SHEET" => "99901" })
+    newer = Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      created_at: now, payload: { "SHEET" => "99901" })
+    Submission.create!(action_type: "create_new", target_sheet: "500", status: "pending",
+      created_at: now, payload: { "SHEET" => "500" })
+    Submission.create!(action_type: "create_new", target_sheet: "1002", status: "pending",
+      created_at: now, payload: { "SHEET" => "1002" })
+    Submission.create!(action_type: "create_new", status: "pending",
+      payload: { "SPACE_NUMBER" => "no sheet row" })
+
+    get "/admin?sort=sheet&dir=asc"
+    body = response.body
+    assert body.index("Sheet 500") < body.index("Sheet 1002"), "numeric ascending: 500 before 1002"
+    assert body.index("Sheet 1002") < body.index("Sheet 99901")
+    assert body.index("##{newer.id}</span>") < body.index("##{older.id}</span>"), "newest first inside a cluster even ascending"
+    assert body.index("no sheet row") > body.index("Sheet 99901"), "rows without a sheet number sort last"
+  end
+
+  test "researcher header sorts alphabetically with blanks last in both directions" do
+    now = Time.current
+    Feature.create!(sheet: "6083", researcher_id: "Sera Baker")
+    Submission.create!(action_type: "create_new", target_sheet: "1111", status: "pending",
+      payload: { "SHEET" => "1111", "RESEARCHER_ID" => "Zoe Adams", "SPACE_NUMBER" => "zoe room" })
+    Submission.create!(action_type: "create_new", target_sheet: "3333", status: "pending",
+      created_at: now - 5.hours,
+      payload: { "SHEET" => "3333", "RESEARCHER_ID" => "Zoe Adams", "SPACE_NUMBER" => "zoe older room" })
+    Submission.create!(action_type: "create_new", target_sheet: "2222", status: "pending",
+      payload: { "SHEET" => "2222", "RESEARCHER_ID" => "Anna Bell", "SPACE_NUMBER" => "anna room" })
+    Submission.create!(action_type: "update_existing", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "SPACE_NUMBER" => "sera room" })
+    Submission.create!(action_type: "create_new", target_sheet: "7777", status: "pending",
+      payload: { "SHEET" => "7777", "SPACE_NUMBER" => "blank room" })
+
+    get "/admin?sort=researcher&dir=asc"
+    body = response.body
+    assert body.index("anna room") < body.index("sera room")
+    assert body.index("sera room") < body.index("zoe room")
+    assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first ascending"
+    assert body.index("zoe older room") < body.index("blank room"), "blank researcher sorts last ascending"
+
+    get "/admin?sort=researcher&dir=desc"
+    body = response.body
+    assert body.index("zoe room") < body.index("sera room")
+    assert body.index("sera room") < body.index("anna room")
+    assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first descending"
+    assert body.index("anna room") < body.index("blank room"), "blank researcher still last descending"
+  end
+
+  test "submitted header sorts by creation time in both directions" do
+    now = Time.current
+    Submission.create!(action_type: "create_new", target_sheet: "1111", status: "pending",
+      created_at: now - 3.hours, payload: { "SHEET" => "1111", "SPACE_NUMBER" => "oldest room" })
+    Submission.create!(action_type: "create_new", target_sheet: "2222", status: "pending",
+      created_at: now - 2.hours, payload: { "SHEET" => "2222", "SPACE_NUMBER" => "middle room" })
+    Submission.create!(action_type: "create_new", target_sheet: "3333", status: "pending",
+      created_at: now, payload: { "SHEET" => "3333", "SPACE_NUMBER" => "newest room" })
+
+    get "/admin?sort=submitted&dir=asc"
+    body = response.body
+    assert body.index("oldest room") < body.index("middle room")
+    assert body.index("middle room") < body.index("newest room")
+
+    get "/admin?sort=submitted&dir=desc"
+    assert response.body.index("newest room") < response.body.index("oldest room")
+  end
+
+  test "sort and tab links preserve the active status tab and search term" do
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "approved",
+      reviewed_at: Time.current, payload: { "SHEET" => "6083" })
+
+    get "/admin?status=approved&q=608&sort=sheet&dir=asc"
+
+    assert_select "a[href=?]", "/admin?dir=desc&q=608&sort=sheet&status=approved"
+    assert_select "a[href=?]", "/admin?dir=asc&q=608&sort=researcher&status=approved"
+    assert_select "a[href=?]", "/admin?dir=desc&q=608&sort=submitted&status=approved"
+    assert_select ".tabs-nav a[href=?]", "/admin?dir=asc&q=608&sort=sheet&status=approved"
+    assert_select "input[name='status'][value='approved']", count: 1
+    assert_select "input[name='sort'][value='sheet']", count: 1
+
+    # Default state: first click on Sheet flips to asc, other headers start
+    # at their natural direction.
+    get "/admin"
+    assert_select "a[href=?]", "/admin?dir=asc&sort=sheet&status=pending"
+    assert_select "a[href=?]", "/admin?dir=asc&sort=researcher&status=pending"
+    assert_select "a[href=?]", "/admin?dir=desc&sort=submitted&status=pending"
+
+    # Clear drops the query but keeps the tab and sort.
+    get "/admin?q=608"
+    assert_select "a[href=?]", "/admin?dir=desc&sort=sheet&status=pending"
+  end
+
+  test "search matches partial sheet numbers" do
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "SPACE_NUMBER" => "sixty room" })
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "SPACE_NUMBER" => "sixty other room" })
+    Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      payload: { "SHEET" => "99901", "SPACE_NUMBER" => "ninety room" })
+    Submission.create!(action_type: "create_new", target_sheet: "1002", status: "pending",
+      payload: { "SHEET" => "1002", "SPACE_NUMBER" => "ten room" })
+
+    get "/admin?q=608"
+    body = response.body
+    assert_match "sixty room", body
+    assert_match "sixty other room", body
+    assert_no_match /ninety room/, body
+    assert_no_match /ten room/, body
+  end
+
+  test "search matches researcher names case-insensitively including master fallback" do
+    Feature.create!(sheet: "6083", researcher_id: "Sera Baker")
+    Submission.create!(action_type: "create_new", target_sheet: "99901", status: "pending",
+      payload: { "SHEET" => "99901", "RESEARCHER_ID" => "Lisa Kahn", "SPACE_NUMBER" => "lisa room" })
+    Submission.create!(action_type: "update_existing", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "SPACE_NUMBER" => "sera room" })
+
+    get "/admin?q=LISA"
+    assert_match "lisa room", response.body
+    assert_no_match /sera room/, response.body
+
+    get "/admin?q=sera"
+    assert_match "sera room", response.body
+    assert_no_match /lisa room/, response.body
+  end
+
+  test "search with no matches shows an empty state naming the term" do
+    get "/admin?q=zzz"
+    assert_response :success
+    assert_select "table.submissions-table", count: 0
+    assert_select "h3", /zzz/
+  end
+
+  test "search composes with the status tabs" do
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "approved",
+      reviewed_at: Time.current, payload: { "SHEET" => "6083", "SPACE_NUMBER" => "approved sixty" })
+    Submission.create!(action_type: "create_new", target_sheet: "6083", status: "pending",
+      payload: { "SHEET" => "6083", "SPACE_NUMBER" => "pending sixty" })
+    Submission.create!(action_type: "create_new", target_sheet: "500", status: "approved",
+      reviewed_at: Time.current, payload: { "SHEET" => "500", "SPACE_NUMBER" => "approved five" })
+
+    get "/admin?status=approved&q=608"
+    body = response.body
+    assert_match "approved sixty", body
+    assert_no_match /pending sixty/, body
+    assert_no_match /approved five/, body
   end
 end
