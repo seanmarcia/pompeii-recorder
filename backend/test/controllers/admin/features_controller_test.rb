@@ -18,6 +18,31 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     post admin_login_path, params: { login: @admin.username, password: "test-password" }
   end
 
+  test "master sheet photo grid renders attached photos whole with metadata dimension hints" do
+    @submission.update!(status: "approved")
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.first.blob.analyze
+
+    get admin_feature_path(@feature.sheet)
+
+    assert_response :success
+    assert_select ".photo-grid img" do |imgs|
+      assert_equal 1, imgs.size
+      assert_equal "309", imgs.first["width"], "width hint must come from blob metadata"
+      assert_equal "400", imgs.first["height"], "height hint must come from blob metadata"
+    end
+    # The grid must fit whole images at their natural aspect ratio: no fixed
+    # 4:3 box and no cover crop on the rendered photo.
+    styles = response.body.scrub[/\.photo-grid\s+img\s*,\s*\.photo-placeholder\s*\{[^}]*\}/]
+    assert styles, "photo-grid img style block missing"
+    assert_match(/max-height:\s*240px/, styles)
+    assert_no_match(/object-fit:\s*cover/, styles)
+    assert_no_match(/aspect-ratio:\s*4\s*\/\s*3/, styles)
+  end
+
   test "master sheets catalog supports search and view links" do
     get admin_features_path, params: { q: "Read-only shrine" }
     assert_response :success

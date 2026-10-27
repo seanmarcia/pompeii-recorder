@@ -39,6 +39,44 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", /Researcher \(PR\)/
   end
 
+  test "attached photos render with metadata dimensions and fit caps, never a crop" do
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.first.blob.analyze
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select ".photo-box img" do |imgs|
+      assert_equal 1, imgs.size
+      assert_equal "309", imgs.first["width"], "width hint must come from blob metadata"
+      assert_equal "400", imgs.first["height"], "height hint must come from blob metadata"
+    end
+    # The stylesheet must fit whole images instead of cropping: no fixed box
+    # height and no cover on the rendered photo.
+    styles = response.body.scrub[/\.photo-box\s+img\s*\{[^}]*\}/]
+    assert styles, "photo-box img style block missing"
+    assert_match(/max-height:\s*240px/, styles)
+    assert_no_match(/object-fit:\s*cover/, styles)
+  end
+
+  test "attached photos without analysis fall back to assumed 4:3 dimension hints" do
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.first.blob.update!(metadata: nil)
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select ".photo-box img" do |imgs|
+      assert_equal 1, imgs.size
+      assert_equal "2048", imgs.first["width"], "un-analyzed blobs assume 4:3 width"
+      assert_equal "1536", imgs.first["height"], "un-analyzed blobs assume 4:3 height"
+    end
+  end
+
   test "GET /admin/submissions/:id shows submission detail" do
     get "/admin/submissions/#{@submission.id}"
     assert_response :success

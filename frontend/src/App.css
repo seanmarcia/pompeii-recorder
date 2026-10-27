@@ -876,14 +876,14 @@
 .photo-thumb-container {
   position: relative;
   width: 100%;
-  height: 150px;
   background: var(--surface-elevated);
 }
 
 .photo-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 240px;
+  width: auto;
+  height: auto;
   display: block;
 }
 
@@ -1379,18 +1379,22 @@
 }
 .sheet-view-photos img,
 .sheet-view-photo-placeholder {
-  width: 100%;
-  aspect-ratio: 4 / 3;
+  max-width: 100%;
+  max-height: 240px;
+  width: auto;
+  height: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface-elevated);
 }
-.sheet-view-photos img { display: block; object-fit: cover; transition: transform 0.15s ease; }
+.sheet-view-photos img { display: block; transition: transform 0.15s ease; }
 .sheet-view-photos a:hover img { transform: scale(1.02); }
 .sheet-view-photo-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 100%;
+  min-height: 120px;
   font-size: 1.75rem;
   opacity: 0.7;
 }
@@ -1609,7 +1613,7 @@
 .outbox-photo-mini img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .outbox-photo-size {
