@@ -1,12 +1,20 @@
 import FeatureForm from './FeatureForm.jsx'
 import { expect, within, userEvent, waitFor } from 'storybook/test'
 import { RECORDER_NAMES } from '../data/people.js'
+import { PUBLIC_LATE_USAGE_TYPES, RELIGION_LATE_USAGE_TYPES } from '../data/lateUsage.js'
 
-// Category is restricted to Commercial/Domestic for new entries and any
-// change; a legacy stored value stays selectable so an untouched sheet keeps
-// it. The Usage Classification select is retired; Late Usage remains.
+// Category offers the four 2026 category-sheet choices (Commercial, Domestic,
+// Religion, Public) for new entries and any change; a legacy stored value
+// stays selectable so an untouched sheet keeps its value. The Usage
+// Classification select is retired; Late Usage remains and follows Category.
 function categoryOptions(canvasElement) {
   const select = canvasElement.querySelector('select[name="CATEGORY_ID"]')
+  expect(select).not.toBeNull()
+  return Array.from(select.options).map((option) => option.value)
+}
+
+function lateUsageOptions(canvasElement) {
+  const select = canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]')
   expect(select).not.toBeNull()
   return Array.from(select.options).map((option) => option.value)
 }
@@ -27,11 +35,13 @@ export const NewSheetCategoryRestricted = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    // A new sheet offers exactly Select Category, Commercial, Domestic.
+    // A new sheet offers exactly Select Category plus the four choices.
     await expect(categoryOptions(canvasElement)).toEqual([
       '',
       'Commercial',
       'Domestic',
+      'Religion',
+      'Public',
     ])
     // The retired Usage Classification select is gone from the form.
     await expect(
@@ -40,6 +50,32 @@ export const NewSheetCategoryRestricted = {
     await expect(canvas.queryByText('Usage Classification')).not.toBeInTheDocument()
     // Late Usage and its select remain a separate field.
     await expect(canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]')).not.toBeNull()
+  },
+}
+
+export const LateUsageOptionsFollowCategory = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const category = await waitForCategorySelect(canvasElement)
+
+    // A blank category offers no late usage types: pick a Category first.
+    await expect(lateUsageOptions(canvasElement)).toEqual([''])
+
+    // Each category swaps in its own 2026 sheet list.
+    await userEvent.selectOptions(category, 'Public')
+    await expect(lateUsageOptions(canvasElement)).toEqual([
+      '',
+      ...PUBLIC_LATE_USAGE_TYPES.map((t) => t.name),
+    ])
+
+    await userEvent.selectOptions(category, 'Religion')
+    await expect(lateUsageOptions(canvasElement)).toEqual([
+      '',
+      ...RELIGION_LATE_USAGE_TYPES.map((t) => t.name),
+    ])
   },
 }
 
@@ -58,8 +94,16 @@ export const LegacyCategoryStaysSelectable = {
     const select = await waitForCategorySelect(canvasElement)
     const options = Array.from(select.options).map((option) => option.value)
 
-    // The legacy value rides along after the restricted choices, preselected.
-    await expect(options).toEqual(['', 'Commercial', 'Domestic', 'Religious'])
+    // The legacy value rides along after the four choices, preselected. It is
+    // a distinct string from the new Religion option, not merged with it.
+    await expect(options).toEqual([
+      '',
+      'Commercial',
+      'Domestic',
+      'Religion',
+      'Public',
+      'Religious',
+    ])
     await expect(select.value).toBe('Religious')
 
     // The stored composite USAGE_ID hydrates the Late Usage select.
@@ -91,27 +135,26 @@ export const CategoryAndLateUsageStayIndependent = {
     })
 
     // Correcting the legacy category does not touch the late usage half.
-    await userEvent.selectOptions(category, 'Domestic')
-    await expect(category.value).toBe('Domestic')
+    await userEvent.selectOptions(category, 'Commercial')
+    await expect(category.value).toBe('Commercial')
     await expect(lateUsage.value).toBe('Bakery')
 
+    // Stored attributes stay visible even though the 2026 sheets list no
+    // Bakery attributes: the union pattern keeps them changeable.
+    await expect(canvas.getByText('Bakery Attributes')).toBeInTheDocument()
+
     // Switching late usage to a type with listed attributes reveals the
-    // "X Attributes" group; Bakery had none, so the group was absent.
-    await expect(
-      canvas.queryByText('Bakery Attributes')
-    ).not.toBeInTheDocument()
-    await userEvent.selectOptions(lateUsage, 'Colonnade (Arcade)')
-    await expect(
-      canvas.getByText('Colonnade (Arcade) Attributes')
-    ).toBeInTheDocument()
+    // "X Attributes" group.
+    await userEvent.selectOptions(lateUsage, 'Agricultural')
+    await expect(canvas.getByText('Agricultural Attributes')).toBeInTheDocument()
 
     // Checking an attribute chips it into the multiselect trigger — the
     // control that rebuilds USAGE_ID on change. (Assert on the trigger, not
-    // getByText: the open panel also renders "Forum" as an option label.)
-    const attributeTrigger = canvas.getByRole('button', { name: 'Colonnade (Arcade) attributes' })
+    // getByText: the open panel also renders "Orchard" as an option label.)
+    const attributeTrigger = canvas.getByRole('button', { name: 'Agricultural attributes' })
     await userEvent.click(attributeTrigger)
-    await userEvent.click(canvas.getByRole('checkbox', { name: 'Forum' }))
-    await expect(attributeTrigger.textContent).toContain('Forum')
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Orchard' }))
+    await expect(attributeTrigger.textContent).toContain('Orchard')
   },
 }
 

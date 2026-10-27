@@ -2,14 +2,23 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { createServer } from "vite";
 
-// Reference lists from the 2026 category sheets (issue #17):
+// Reference lists from the 2026 category sheets (issues #17 and #27):
 // Commercial: Agricultural (Olive Grove/Orchard/Vineyard/Other), Bakery,
 //   Hotel/Inn, Market Building (Cattle/Vegetable), Food Distribution Center,
 //   Drink Distribution Center, Food & Drink Shop (Small/Large/Food
 //   processing/Other), Restaurant, Shop-House, Space for Public Eating and
 //   Drinking, Storage, Thermopolium, Warehouse/Granary, Other.
-// Domestic (flat, no attributes): Apartment, Farm House, House, House-Shop,
-//   Space - Public Eating and Drinking, Villa rustica, Villa Urbana, Other.
+// Domestic (flat): Apartment, Farm House, House, House-Shop, Space - Public
+//   Eating and Drinking, Villa rustica, Villa Urbana, Other.
+// Religion (flat): Association Structure, Crossroad Shrine, Shop, Storage,
+//   Space - Public Eating and Drinking, Temple, Temple Shop, Other.
+// Public (flat, spellings as printed on the sheet): Amphitheater, Basilica,
+//   Bath, Civic Building-Archives, Colonnade-forum, paving stones, Fountain,
+//   public, Gate, Gladiatorial Barracks, Gymnasium, Market Building, Market,
+//   Cattle, Market, Vegetable, Space-Public Eating and Drinking, Storage
+//   (Cool storage chamber), Table for Weights and Measures, Theater, Small,
+//   Theatre, Large, Water Reservoir, Water Distribution Center, Water
+//   Storage, Water Tower.
 const COMMERCIAL = [
   "Agricultural",
   "Bakery",
@@ -38,8 +47,46 @@ const DOMESTIC = [
   "Other",
 ];
 
-// Deprecated types: on the current merged list, on neither 2026 sheet.
-const DEPRECATED = ["Amphitheater", "Basilica", "Gladiatorial barracks", "Temple", "Theater", "Tomb"];
+const RELIGION = [
+  "Association Structure",
+  "Crossroad Shrine",
+  "Shop",
+  "Storage",
+  "Space - Public Eating and Drinking",
+  "Temple",
+  "Temple Shop",
+  "Other",
+];
+
+const PUBLIC = [
+  "Amphitheater",
+  "Basilica",
+  "Bath",
+  "Civic Building-Archives",
+  "Colonnade-forum",
+  "paving stones",
+  "Fountain, public",
+  "Gate",
+  "Gladiatorial Barracks",
+  "Gymnasium",
+  "Market Building",
+  "Market, Cattle",
+  "Market, Vegetable",
+  "Space-Public Eating and Drinking",
+  "Storage (Cool storage chamber)",
+  "Table for Weights and Measures",
+  "Theater, Small",
+  "Theatre, Large",
+  "Water Reservoir",
+  "Water Distribution Center",
+  "Water Storage",
+  "Water Tower",
+];
+
+// Deprecated types: on the old merged list, on no 2026 sheet. The Religion and
+// Public sheets made Amphitheater, Basilica, Gladiatorial barracks, and Temple
+// reachable again through their own categories.
+const DEPRECATED = ["Theater", "Tomb", "Street shrine"];
 
 let server;
 let lateUsage;
@@ -71,6 +118,24 @@ test("domestic sheets offer the 2026 domestic list, deprecated types excluded", 
   assert.ok(!options.includes("Thermopolium"), "Thermopolium is commercial only");
 });
 
+test("religion sheets offer the 2026 religion list, deprecated types excluded", () => {
+  const options = lateUsage.lateUsageOptionsFor("Religion", "");
+  assert.deepEqual(options, RELIGION);
+  DEPRECATED.forEach((d) => assert.ok(!options.includes(d), `${d} must not be offered`));
+  assert.ok(options.includes("Temple Shop"), "Temple Shop is a religion type");
+});
+
+test("public sheets offer the 2026 public list, deprecated types excluded", () => {
+  const options = lateUsage.lateUsageOptionsFor("Public", "");
+  assert.deepEqual(options, PUBLIC);
+  DEPRECATED.forEach((d) => assert.ok(!options.includes(d), `${d} must not be offered`));
+  // Types stranded when only Commercial/Domestic had lists are reachable
+  // again through the Public sheet.
+  ["Amphitheater", "Basilica", "Gladiatorial Barracks", "Gymnasium"].forEach((t) => {
+    assert.ok(options.includes(t), `${t} is a public type`);
+  });
+});
+
 test("a blank category offers no late usage types (category first)", () => {
   assert.deepEqual(lateUsage.lateUsageOptionsFor("", ""), []);
   assert.deepEqual(lateUsage.lateUsageOptionsFor(null, ""), []);
@@ -80,8 +145,10 @@ test("a stored type outside the category list stays selectable (categoryOptionsF
   // Legacy "Tomb" on a Domestic sheet: appended, not erased.
   const options = lateUsage.lateUsageOptionsFor("Domestic", "Tomb");
   assert.deepEqual(options, [...DOMESTIC, "Tomb"]);
+  // Legacy "Sanctuary" on a Religion sheet: appended, not erased.
+  assert.deepEqual(lateUsage.lateUsageOptionsFor("Religion", "Sanctuary"), [...RELIGION, "Sanctuary"]);
   // A stored type that IS in the list is not duplicated.
-  assert.deepEqual(lateUsage.lateUsageOptionsFor("Domestic", "House"), DOMESTIC);
+  assert.deepEqual(lateUsage.lateUsageOptionsFor("Religion", "Temple"), RELIGION);
 });
 
 test("attributes follow the category list and union with stored attributes", () => {
@@ -106,4 +173,32 @@ test("attributes follow the category list and union with stored attributes", () 
   );
   // Storage has no sub-categories on the 2026 commercial sheet.
   assert.deepEqual(lateUsage.attributesForLateUsageType("Commercial", "Storage"), []);
+});
+
+test("religion and public lists are flat: no type carries attributes", () => {
+  RELIGION.forEach((t) => {
+    assert.deepEqual(lateUsage.attributesForLateUsageType("Religion", t), [], `${t} has no attributes`);
+  });
+  PUBLIC.forEach((t) => {
+    assert.deepEqual(lateUsage.attributesForLateUsageType("Public", t), [], `${t} has no attributes`);
+  });
+});
+
+test("a type shared across sheets uses its own category's attribute list", () => {
+  // Market Building carries attributes on the Commercial sheet; the Public
+  // sheet lists it flat.
+  assert.deepEqual(lateUsage.attributesForLateUsageType("Public", "Market Building"), []);
+  assert.deepEqual(lateUsage.attributesForLateUsageType("Commercial", "Market Building"), [
+    "Cattle",
+    "Vegetable",
+  ]);
+});
+
+test("legacy public and religion values keep stored attributes selectable", () => {
+  // The old merged list modeled the colonnade entry with Forum and Paving
+  // stones attributes; a stored value keeps them changeable.
+  assert.deepEqual(
+    lateUsage.attributesForLateUsageType("Public", "Colonnade (Arcade)", ["Forum", "Paving stones"]),
+    ["Forum", "Paving stones"]
+  );
 });

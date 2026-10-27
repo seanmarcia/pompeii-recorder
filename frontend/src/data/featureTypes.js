@@ -58,9 +58,15 @@ export const FEATURE_TYPES = [
       "Window",
       "Tiled surface",
       "Stepped shelf",
+      // From the 2026 Religion category sheet, which lists Platform, cooking
+      // with an Other attribute.
+      "Other",
     ],
   },
   { name: "Platform (Preparation)", attributes: [] },
+  // Standalone on the 2026 Religion and Public category sheets; previously
+  // sculpture was reachable only as a Paintings attribute.
+  { name: "Sculpture (in situ)", attributes: [] },
   { name: "Shelf/Rack", attributes: [] },
   { name: "Table", attributes: ["Weights & measures", "Atrium-located", "Offering"] },
   { name: "Trough", attributes: [] },

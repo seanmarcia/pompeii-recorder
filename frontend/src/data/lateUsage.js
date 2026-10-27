@@ -1,18 +1,23 @@
 // Late Usage categories and their optional sub-categories, split per sheet
-// category (issue #17): the 2026 Commercial and Domestic category sheets carry
-// different "Late Usage of Structure" lists. Options follow the sheet's
-// Category (CATEGORY_ID); a stored value that falls outside the category's
-// list stays selectable so an untouched sheet keeps its value instead of
-// silently blanking — the same pattern as Category (data/categories.js).
+// category (issue #17): each 2026 category sheet carries its own "Late Usage
+// of Structure" list. Options follow the sheet's Category (CATEGORY_ID); a
+// stored value that falls outside the category's list stays selectable so an
+// untouched sheet keeps its value instead of silently blanking — the same
+// pattern as Category (data/categories.js).
 //
 // Sub-categories are multi-select; a selected category + its selected
 // sub-categories are combined into a single "Type: Sub1; Sub2" string, the
 // same pattern used for Feature Type and Space Type.
 //
-// Deprecated types: the old merged list contained values on neither 2026
-// sheet (Amphitheater, Basilica, Temple, Tomb, ...). A sheet that already
-// stores one keeps it visible; new sheets cannot select them (no category
-// list offers them, and a blank category offers nothing).
+// The Religion and Public sheets print flat lists — no type carries
+// attributes there. Entries are kept as printed, including the Public
+// sheet's "Theater, Small" next to "Theatre, Large" and its lowercase
+// "paving stones" list line.
+//
+// Deprecated types: values on no 2026 sheet (Tomb, plain "Theater", "Street
+// shrine", ...). A sheet that already stores one keeps it visible; new
+// sheets cannot select them (no category list offers them, and a blank
+// category offers nothing).
 
 export const COMMERCIAL_LATE_USAGE_TYPES = [
   { name: "Agricultural", attributes: ["Olive Grove", "Orchard", "Vineyard", "Other"] },
@@ -42,9 +47,47 @@ export const DOMESTIC_LATE_USAGE_TYPES = [
   { name: "Other", attributes: [] },
 ];
 
+export const RELIGION_LATE_USAGE_TYPES = [
+  { name: "Association Structure", attributes: [] },
+  { name: "Crossroad Shrine", attributes: [] },
+  { name: "Shop", attributes: [] },
+  { name: "Storage", attributes: [] },
+  { name: "Space - Public Eating and Drinking", attributes: [] },
+  { name: "Temple", attributes: [] },
+  { name: "Temple Shop", attributes: [] },
+  { name: "Other", attributes: [] },
+];
+
+export const PUBLIC_LATE_USAGE_TYPES = [
+  { name: "Amphitheater", attributes: [] },
+  { name: "Basilica", attributes: [] },
+  { name: "Bath", attributes: [] },
+  { name: "Civic Building-Archives", attributes: [] },
+  { name: "Colonnade-forum", attributes: [] },
+  { name: "paving stones", attributes: [] },
+  { name: "Fountain, public", attributes: [] },
+  { name: "Gate", attributes: [] },
+  { name: "Gladiatorial Barracks", attributes: [] },
+  { name: "Gymnasium", attributes: [] },
+  { name: "Market Building", attributes: [] },
+  { name: "Market, Cattle", attributes: [] },
+  { name: "Market, Vegetable", attributes: [] },
+  { name: "Space-Public Eating and Drinking", attributes: [] },
+  { name: "Storage (Cool storage chamber)", attributes: [] },
+  { name: "Table for Weights and Measures", attributes: [] },
+  { name: "Theater, Small", attributes: [] },
+  { name: "Theatre, Large", attributes: [] },
+  { name: "Water Reservoir", attributes: [] },
+  { name: "Water Distribution Center", attributes: [] },
+  { name: "Water Storage", attributes: [] },
+  { name: "Water Tower", attributes: [] },
+];
+
 const LISTS_BY_CATEGORY = {
   Commercial: COMMERCIAL_LATE_USAGE_TYPES,
   Domestic: DOMESTIC_LATE_USAGE_TYPES,
+  Religion: RELIGION_LATE_USAGE_TYPES,
+  Public: PUBLIC_LATE_USAGE_TYPES,
 };
 
 // The types offered for a sheet category. Blank (or unknown) category offers
@@ -61,14 +104,17 @@ export function lateUsageOptionsFor(category, storedTypeName) {
   return [...names, ...extra];
 }
 
-// Sub-category options for a selected type. `category` is unused today: base
-// is the type's own list (whichever category sheet defines it), so the
-// parameter exists for callers that pass it and for a future per-category
-// attribute split. Stored attributes are unioned in so a legacy value keeps
-// them selectable instead of dropping them.
+// Sub-category options for a selected type. The category's own list is the
+// base; a type it does not define falls back to whichever category sheet
+// defines it. So "Market Building" stays flat on a Public sheet (its 2026
+// sheet lists no attributes) but keeps its Commercial attributes, and a
+// legacy type still finds its attributes. Stored attributes are unioned in so
+// a legacy value keeps them selectable instead of dropping them.
 export function attributesForLateUsageType(category, typeName, storedAttributes = []) {
   const own =
-    Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes || [];
+    (LISTS_BY_CATEGORY[category] || []).find((t) => t.name === typeName)?.attributes ||
+    Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes ||
+    [];
   const stored = Array.isArray(storedAttributes) ? storedAttributes : [];
   return [...new Set([...own, ...stored])];
 }
