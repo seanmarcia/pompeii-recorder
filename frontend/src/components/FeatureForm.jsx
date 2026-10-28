@@ -424,6 +424,12 @@ export default function FeatureForm({
                     {r}
                   </option>
                 ))}
+                {/* Keep the sheet's existing researcher selectable even if
+                    they aren't one of the three submission-side researchers
+                    (legacy master data). Same pattern as Photographer/Artist. */}
+                {formData.RESEARCHER_ID && !RESEARCHER_OPTIONS.includes(formData.RESEARCHER_ID) && (
+                  <option value={formData.RESEARCHER_ID}>{formData.RESEARCHER_ID}</option>
+                )}
               </select>
             </div>
             <div className="form-field">

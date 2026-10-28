@@ -132,7 +132,14 @@ export const ResearcherRequiredBlocksSubmission = {
 
     await expect(canvas.getByText('Researcher Name *')).toBeInTheDocument()
 
+    // A new sheet offers exactly the three submission-side researchers.
     const researcher = canvasElement.querySelector('select[name="RESEARCHER_ID"]')
+    await expect(Array.from(researcher.options).map((o) => o.value)).toEqual([
+      '',
+      'Lisa Kahn',
+      'Mary Meier',
+      'Suzanne Stone',
+    ])
     await expect(researcher.required).toBe(true)
 
     // Sheet number filled, researcher left at "Select Researcher".
@@ -147,6 +154,41 @@ export const ResearcherRequiredBlocksSubmission = {
 
     // Blocked before anything was sent: the form is still on screen.
     await expect(canvas.getByRole('button', { name: 'Send to Review Queue →' })).toBeInTheDocument()
+  },
+}
+
+// An edit on a legacy sheet keeps that sheet's own researcher selectable:
+// the form lists the three submission-side researchers plus whatever
+// researcher the master record already carries, so the prefill renders and
+// the native required check passes without the recorder re-picking.
+export const LegacyResearcherStaysSelectable = {
+  args: {
+    actionType: 'update_existing',
+    // A sheet number no other story drafts: the form resumes an existing
+    // edit_<SHEET> draft before it hydrates initialFeature, and a shared
+    // sheet number would leak another story's blank researcher in here.
+    initialFeature: {
+      SHEET: '60830',
+      SHEET_TYPE_ID: 'Feature',
+      RESEARCHER_ID: 'Sera Baker',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const researcher = canvasElement.querySelector('select[name="RESEARCHER_ID"]')
+    // The edit form hydrates the master values in an effect after mount;
+    // wait for the legacy option and the prefill to land.
+    await waitFor(async () => {
+      await expect(Array.from(researcher.options).map((o) => o.value)).toEqual([
+        '',
+        'Lisa Kahn',
+        'Mary Meier',
+        'Suzanne Stone',
+        'Sera Baker',
+      ])
+      await expect(researcher.value).toBe('Sera Baker')
+    })
+    await expect(researcher.validity.valueMissing).toBe(false)
+    await expect(researcher.validity.valid).toBe(true)
   },
 }
 
