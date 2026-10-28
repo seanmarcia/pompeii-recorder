@@ -243,16 +243,6 @@ export default function FeatureForm({
       return;
     }
 
-    if (!formData.SHEET?.trim()) {
-      alert("Please enter a Sheet Number for this archaeological record.");
-      return;
-    }
-
-    if (!formData.RESEARCHER_ID?.trim()) {
-      alert("Please select a Researcher Name for this archaeological record.");
-      return;
-    }
-
     setIsSubmitting(true);
     setFeedback(null);
 
