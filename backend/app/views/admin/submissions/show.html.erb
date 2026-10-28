@@ -515,7 +515,7 @@
                     <% if item[:name_on_sheet] %>
                       <div class="photo-flag echo">image with name already on sheet</div>
                     <% elsif item[:bytes_on_sheet] %>
-                      <div class="photo-flag">identical file already on sheet</div>
+                      <div class="photo-flag">identical image already on sheet</div>
                     <% elsif selectable %>
                       <label class="pick-row">
                         <input type="checkbox" data-photo-name="<%= item[:name] %>" checked>

@@ -322,7 +322,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     # re-upload are flagged, the fresh name gets an include control.
     assert_select ".compare-proposed .photo-box", count: 3
     assert_select ".photo-flag", text: "image with name already on sheet"
-    assert_select ".photo-flag", text: "identical file already on sheet"
+    assert_select ".photo-flag", text: "identical image already on sheet"
     assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
     assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
     assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
