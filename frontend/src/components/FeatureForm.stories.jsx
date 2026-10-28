@@ -252,7 +252,7 @@ export const PinnedOriginalsStaySelectable = {
     // And picking it again restores it exactly as stored.
     await userEvent.selectOptions(lateUsage, 'Foofery')
     await expect(lateUsage.value).toBe('Foofery')
-    await expect(canvas.getByText('Foofery Attributes')).not.toBeInTheDocument()
+    await expect(canvas.queryByText('Foofery Attributes')).not.toBeInTheDocument()
   },
 }
 

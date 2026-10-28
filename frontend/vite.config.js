@@ -72,6 +72,7 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: path.join(dirname, '.storybook') })],
         test: {
           name: 'storybook',
+          setupFiles: ['./.storybook/test-setup.js'],
           browser: {
             enabled: true,
             headless: true,
