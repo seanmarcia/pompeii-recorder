@@ -1,33 +1,22 @@
-// Room/space types and their optional attributes, split per category sheet
-// (issue #27): each 2026 category sheet carries its own "Rooms and Spaces"
-// list. Options follow the sheet's Category (CATEGORY_ID); a stored value
-// that falls outside the category's list stays selectable so an untouched
-// sheet keeps its value instead of silently blanking — the same pattern as
-// Late Usage (data/lateUsage.js).
+// Room/space types and their optional attributes, split per 2026 category
+// sheet. Same rules as data/lateUsage.js: options follow the sheet's
+// Category, stored values outside the list stay selectable, and sheet text
+// is verbatim. The dining lines are atomic options, one per printed line; a
+// legacy stored "Dining: ..." value still finds its attributes through
+// LEGACY_SPACE_TYPES (the pre-2026 merged list, fallback only — never
+// offered for new entries).
 //
-// Attributes are multi-select; a selected space type + its attributes are
-// combined into a single "Type: Attr1; Attr2" string and stored in one field
-// (SPACE_TYPE_ID).
-//
-// The sheets print the dining variants ("Dining Garden/Peristyle", "Dining
-// Hall", ...) as separate lines; they are modeled as the Dining type with
-// attributes, the existing convention. Type names shared with the pre-2026
-// merged list keep that list's spelling ("Press room", "Mill/Oven room", ...)
-// so stored values keep matching; genuinely new types are verbatim from the
-// sheets.
-//
-// Legacy types: the pre-2026 merged list (LEGACY_SPACE_TYPES) is only a
-// fallback — a type on no 2026 sheet (Burial chamber, Colombarium, ...) keeps
-// its legacy attributes when a stored value needs them, but no category list
-// offers it for new entries.
+// Attributes are multi-select; a selected type + its attributes combine into
+// a single "Type: Attr1; Attr2" string stored in SPACE_TYPE_ID.
 
 export const COMMERCIAL_SPACE_TYPES = [
   { name: "Atrium", attributes: [] },
   { name: "Counter Room", attributes: [] },
-  {
-    name: "Dining",
-    attributes: ["Garden / Peristyle", "Hall", "Room", "Second Floor", "Other"],
-  },
+  { name: "Dining Garden/Peristyle", attributes: [] },
+  { name: "Dining Hall", attributes: [] },
+  { name: "Dining Room", attributes: [] },
+  { name: "Dining Second Floor", attributes: [] },
+  { name: "Dining, Other", attributes: [] },
   { name: "Horticultural", attributes: [] },
   { name: "Kitchen", attributes: [] },
   { name: "Mill room", attributes: [] },
@@ -36,14 +25,14 @@ export const COMMERCIAL_SPACE_TYPES = [
   { name: "Processing room", attributes: [] },
   { name: "Preparation room", attributes: [] },
   { name: "Press room", attributes: [] },
-  // Printed under Rooms and Spaces on the Commercial sheet.
+  // Rack is a Rooms and Spaces line on the Commercial sheet.
   { name: "Rack", attributes: [] },
   { name: "Sales room", attributes: [] },
   { name: "Serving room", attributes: [] },
   { name: "Shop", attributes: [] },
-  { name: "Portable cart space", attributes: [] },
+  { name: "Space for Portable Carts", attributes: [] },
   { name: "Space for Public Banquets", attributes: [] },
-  { name: "Food Stall Space", attributes: [] },
+  { name: "Space for Food Stall", attributes: [] },
   { name: "Stable", attributes: [] },
   { name: "Storeroom", attributes: [] },
   { name: "Tablinum", attributes: [] },
@@ -55,10 +44,12 @@ export const DOMESTIC_SPACE_TYPES = [
   { name: "Atrium", attributes: [] },
   { name: "Counter Room", attributes: [] },
   { name: "Diaeta", attributes: [] },
-  {
-    name: "Dining",
-    attributes: ["Garden / Peristyle", "Hall", "Room", "Second Floor", "Tablinum", "Other"],
-  },
+  { name: "Dining Garden/Peristyle", attributes: [] },
+  { name: "Dining Hall", attributes: [] },
+  { name: "Dining Room", attributes: [] },
+  { name: "Dining Second Floor", attributes: [] },
+  { name: "Dining Tablinum", attributes: [] },
+  { name: "Dining, Other", attributes: [] },
   { name: "Granary", attributes: [] },
   { name: "Horticultural", attributes: [] },
   { name: "Kitchen", attributes: [] },
@@ -71,7 +62,6 @@ export const DOMESTIC_SPACE_TYPES = [
   { name: "Sales room", attributes: [] },
   { name: "Serving room", attributes: [] },
   { name: "Shop", attributes: [] },
-  // Verbatim from the Domestic sheet's banquet lines.
   { name: "Space - Communal Banqueting", attributes: [] },
   { name: "Space - Public Banquets", attributes: [] },
   { name: "Stable", attributes: [] },
@@ -81,18 +71,22 @@ export const DOMESTIC_SPACE_TYPES = [
 
 export const RELIGION_SPACE_TYPES = [
   { name: "Atrium", attributes: [] },
-  // The Religion sheet prints "Dining Garden" (no /Peristyle).
-  { name: "Dining", attributes: ["Garden", "Hall", "Room", "Second Floor", "Tablinum", "Other"] },
+  { name: "Dining Garden", attributes: [] },
+  { name: "Dining Hall", attributes: [] },
+  { name: "Dining Room", attributes: [] },
+  { name: "Dining Second Floor", attributes: [] },
+  { name: "Dining Tablinum", attributes: [] },
+  { name: "Dining, Other", attributes: [] },
   { name: "Horticultural", attributes: [] },
   { name: "Kitchen", attributes: [] },
-  // The sheet's "Public Banquet Space (Epulum)" line, flat with no attributes.
-  { name: "Banquet Space (Epulum)", attributes: [] },
+  { name: "Public Banquet Space (Epulum)", attributes: [] },
   { name: "Processing room", attributes: [] },
   { name: "Preparation room", attributes: [] },
   { name: "Space around altars", attributes: [] },
   { name: "Serving room", attributes: [] },
   { name: "Shop", attributes: [] },
   { name: "Space for cooking", attributes: [] },
+  // "Space  for Public Banquets" on the sheet; extra whitespace cleaned.
   { name: "Space for Public Banquets", attributes: [] },
   { name: "Storeroom", attributes: [] },
   { name: "Other", attributes: [] },
@@ -100,25 +94,24 @@ export const RELIGION_SPACE_TYPES = [
 
 export const PUBLIC_SPACE_TYPES = [
   { name: "Counter Room", attributes: [] },
-  {
-    name: "Dining",
-    attributes: ["Other", "Garden / Peristyle", "Hall", "Room", "Second Floor"],
-  },
+  { name: "Dining, other", attributes: [] },
+  { name: "Dining Garden/Peristyle", attributes: [] },
+  { name: "Dining Hall", attributes: [] },
+  { name: "Dining Room", attributes: [] },
+  { name: "Dining Second Floor", attributes: [] },
   { name: "Horticultural", attributes: [] },
   { name: "Kitchen", attributes: [] },
   { name: "Processing room", attributes: [] },
   { name: "Preparation room", attributes: [] },
-  { name: "Food Stall Space", attributes: [] },
-  { name: "Space for Public Banquets", attributes: [] },
-  { name: "Portable cart space", attributes: [] },
+  { name: "Space for Food Stall", attributes: [] },
+  // Singular, as printed on the Public sheet.
+  { name: "Space for Public Banquet", attributes: [] },
+  { name: "Space for Portable Carts", attributes: [] },
   { name: "Serving room", attributes: [] },
   { name: "Storeroom", attributes: [] },
   { name: "Other", attributes: [] },
 ];
 
-// The pre-2026 merged list ("Rooms and Spaces (agreed terms and attributes)").
-// No longer offered for new entries; the attribute fallback for a stored type
-// that no category sheet defines.
 export const LEGACY_SPACE_TYPES = [
   { name: "Ambulatory", attributes: [] },
   { name: "Space around altars", attributes: [] },
@@ -179,10 +172,8 @@ export function spaceTypesFor(category) {
   return LISTS_BY_CATEGORY[category] || [];
 }
 
-// Options for the Space Type select: the category's types, plus the field's
-// current type and the originally-loaded type when either falls outside that
-// list (deduped) — current so the select keeps rendering, original so the
-// record's stored value stays recoverable for the session.
+// Options for the Space Type select — same current + original extras as
+// lateUsageOptionsFor.
 export function spaceTypeOptionsFor(category, currentTypeName, originalTypeName = "") {
   const names = spaceTypesFor(category).map((t) => t.name);
   const extras = [currentTypeName, originalTypeName]

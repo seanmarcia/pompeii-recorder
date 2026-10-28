@@ -28,23 +28,28 @@ test("categories offer their own sheet's feature types, deprecated types exclude
   assert.ok(!featureTypesFor("Commercial").some((t) => t.name === "Altar"));
 });
 
-// The Commercial sheet lists Niche with Couch/Cupboard/Shelf only; the
-// Domestic, Religion, and Public sheets add the bench/couch attribute.
-test("Niche attributes differ per category sheet", () => {
+// Niche attributes are exactly what each sheet prints, casing included:
+// the Commercial sheet lists Couch/Cupboard/Shelf; the Domestic sheet prints
+// the bench/couch line lowercase; Religion uses a slash; Public capitalizes.
+test("Niche attributes differ per category sheet, casing kept as printed", () => {
   assert.deepEqual(attributesForFeatureType("Commercial", "Niche"), [
     "Couch",
     "Cupboard",
     "Shelf",
   ]);
-  ["Domestic", "Religion", "Public"].forEach((category) => {
-    assert.ok(
-      attributesForFeatureType(category, "Niche").includes("Bench, couch"),
-      `${category} Niche offers Bench, couch`
-    );
-  });
+  assert.deepEqual(attributesForFeatureType("Domestic", "Niche"), [
+    "bench, couch",
+    "cupboard",
+    "shelf",
+  ]);
+  assert.deepEqual(attributesForFeatureType("Religion", "Niche"), ["bench/couch", "Crossroad"]);
+  assert.deepEqual(attributesForFeatureType("Public", "Niche"), [
+    "Bench, Couch",
+    "Cupboard",
+    "Shelf",
+  ]);
   // The Religion sheet's "Crossroad Altar"/"Crossroad Niche" lines.
   assert.deepEqual(attributesForFeatureType("Religion", "Altar"), ["Crossroad"]);
-  assert.ok(attributesForFeatureType("Religion", "Niche").includes("Crossroad"));
 });
 
 test("the Domestic sheet's couch attributes, including Artificial stream and cascades", () => {
@@ -58,14 +63,36 @@ test("the Domestic sheet's couch attributes, including Artificial stream and cas
 });
 
 test("attribute sets are per sheet: a type defined with none inherits nothing", () => {
-  // The Public sheet prints Platform, cooking with no attributes under it;
-  // the Commercial sheet's set must not leak in.
-  assert.deepEqual(attributesForFeatureType("Public", "Platform (Cooking)"), []);
-  // The Religion sheet is the only one with an Other attribute there.
-  assert.ok(attributesForFeatureType("Religion", "Platform (Cooking)").includes("Other"));
-  assert.ok(!attributesForFeatureType("Commercial", "Platform (Cooking)").includes("Other"));
-  // The Public sheet's flat Altar line carries no Crossroad attribute.
+  // The Public sheet's flat Altar line carries no Crossroad attribute, and
+  // the empty set must not inherit the Religion sheet's.
   assert.deepEqual(attributesForFeatureType("Public", "Altar"), []);
+  // Platform (Cooking): Commercial and Domestic print nine attributes with
+  // no Other; Religion and Public (per Lisa) include Other.
+  ["Commercial", "Domestic"].forEach((category) => {
+    const attributes = attributesForFeatureType(category, "Platform (Cooking)");
+    assert.ok(!attributes.includes("Other"), `${category} Platform has no Other`);
+    assert.equal(attributes.length, 9);
+  });
+  ["Religion", "Public"].forEach((category) => {
+    assert.ok(attributesForFeatureType(category, "Platform (Cooking)").includes("Other"));
+  });
+});
+
+test("sheet-verbatim names replace the merged list's names where called out", () => {
+  // The Domestic sheet prints "Kitchen equipment in situ"; Commercial and
+  // Religion print "Kitchen equipment".
+  assert.ok(featureTypesFor("Domestic").some((t) => t.name === "Kitchen equipment in situ"));
+  assert.ok(!featureTypesFor("Domestic").some((t) => t.name === "Kitchen equipment"));
+  ["Commercial", "Religion"].forEach((category) => {
+    assert.ok(featureTypesFor(category).some((t) => t.name === "Kitchen equipment"));
+  });
+  // "Masonry support (wooden platform)" as printed on Commercial/Domestic.
+  ["Commercial", "Domestic"].forEach((category) => {
+    assert.ok(
+      featureTypesFor(category).some((t) => t.name === "Masonry support (wooden platform)")
+    );
+    assert.ok(!featureTypesFor(category).some((t) => t.name === "Masonry Platform Supports"));
+  });
 });
 
 test("a stored type outside the category list stays selectable", () => {

@@ -74,11 +74,9 @@ export default function FeatureForm({
   // silently wiping the real defaults. This ref makes auto-save skip that
   // one stale pass right after any (re)hydration.
   const skipNextAutoSaveRef = useRef(true);
-  // The values the form opened with (draft-first, else the master record).
-  // Pinned so each field's original choice stays selectable for the session:
-  // an accidental change to Late Usage, Feature Type, or Space Type is undone
-  // by re-picking it from the select instead of reloading the sheet (which
-  // would only restore the autosaved draft, not the database value).
+  // The values the form opened with, pinned so a field's original choice stays
+  // selectable for the session: an accidental change is undone by re-picking
+  // it, not by reloading (which only restores the autosaved draft).
   const [originalValues, setOriginalValues] = useState({
     featureType: "",
     spaceType: "",
@@ -228,9 +226,7 @@ export default function FeatureForm({
   }, [submitterName]);
 
   // Feature Type is stored as a single "Type: Attr1, Attr2" string; derive the
-  // dropdown + checkbox selections from it on each render. The offered types
-  // follow the sheet's Category; the current and originally-loaded types stay
-  // selectable when they fall outside that category's list.
+  // dropdown + checkbox selections from it on each render.
   const { typeName: selectedFeatureType, attributes: selectedFeatureAttributes } =
     parseFeatureType(formData.FEATURE_TYPE_ID);
   const featureTypeOptions = featureTypeOptionsFor(
@@ -264,9 +260,7 @@ export default function FeatureForm({
 
   // Usage Classification was retired from the form; Late Usage (category +
   // sub-categories) remains and combines into the single USAGE_ID field with
-  // any classification parsed from a stored value. The offered types follow
-  // the sheet's Category (issue #17); the current and originally-loaded types
-  // stay selectable when they fall outside that category's list.
+  // any classification parsed from a stored value.
   const {
     usageClassification: selectedUsageClassification,
     lateUsageTypeName: selectedLateUsageType,

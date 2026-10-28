@@ -19,6 +19,9 @@ test("categories offer their own sheet's space types, deprecated types excluded"
   // Printed under Rooms and Spaces on the Commercial sheet.
   assert.ok(commercial.includes("Rack"));
   assert.ok(commercial.includes("Tablinum"));
+  // Sheet-verbatim names the team called out.
+  assert.ok(commercial.includes("Space for Portable Carts"));
+  assert.ok(commercial.includes("Space for Food Stall"));
   assert.ok(!commercial.includes("Diaeta"));
   assert.ok(!commercial.includes("Ambulatory"));
   // Types on no 2026 sheet are not offered for new entries.
@@ -35,35 +38,45 @@ test("categories offer their own sheet's space types, deprecated types excluded"
   assert.ok(domestic.includes("Space - Public Banquets"));
   // Religion's epulum line and cooking/altar spaces.
   const religion = spaceTypesFor("Religion").map((t) => t.name);
-  assert.ok(religion.includes("Banquet Space (Epulum)"));
+  assert.ok(religion.includes("Public Banquet Space (Epulum)"));
   assert.ok(religion.includes("Space for Public Banquets"));
   assert.ok(religion.includes("Space around altars"));
   assert.ok(religion.includes("Space for cooking"));
-  // Religion prints "Dining Garden" without /Peristyle.
-  assert.deepEqual(attributesForSpaceType("Religion", "Dining"), [
-    "Garden",
+  // The Religion sheet prints "Dining Garden" without /Peristyle.
+  assert.ok(religion.includes("Dining Garden"));
+  // The Public sheet prints the singular banquet line.
+  assert.ok(spaceTypesFor("Public").some((t) => t.name === "Space for Public Banquet"));
+});
+
+test("the dining variants are atomic options, one per sheet line", () => {
+  // No Dining-with-attributes type is offered for new entries.
+  ["Commercial", "Domestic", "Religion", "Public"].forEach((category) => {
+    assert.ok(
+      !spaceTypesFor(category).some((t) => t.name === "Dining"),
+      `${category} has no Dining parent type`
+    );
+  });
+  const commercial = spaceTypesFor("Commercial").map((t) => t.name);
+  ["Dining Garden/Peristyle", "Dining Hall", "Dining Room", "Dining Second Floor", "Dining, Other"].forEach(
+    (name) => assert.ok(commercial.includes(name), `Commercial offers ${name}`)
+  );
+  // The Religion sheet's atomic "Dining Garden".
+  const religion = spaceTypesFor("Religion").map((t) => t.name);
+  ["Dining Garden", "Dining Hall", "Dining Room", "Dining Second Floor", "Dining Tablinum", "Dining, Other"].forEach(
+    (name) => assert.ok(religion.includes(name), `Religion offers ${name}`)
+  );
+  // The Public sheet prints "Dining, other" lowercase.
+  assert.ok(spaceTypesFor("Public").some((t) => t.name === "Dining, other"));
+  // A legacy "Dining: ..." stored value still finds its attributes through
+  // the legacy list.
+  assert.deepEqual(attributesForSpaceType("Domestic", "Dining", ["Hall"]), [
+    "Porch",
+    "Garden / Peristyle",
     "Hall",
     "Room",
     "Second Floor",
     "Tablinum",
     "Other",
-  ]);
-});
-
-test("the dining variants are modeled as Dining attributes, per sheet", () => {
-  assert.deepEqual(attributesForSpaceType("Commercial", "Dining"), [
-    "Garden / Peristyle",
-    "Hall",
-    "Room",
-    "Second Floor",
-    "Other",
-  ]);
-  assert.deepEqual(attributesForSpaceType("Public", "Dining"), [
-    "Other",
-    "Garden / Peristyle",
-    "Hall",
-    "Room",
-    "Second Floor",
   ]);
 });
 
