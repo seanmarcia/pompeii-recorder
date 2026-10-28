@@ -1,8 +1,10 @@
 import FeatureForm from './FeatureForm.jsx'
 import { expect, within, userEvent, waitFor } from 'storybook/test'
 import { RECORDER_NAMES } from '../data/people.js'
-import { PUBLIC_LATE_USAGE_TYPES, RELIGION_LATE_USAGE_TYPES } from '../data/lateUsage.js'
-import { COMMERCIAL_FEATURE_TYPES, DOMESTIC_FEATURE_TYPES } from '../data/featureTypes.js'
+import * as commercialCategory from '../data/commercial.js'
+import * as domesticCategory from '../data/domestic.js'
+import * as publicCategory from '../data/public.js'
+import * as religionCategory from '../data/religion.js'
 
 function featureTypeOptions(canvasElement) {
   const select = canvasElement.querySelector('select[name="FEATURE_TYPE_ID"]')
@@ -75,13 +77,13 @@ export const LateUsageOptionsFollowCategory = {
     await userEvent.selectOptions(category, 'Public')
     await expect(lateUsageOptions(canvasElement)).toEqual([
       '',
-      ...PUBLIC_LATE_USAGE_TYPES.map((t) => t.name),
+      ...publicCategory.lateUsageTypes.map((t) => t.name),
     ])
 
     await userEvent.selectOptions(category, 'Religion')
     await expect(lateUsageOptions(canvasElement)).toEqual([
       '',
-      ...RELIGION_LATE_USAGE_TYPES.map((t) => t.name),
+      ...religionCategory.lateUsageTypes.map((t) => t.name),
     ])
   },
 }
@@ -182,7 +184,7 @@ export const FeatureTypesFollowCategory = {
     await userEvent.selectOptions(category, 'Domestic')
     await expect(featureTypeOptions(canvasElement)).toEqual([
       '',
-      ...DOMESTIC_FEATURE_TYPES.map((t) => t.name),
+      ...domesticCategory.featureTypes.map((t) => t.name),
     ])
 
     // Picking a type with listed attributes reveals the checkbox group.
@@ -206,7 +208,7 @@ export const FeatureTypesFollowCategory = {
     await userEvent.selectOptions(category, 'Commercial')
     await expect(featureTypeOptions(canvasElement)).toEqual([
       '',
-      ...COMMERCIAL_FEATURE_TYPES.map((t) => t.name),
+      ...commercialCategory.featureTypes.map((t) => t.name),
       'Sculpture, food/drink',
     ])
   },
