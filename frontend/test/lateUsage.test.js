@@ -153,6 +153,20 @@ test("a stored type outside the category list stays selectable (categoryOptionsF
   assert.deepEqual(lateUsage.lateUsageOptionsFor("Religion", "Temple"), RELIGION);
 });
 
+test("the originally-loaded type stays selectable after the value or category changes", () => {
+  // Load a legacy "Foofery" sheet, pick Apartment, correct the category:
+  // both the current pick and the pinned original stay in the list, so the
+  // accidental change is undone by re-picking instead of reloading.
+  const options = lateUsage.lateUsageOptionsFor("Domestic", "Apartment", "Foofery");
+  assert.ok(options.includes("Apartment"));
+  assert.ok(options.includes("Foofery"));
+  // Current and original dedupe when they are the same value.
+  assert.deepEqual(
+    lateUsage.lateUsageOptionsFor("Domestic", "Tomb", "Tomb"),
+    [...DOMESTIC, "Tomb"]
+  );
+});
+
 test("attributes follow the category list and union with stored attributes", () => {
   assert.deepEqual(lateUsage.attributesForLateUsageType("Commercial", "Agricultural"), [
     "Olive Grove",

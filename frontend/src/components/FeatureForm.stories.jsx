@@ -2,6 +2,13 @@ import FeatureForm from './FeatureForm.jsx'
 import { expect, within, userEvent, waitFor } from 'storybook/test'
 import { RECORDER_NAMES } from '../data/people.js'
 import { PUBLIC_LATE_USAGE_TYPES, RELIGION_LATE_USAGE_TYPES } from '../data/lateUsage.js'
+import { COMMERCIAL_FEATURE_TYPES, DOMESTIC_FEATURE_TYPES } from '../data/featureTypes.js'
+
+function featureTypeOptions(canvasElement) {
+  const select = canvasElement.querySelector('select[name="FEATURE_TYPE_ID"]')
+  expect(select).not.toBeNull()
+  return Array.from(select.options).map((option) => option.value)
+}
 
 // Category offers the four 2026 category-sheet choices (Commercial, Domestic,
 // Religion, Public) for new entries and any change; a legacy stored value
@@ -157,6 +164,108 @@ export const CategoryAndLateUsageStayIndependent = {
     await expect(attributeTrigger.textContent).toContain('Orchard')
   },
 }
+
+// The Feature Type select cascades off Category like Late Usage does: blank
+// until a category is picked, then the category sheet's own list.
+export const FeatureTypesFollowCategory = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+
+    // A blank category offers no feature types: pick a Category first.
+    await expect(featureTypeOptions(canvasElement)).toEqual([''])
+
+    await userEvent.selectOptions(category, 'Domestic')
+    await expect(featureTypeOptions(canvasElement)).toEqual([
+      '',
+      ...DOMESTIC_FEATURE_TYPES.map((t) => t.name),
+    ])
+
+    // Picking a type with listed attributes reveals the checkbox group.
+    await userEvent.selectOptions(
+      canvasElement.querySelector('select[name="FEATURE_TYPE_ID"]'),
+      'Counter'
+    )
+    await expect(canvas.getByText('Counter Attributes')).toBeInTheDocument()
+    const attributeTrigger = canvas.getByRole('button', { name: 'Counter attributes' })
+    await userEvent.click(attributeTrigger)
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Dolium' }))
+    await expect(attributeTrigger.textContent).toContain('Dolium')
+
+    // Switching category keeps the already-picked type selectable (it is the
+    // field's current value) even though the Commercial sheet does not list
+    // the Domestic-only Sculpture entry picked here.
+    await userEvent.selectOptions(
+      canvasElement.querySelector('select[name="FEATURE_TYPE_ID"]'),
+      'Sculpture, food/drink'
+    )
+    await userEvent.selectOptions(category, 'Commercial')
+    await expect(featureTypeOptions(canvasElement)).toEqual([
+      '',
+      ...COMMERCIAL_FEATURE_TYPES.map((t) => t.name),
+      'Sculpture, food/drink',
+    ])
+  },
+}
+
+// The originally-loaded values of Late Usage, Feature Type, and Space Type
+// stay selectable for the whole session, even after the user changes the
+// selection or the category: an accidental change is undone by re-picking,
+// not by reloading (which would only restore the autosaved draft).
+export const PinnedOriginalsStaySelectable = {
+  args: {
+    actionType: 'update_existing',
+    initialFeature: {
+      SHEET: '60832',
+      SHEET_TYPE_ID: 'Feature',
+      CATEGORY_ID: 'Domestic',
+      USAGE_ID: 'Foofery',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+    const lateUsage = await waitFor(async () => {
+      const select = canvasElement.querySelector('select[name="LATE_USAGE_TYPE"]')
+      await expect(select.value).toBe('Foofery')
+      return select
+    })
+
+    // The legacy value rides along after the Domestic list, preselected.
+    await expect(lateUsageOptions(canvasElement)).toEqual([
+      '',
+      ...DOMESTIC_LATE_USAGE_NAMES,
+      'Foofery',
+    ])
+
+    // Changing the selection does not drop the pinned original: after moving
+    // to Apartment and correcting the category, Foofery is still offered.
+    await userEvent.selectOptions(lateUsage, 'Apartment')
+    await userEvent.selectOptions(category, 'Public')
+    await expect(lateUsage.value).toBe('Apartment')
+    await expect(lateUsageOptions(canvasElement)).toContain('Foofery')
+
+    // And picking it again restores it exactly as stored.
+    await userEvent.selectOptions(lateUsage, 'Foofery')
+    await expect(lateUsage.value).toBe('Foofery')
+    await expect(canvas.getByText('Foofery Attributes')).not.toBeInTheDocument()
+  },
+}
+
+const DOMESTIC_LATE_USAGE_NAMES = [
+  'Apartment',
+  'Farm House',
+  'House',
+  'House-Shop',
+  'Space - Public Eating and Drinking',
+  'Villa rustica',
+  'Villa Urbana',
+  'Other',
+]
 
 // Issue #34: a submission without a researcher (PR) orphans itself in the
 // review queue. The form blocks it the same way it blocks a missing sheet

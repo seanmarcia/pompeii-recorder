@@ -96,12 +96,18 @@ export function lateUsageTypesFor(category) {
   return LISTS_BY_CATEGORY[category] || [];
 }
 
-// Options for the Late Usage select: the category's types, keeping a stored
-// legacy value selectable when it falls outside that list.
-export function lateUsageOptionsFor(category, storedTypeName) {
+// Options for the Late Usage select: the category's types, plus the field's
+// current type and the originally-loaded type when either falls outside that
+// list (deduped). The current extra keeps the select rendering after a value
+// or category change; the original extra keeps the record's stored value
+// recoverable for the whole session, so an accidental change is undone by
+// re-picking it instead of reloading the sheet.
+export function lateUsageOptionsFor(category, currentTypeName, originalTypeName = "") {
   const names = lateUsageTypesFor(category).map((t) => t.name);
-  const extra = storedTypeName && !names.includes(storedTypeName) ? [storedTypeName] : [];
-  return [...names, ...extra];
+  const extras = [currentTypeName, originalTypeName]
+    .filter(Boolean)
+    .filter((n) => !names.includes(n));
+  return [...names, ...new Set(extras)];
 }
 
 // Sub-category options for a selected type. The category's own list is the
