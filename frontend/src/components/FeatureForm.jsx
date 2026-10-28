@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import PhotoUploader from "./PhotoUploader";
 import AttributeMultiSelect from "./AttributeMultiSelect";
 import { submitFeature } from "../lib/api";
 import {
-  FEATURE_TYPES,
+  featureTypeOptionsFor,
   attributesForFeatureType,
   formatFeatureType,
   parseFeatureType,
 } from "../data/featureTypes";
 import {
-  SPACE_TYPES,
+  spaceTypeOptionsFor,
   attributesForSpaceType,
   formatSpaceType,
   parseSpaceType,
@@ -74,6 +74,14 @@ export default function FeatureForm({
   // silently wiping the real defaults. This ref makes auto-save skip that
   // one stale pass right after any (re)hydration.
   const skipNextAutoSaveRef = useRef(true);
+  // The values the form opened with, pinned so a field's original choice stays
+  // selectable for the session: an accidental change is undone by re-picking
+  // it, not by reloading (which only restores the autosaved draft).
+  const [originalValues, setOriginalValues] = useState({
+    featureType: "",
+    spaceType: "",
+    lateUsageType: "",
+  });
 
   // Remember the researcher's name across sheets and browser restarts so
   // they don't have to retype it every time.
@@ -94,6 +102,8 @@ export default function FeatureForm({
       setPhotos(draft.photos || []);
       setSubmitterNotes(draft.submitterNotes || "");
       setFeedback(null);
+      // Pin the resumed draft's own values as this session's originals.
+      setOriginalValues(originalsFrom(draft.formData || {}));
       return;
     }
 
@@ -177,7 +187,17 @@ export default function FeatureForm({
     setFormData(start);
     setBaseline(start);
     setFeedback(null);
+    setOriginalValues(originalsFrom(start));
   }, [initialFeature, actionType, formResetKey, currentUser]);
+
+  // The pinned per-field originals, parsed from the composite stored values.
+  function originalsFrom(values) {
+    return {
+      featureType: parseFeatureType(values.FEATURE_TYPE_ID || "").typeName,
+      spaceType: parseSpaceType(values.SPACE_TYPE_ID || "").typeName,
+      lateUsageType: parseUsageField(values.USAGE_ID || "").lateUsageTypeName,
+    };
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -209,27 +229,48 @@ export default function FeatureForm({
   // dropdown + checkbox selections from it on each render.
   const { typeName: selectedFeatureType, attributes: selectedFeatureAttributes } =
     parseFeatureType(formData.FEATURE_TYPE_ID);
-  const featureTypeAttributeOptions = attributesForFeatureType(selectedFeatureType);
+  const featureTypeOptions = featureTypeOptionsFor(
+    formData.CATEGORY_ID,
+    selectedFeatureType,
+    originalValues.featureType
+  );
+  const featureTypeAttributeOptions = attributesForFeatureType(
+    formData.CATEGORY_ID,
+    selectedFeatureType,
+    selectedFeatureAttributes
+  );
   const isFeatureSheet = formData.SHEET_TYPE_ID === "Feature";
 
   // Space Type follows the same single-field "Type: Attr1, Attr2" pattern.
   const { typeName: selectedSpaceType, attributes: selectedSpaceAttributes } = parseSpaceType(
     formData.SPACE_TYPE_ID
   );
-  const spaceTypeAttributeOptions = attributesForSpaceType(selectedSpaceType);
+  const spaceTypeOptions = spaceTypeOptionsFor(
+    formData.CATEGORY_ID,
+    selectedSpaceType,
+    originalValues.spaceType
+  );
+  const spaceTypeAttributeOptions = attributesForSpaceType(
+    formData.CATEGORY_ID,
+    selectedSpaceType,
+    selectedSpaceAttributes
+  );
   // Older imported sheets use "Space or Room" for the same sheet type.
   const isSpaceSheet = formData.SHEET_TYPE_ID === "Space" || formData.SHEET_TYPE_ID === "Space or Room";
 
   // Usage Classification was retired from the form; Late Usage (category +
   // sub-categories) remains and combines into the single USAGE_ID field with
-  // any classification parsed from a stored value. The offered types follow
-  // the sheet's Category (issue #17); a stored legacy type stays selectable.
+  // any classification parsed from a stored value.
   const {
     usageClassification: selectedUsageClassification,
     lateUsageTypeName: selectedLateUsageType,
     lateUsageAttributes: selectedLateUsageAttributes,
   } = parseUsageField(formData.USAGE_ID);
-  const lateUsageOptions = lateUsageOptionsFor(formData.CATEGORY_ID, selectedLateUsageType);
+  const lateUsageOptions = lateUsageOptionsFor(
+    formData.CATEGORY_ID,
+    selectedLateUsageType,
+    originalValues.lateUsageType
+  );
   const lateUsageAttributeOptions = attributesForLateUsageType(
     formData.CATEGORY_ID,
     selectedLateUsageType,
@@ -546,85 +587,7 @@ export default function FeatureForm({
                 )}
               </select>
             </div>
-            {isFeatureSheet && (
-              <div className="form-field">
-                <label>Feature Type</label>
-                <select
-                  name="FEATURE_TYPE_ID"
-                  value={selectedFeatureType}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
-                    }))
-                  }
-                >
-                  <option value="">Select Feature Type</option>
-                  {FEATURE_TYPES.map((ft) => (
-                    <option key={ft.name} value={ft.name}>
-                      {ft.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {isSpaceSheet && (
-              <div className="form-field">
-                <label>Space Type</label>
-                <select
-                  name="SPACE_TYPE_ID"
-                  value={selectedSpaceType}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
-                    }))
-                  }
-                >
-                  <option value="">Select Space Type</option>
-                  {SPACE_TYPES.map((st) => (
-                    <option key={st.name} value={st.name}>
-                      {st.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {isFeatureSheet && featureTypeAttributeOptions.length > 0 && (
-            <div className="form-field" style={{ marginTop: "1rem" }}>
-              <label>{selectedFeatureType} Attributes</label>
-              <AttributeMultiSelect
-                label={`${selectedFeatureType} attributes`}
-                options={featureTypeAttributeOptions}
-                selected={selectedFeatureAttributes}
-                onChange={(nextAttributes) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    FEATURE_TYPE_ID: formatFeatureType(selectedFeatureType, nextAttributes),
-                  }))
-                }
-              />
             </div>
-          )}
-
-          {isSpaceSheet && spaceTypeAttributeOptions.length > 0 && (
-            <div className="form-field" style={{ marginTop: "1rem" }}>
-              <label>{selectedSpaceType} Attributes</label>
-              <AttributeMultiSelect
-                label={`${selectedSpaceType} attributes`}
-                options={spaceTypeAttributeOptions}
-                selected={selectedSpaceAttributes}
-                onChange={(nextAttributes) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    SPACE_TYPE_ID: formatSpaceType(selectedSpaceType, nextAttributes),
-                  }))
-                }
-              />
-            </div>
-          )}
 
           <div className="form-grid-4" style={{ marginTop: "1rem" }}>
             <div className="form-field">
@@ -682,6 +645,89 @@ export default function FeatureForm({
               </div>
             )}
           </div>
+
+          {/* Room/Space type follows Late Usage; a sheet is one or the other. */}
+          {isSpaceSheet && (
+            <div className="form-grid-3" style={{ marginTop: "1rem" }}>
+              <div className="form-field">
+                <label>Space Type</label>
+                <select
+                  name="SPACE_TYPE_ID"
+                  value={selectedSpaceType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Space Type</option>
+                  {spaceTypeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          {isSpaceSheet && spaceTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedSpaceType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedSpaceType} attributes`}
+                options={spaceTypeAttributeOptions}
+                selected={selectedSpaceAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    SPACE_TYPE_ID: formatSpaceType(selectedSpaceType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
+
+          {isFeatureSheet && (
+            <div className="form-grid-3" style={{ marginTop: "1rem" }}>
+              <div className="form-field">
+                <label>Feature Type</label>
+                <select
+                  name="FEATURE_TYPE_ID"
+                  value={selectedFeatureType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Feature Type</option>
+                  {featureTypeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          {isFeatureSheet && featureTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedFeatureType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedFeatureType} attributes`}
+                options={featureTypeAttributeOptions}
+                selected={selectedFeatureAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    FEATURE_TYPE_ID: formatFeatureType(selectedFeatureType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
         </div>
 
         {/* SECTION 4: Archaeological Description & Relationships */}

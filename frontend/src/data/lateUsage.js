@@ -1,18 +1,18 @@
-// Late Usage categories and their optional sub-categories, split per sheet
-// category (issue #17): the 2026 Commercial and Domestic category sheets carry
-// different "Late Usage of Structure" lists. Options follow the sheet's
-// Category (CATEGORY_ID); a stored value that falls outside the category's
-// list stays selectable so an untouched sheet keeps its value instead of
-// silently blanking — the same pattern as Category (data/categories.js).
+// Late Usage types and their optional sub-categories, split per 2026
+// category sheet. The option rule, shared by Feature Type and Space Type
+// (data/featureTypes.js, data/spaceTypes.js): options follow the sheet's
+// Category (CATEGORY_ID), and a stored value outside the category's list
+// stays selectable — appended, never erased — so an untouched sheet keeps
+// its value instead of silently blanking. Sheet text is verbatim; do not
+// normalize names, casing, or punctuation across sheets ("Theater, Small"
+// next to "Theatre, Large" is the sheet's own inconsistency). Types on no
+// 2026 sheet are deprecated: not offered for new entries, but a stored one
+// keeps rendering via the rule above.
 //
-// Sub-categories are multi-select; a selected category + its selected
-// sub-categories are combined into a single "Type: Sub1; Sub2" string, the
-// same pattern used for Feature Type and Space Type.
-//
-// Deprecated types: the old merged list contained values on neither 2026
-// sheet (Amphitheater, Basilica, Temple, Tomb, ...). A sheet that already
-// stores one keeps it visible; new sheets cannot select them (no category
-// list offers them, and a blank category offers nothing).
+// Sub-categories are multi-select; a selected type + its selected
+// sub-categories combine into a single "Type: Sub1; Sub2" string stored in
+// USAGE_ID (a retired classification prefix is preserved on rebuild — see
+// data/usageField.js).
 
 export const COMMERCIAL_LATE_USAGE_TYPES = [
   { name: "Agricultural", attributes: ["Olive Grove", "Orchard", "Vineyard", "Other"] },
@@ -42,9 +42,46 @@ export const DOMESTIC_LATE_USAGE_TYPES = [
   { name: "Other", attributes: [] },
 ];
 
+export const RELIGION_LATE_USAGE_TYPES = [
+  { name: "Association Structure", attributes: [] },
+  { name: "Crossroad Shrine", attributes: [] },
+  { name: "Shop", attributes: [] },
+  { name: "Storage", attributes: [] },
+  { name: "Space - Public Eating and Drinking", attributes: [] },
+  { name: "Temple", attributes: ["Temple Shop"] },
+  { name: "Other", attributes: [] },
+];
+
+export const PUBLIC_LATE_USAGE_TYPES = [
+  { name: "Amphitheater", attributes: [] },
+  { name: "Basilica", attributes: [] },
+  { name: "Bath", attributes: [] },
+  { name: "Civic Building-Archives", attributes: [] },
+  { name: "Colonnade-forum", attributes: [] },
+  { name: "paving stones", attributes: [] },
+  { name: "Fountain, public", attributes: [] },
+  { name: "Gate", attributes: [] },
+  { name: "Gladiatorial Barracks", attributes: [] },
+  { name: "Gymnasium", attributes: [] },
+  { name: "Market Building", attributes: [] },
+  { name: "Market, Cattle", attributes: [] },
+  { name: "Market, Vegetable", attributes: [] },
+  { name: "Space-Public Eating and Drinking", attributes: [] },
+  { name: "Storage (Cool storage chamber)", attributes: [] },
+  { name: "Table for Weights and Measures", attributes: [] },
+  { name: "Theater, Small", attributes: [] },
+  { name: "Theatre, Large", attributes: [] },
+  { name: "Water Reservoir", attributes: [] },
+  { name: "Water Distribution Center", attributes: [] },
+  { name: "Water Storage", attributes: [] },
+  { name: "Water Tower", attributes: [] },
+];
+
 const LISTS_BY_CATEGORY = {
   Commercial: COMMERCIAL_LATE_USAGE_TYPES,
   Domestic: DOMESTIC_LATE_USAGE_TYPES,
+  Religion: RELIGION_LATE_USAGE_TYPES,
+  Public: PUBLIC_LATE_USAGE_TYPES,
 };
 
 // The types offered for a sheet category. Blank (or unknown) category offers
@@ -53,22 +90,27 @@ export function lateUsageTypesFor(category) {
   return LISTS_BY_CATEGORY[category] || [];
 }
 
-// Options for the Late Usage select: the category's types, keeping a stored
-// legacy value selectable when it falls outside that list.
-export function lateUsageOptionsFor(category, storedTypeName) {
+// Options for the Late Usage select: the category's types, plus the field's
+// current type and the originally-loaded type when either falls outside that
+// list (deduped). The current extra keeps the select rendering; the original
+// extra keeps the record's stored value recoverable for the session, so an
+// accidental change is undone by re-picking instead of reloading.
+export function lateUsageOptionsFor(category, currentTypeName, originalTypeName = "") {
   const names = lateUsageTypesFor(category).map((t) => t.name);
-  const extra = storedTypeName && !names.includes(storedTypeName) ? [storedTypeName] : [];
-  return [...names, ...extra];
+  const extras = [currentTypeName, originalTypeName]
+    .filter(Boolean)
+    .filter((n) => !names.includes(n));
+  return [...names, ...new Set(extras)];
 }
 
-// Sub-category options for a selected type. `category` is unused today: base
-// is the type's own list (whichever category sheet defines it), so the
-// parameter exists for callers that pass it and for a future per-category
-// attribute split. Stored attributes are unioned in so a legacy value keeps
-// them selectable instead of dropping them.
+// Sub-category options for a selected type: the category's own definition,
+// then another sheet's — first definition wins. Stored attributes are
+// unioned in so a legacy value keeps them selectable instead of dropping them.
 export function attributesForLateUsageType(category, typeName, storedAttributes = []) {
   const own =
-    Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes || [];
+    (LISTS_BY_CATEGORY[category] || []).find((t) => t.name === typeName)?.attributes ||
+    Object.values(LISTS_BY_CATEGORY).flat().find((t) => t.name === typeName)?.attributes ||
+    [];
   const stored = Array.isArray(storedAttributes) ? storedAttributes : [];
   return [...new Set([...own, ...stored])];
 }

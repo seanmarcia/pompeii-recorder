@@ -1,7 +1,8 @@
-// Category is restricted to Commercial and Domestic for new entries and any
-// change. Legacy master values (Public, Religious, ...) stay selectable so an
-// untouched sheet keeps its value instead of silently blanking.
-export const CATEGORY_OPTIONS = ["Commercial", "Domestic"];
+// Category is restricted to the four 2026 category-sheet choices for new
+// entries and any change. Legacy master values (Cemetary, Domestic/commercial,
+// ...) stay selectable so an untouched sheet keeps its value instead of
+// silently blanking.
+export const CATEGORY_OPTIONS = ["Commercial", "Domestic", "Religion", "Public"];
 
 // Options for the Category select: the restricted list, keeping a stored
 // legacy value selectable when it falls outside that list.

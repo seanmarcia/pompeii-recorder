@@ -90,7 +90,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}"
 
     assert_select "tr[data-field='CATEGORY_ID'] td.value-cell[data-kind='category']" do |cells|
-      assert_equal [ "Commercial", "Domestic" ], JSON.parse(cells.first["data-options"])
+      assert_equal [ "Commercial", "Domestic", "Religion", "Public" ], JSON.parse(cells.first["data-options"])
     end
     assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='text']"
   end
@@ -99,7 +99,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     usage = "Commercial | Bakery: Oven; Enclosed"
     @submission.update!(payload: @submission.payload.merge("USAGE_ID" => usage))
 
-    [ "Commercial", "Domestic" ].each do |category|
+    [ "Commercial", "Domestic", "Religion", "Public" ].each do |category|
       patch "/admin/submissions/#{@submission.id}", params: {
         fields: { "CATEGORY_ID" => category }
       }, as: :json
@@ -116,20 +116,21 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to admin_submission_path(@submission)
     feature = Feature.find_by!(sheet: "8888")
-    assert_equal "Domestic", feature.category_id
+    assert_equal "Public", feature.category_id
     assert_equal usage, feature.usage_id
   end
 
   test "retired category choices fail as corrections but pass unchanged on legacy rows" do
+    # "Cemetary" is a real legacy master value, retired from the 2026 sheets.
     patch "/admin/submissions/#{@submission.id}", params: {
-      fields: { "CATEGORY_ID" => "Public" }
+      fields: { "CATEGORY_ID" => "Cemetary" }
     }, as: :json
 
     assert_response :unprocessable_entity
     assert_match "Category must be one of:", response.parsed_body["error"]
 
     # A legacy master value left untouched stays valid and approves through.
-    Feature.create!(sheet: "6083", category_id: "Public")
+    Feature.create!(sheet: "6083", category_id: "Cemetary")
     update = Submission.create!(
       action_type: "update_existing",
       target_sheet: "6083",
@@ -142,7 +143,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     post "/admin/submissions/#{update.id}/approve"
-    assert_equal "Public", Feature.find_by!(sheet: "6083").reload.category_id
+    assert_equal "Cemetary", Feature.find_by!(sheet: "6083").reload.category_id
   end
 
   test "invalid category corrections fail without saving other field changes" do

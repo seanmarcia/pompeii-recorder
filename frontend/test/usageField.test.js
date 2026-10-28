@@ -19,7 +19,7 @@ after(async () => {
 });
 
 test("usage classification list matches the restricted category list", () => {
-  assert.deepEqual(usageField.USAGE_CLASSIFICATIONS, [ "Commercial", "Domestic" ]);
+  assert.deepEqual(usageField.USAGE_CLASSIFICATIONS, [ "Commercial", "Domestic", "Religion", "Public" ]);
 });
 
 test("formatting preserves a parsed classification so legacy edits keep their prefix", () => {

@@ -124,7 +124,7 @@ module Admin
         # needs to chase (issue #34). Rows sharing a researcher stay
         # newest-first in both directions.
         blank, named = submissions.partition { |s| s.researcher_name.blank? }
-        named.sort_by! { |s| [s.researcher_name.to_s.downcase, -s.created_at.to_f] }
+        named.sort_by! { |s| [ s.researcher_name.to_s.downcase, -s.created_at.to_f ] }
         if @dir == "desc"
           named.replace(named.group_by { |s| s.researcher_name.to_s.downcase }
                               .sort_by { |name, _group| name }.reverse
@@ -143,7 +143,7 @@ module Admin
         # queues create several submissions within one second.
         blank, numbered = submissions.partition { |s| s.sheet_number.to_s.strip.empty? }
         sign = (@dir == "asc") ? 1 : -1
-        numbered.sort_by! { |s| [sign * s.sheet_number.to_i, -s.created_at.to_f] }
+        numbered.sort_by! { |s| [ sign * s.sheet_number.to_i, -s.created_at.to_f ] }
         blank.sort_by! { |s| -s.created_at.to_f }
         numbered + blank
       end
