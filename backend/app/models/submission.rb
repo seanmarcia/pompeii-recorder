@@ -240,7 +240,7 @@ class Submission < ApplicationRecord
       # Decisions first, then the already-on-sheet no-ops; name order within
       # each group.
       already = item[:name_on_sheet] || item[:bytes_on_sheet]
-      [already ? 1 : 0, photo_name_key(item[:name])]
+      [ already ? 1 : 0, photo_name_key(item[:name]) ]
     end
   end
 
