@@ -241,7 +241,7 @@ export default function FeatureForm({
   );
   const isFeatureSheet = formData.SHEET_TYPE_ID === "Feature";
 
-  // Space Type follows the same single-field "Type: Attr1, Attr2" pattern.
+  // Room/Space Type follows the same single-field "Type: Attr1; Attr2" pattern.
   const { typeName: selectedSpaceType, attributes: selectedSpaceAttributes } = parseSpaceType(
     formData.SPACE_TYPE_ID
   );
@@ -255,8 +255,14 @@ export default function FeatureForm({
     selectedSpaceType,
     selectedSpaceAttributes
   );
-  // Older imported sheets use "Space or Room" for the same sheet type.
-  const isSpaceSheet = formData.SHEET_TYPE_ID === "Space" || formData.SHEET_TYPE_ID === "Space or Room";
+  // Rooms & Spaces is one merged list (the printed sheets were never split
+  // in transcription), so a Room sheet and a Space sheet both draw from it.
+  // "Space or Room" is the sheet type stored on 491 imported sheets; without
+  // it in the check, those sheets would render no type select on edit.
+  const isSpaceSheet =
+    formData.SHEET_TYPE_ID === "Room" ||
+    formData.SHEET_TYPE_ID === "Space" ||
+    formData.SHEET_TYPE_ID === "Space or Room";
 
   // Usage Classification was retired from the form; Late Usage (category +
   // sub-categories) remains and combines into the single USAGE_ID field with
@@ -569,10 +575,13 @@ export default function FeatureForm({
                   setFormData((prev) => ({
                     ...prev,
                     SHEET_TYPE_ID: e.target.value,
-                    // Feature Type only applies to Feature sheets and Space Type to Space
-                    // sheets; clear them when switching away so a hidden value isn't submitted.
+                    // Feature Type only applies to Feature sheets and Room/Space Type
+                    // to Room/Space sheets; clear them when switching away so a hidden
+                    // value isn't submitted.
                     ...(e.target.value !== "Feature" && { FEATURE_TYPE_ID: "" }),
-                    ...(e.target.value !== "Space" && { SPACE_TYPE_ID: "" }),
+                    ...(e.target.value !== "Room" &&
+                      e.target.value !== "Space" &&
+                      e.target.value !== "Space or Room" && { SPACE_TYPE_ID: "" }),
                   }))
                 }
               >
@@ -650,7 +659,7 @@ export default function FeatureForm({
           {isSpaceSheet && (
             <div className="form-grid-3" style={{ marginTop: "1rem" }}>
               <div className="form-field">
-                <label>Space Type</label>
+                <label>Room/Space Type</label>
                 <select
                   name="SPACE_TYPE_ID"
                   value={selectedSpaceType}
@@ -661,7 +670,7 @@ export default function FeatureForm({
                     }))
                   }
                 >
-                  <option value="">Select Space Type</option>
+                  <option value="">Select Room/Space Type</option>
                   {spaceTypeOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}

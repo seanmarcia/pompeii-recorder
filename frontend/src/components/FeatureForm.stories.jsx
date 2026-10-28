@@ -420,3 +420,113 @@ async function waitForCategorySelect(canvasElement) {
   }
   throw new Error('CATEGORY_ID select never hydrated')
 }
+
+function spaceTypeOptions(canvasElement) {
+  const select = canvasElement.querySelector('select[name="SPACE_TYPE_ID"]')
+  expect(select).not.toBeNull()
+  return Array.from(select.options).map((option) => option.value)
+}
+
+// A Room sheet offers the same Rooms & Spaces type list a Space sheet does
+// (issue #60): the printed sheets were never split in transcription, so both
+// sheet kinds draw from the one merged list.
+export const RoomSheetOffersRoomSpaceType = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+    const sheetType = canvasElement.querySelector('select[name="SHEET_TYPE_ID"]')
+
+    // A new sheet defaults to Feature type; switch to Room. A blank category
+    // then offers no types: pick a Category first.
+    await userEvent.selectOptions(sheetType, 'Room')
+    await userEvent.selectOptions(category, 'Domestic')
+    await expect(canvas.getByText('Room/Space Type')).toBeInTheDocument()
+    await expect(spaceTypeOptions(canvasElement)).toEqual([
+      '',
+      ...domesticCategory.spaceTypes.map((t) => t.name),
+    ])
+
+    // Picking a type keeps the select (the transcribed rooms-and-spaces
+    // lists carry no attribute sets, so no checkbox group renders).
+    await userEvent.selectOptions(
+      canvasElement.querySelector('select[name="SPACE_TYPE_ID"]'),
+      'Atrium'
+    )
+    await expect(canvasElement.querySelector('select[name="SPACE_TYPE_ID"]').value).toBe('Atrium')
+  },
+}
+
+// A Space sheet keeps the select (this is today's behavior, plus the
+// renamed label); a Feature sheet still shows Feature Type instead and no
+// Room/Space select. Switching away clears the picked type: switching back
+// to Space shows the blank select, proving SPACE_TYPE_ID was emptied.
+export const SpaceAndFeatureSheetsSplitTheirTypeSelects = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+    const sheetType = canvasElement.querySelector('select[name="SHEET_TYPE_ID"]')
+
+    await userEvent.selectOptions(sheetType, 'Space')
+    await userEvent.selectOptions(category, 'Domestic')
+    await expect(canvas.getByText('Room/Space Type')).toBeInTheDocument()
+    await expect(spaceTypeOptions(canvasElement)).toEqual([
+      '',
+      ...domesticCategory.spaceTypes.map((t) => t.name),
+    ])
+
+    // Pick a type, then switch to a sheet kind that has no type select:
+    // the stored value must be cleared, not hidden.
+    await userEvent.selectOptions(
+      canvasElement.querySelector('select[name="SPACE_TYPE_ID"]'),
+      'Atrium'
+    )
+    await userEvent.selectOptions(sheetType, 'Other')
+    await expect(canvasElement.querySelector('select[name="SPACE_TYPE_ID"]')).toBeNull()
+
+    await userEvent.selectOptions(sheetType, 'Space')
+    await expect(
+      canvasElement.querySelector('select[name="SPACE_TYPE_ID"]').value
+    ).toBe('')
+  },
+}
+
+// Legacy imported sheets store "Space or Room" as the sheet type (491
+// production records). The type select must still render on edit, with the
+// stored composite value preselected.
+export const LegacySpaceOrRoomSheetKeepsItsTypeSelect = {
+  args: {
+    actionType: 'update_existing',
+    initialFeature: {
+      SHEET: '77701',
+      SHEET_TYPE_ID: 'Space or Room',
+      CATEGORY_ID: 'Commercial',
+      SPACE_TYPE_ID: 'Rack',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const category = await waitForCategorySelect(canvasElement)
+
+    // The edit hydrates the master values in an effect after mount.
+    await waitFor(async () => {
+      const select = canvasElement.querySelector('select[name="SPACE_TYPE_ID"]')
+      await expect(select).not.toBeNull()
+      await expect(select.value).toBe('Rack')
+    })
+
+    await expect(canvas.getByText('Room/Space Type')).toBeInTheDocument()
+    await expect(spaceTypeOptions(canvasElement)).toEqual([
+      '',
+      ...commercialCategory.spaceTypes.map((t) => t.name),
+    ])
+    await expect(category.value).toBe('Commercial')
+  },
+}
