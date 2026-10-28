@@ -243,11 +243,6 @@ export default function FeatureForm({
       return;
     }
 
-    if (!formData.SHEET?.trim()) {
-      alert("Please enter a Sheet Number for this archaeological record.");
-      return;
-    }
-
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -411,14 +406,20 @@ export default function FeatureForm({
 
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
-              <label>Researcher Name</label>
-              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
+              <label>Researcher Name *</label>
+              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange} required>
                 <option value="">Select Researcher</option>
                 {RESEARCHER_OPTIONS.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>
                 ))}
+                {/* Keep the sheet's existing researcher selectable even if
+                    they aren't one of the three submission-side researchers
+                    (legacy master data). Same pattern as Photographer/Artist. */}
+                {formData.RESEARCHER_ID && !RESEARCHER_OPTIONS.includes(formData.RESEARCHER_ID) && (
+                  <option value={formData.RESEARCHER_ID}>{formData.RESEARCHER_ID}</option>
+                )}
               </select>
             </div>
             <div className="form-field">

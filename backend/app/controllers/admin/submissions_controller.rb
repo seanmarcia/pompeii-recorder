@@ -119,8 +119,10 @@ module Admin
     def queue_sort(submissions)
       case @sort
       when "researcher"
-        # Named researchers alphabetical; blanks always last. Rows sharing
-        # a researcher stay newest-first in both directions.
+        # Named researchers alphabetical; blanks surface first ascending and
+        # sink last descending — the unnamed rows are exactly what review
+        # needs to chase (issue #34). Rows sharing a researcher stay
+        # newest-first in both directions.
         blank, named = submissions.partition { |s| s.researcher_name.blank? }
         named.sort_by! { |s| [s.researcher_name.to_s.downcase, -s.created_at.to_f] }
         if @dir == "desc"
@@ -129,7 +131,7 @@ module Admin
                               .flat_map { |_name, group| group })
         end
         blank.sort_by! { |s| -s.created_at.to_f }
-        named + blank
+        (@dir == "asc") ? blank + named : named + blank
       when "submitted"
         submissions.sort_by! { |s| s.created_at.to_f }
         submissions.reverse! if @dir == "desc"
