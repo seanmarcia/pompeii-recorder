@@ -142,6 +142,64 @@
     white-space: nowrap;
     background: var(--surface-elevated);
   }
+  .photo-placeholder {
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-elevated);
+    font-size: 2rem;
+  }
+  .photo-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-top: 1rem;
+  }
+  @media (max-width: 760px) {
+    .photo-compare { grid-template-columns: 1fr; }
+  }
+  .compare-col-head {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+  }
+  .compare-empty {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  .photo-box .pick-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.78rem;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .photo-flag {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.45rem 0.6rem;
+    background: rgba(179, 57, 42, 0.12);
+    color: var(--danger);
+  }
+  .photo-flag.echo {
+    background: rgba(227, 179, 65, 0.15);
+    color: var(--pending);
+  }
+  /* A deselected photo grays out on the spot: pure CSS off the checkbox
+     state, no client logic. */
+  .photo-box:has(input[type="checkbox"]:not(:checked)) img,
+  .photo-box:has(input[type="checkbox"]:not(:checked)) .photo-placeholder {
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
   .action-form {
     display: flex;
     flex-direction: column;
@@ -364,40 +422,72 @@
         </table>
       </div>
 
-      <!-- Photos Section -->
+      <!-- Photos Section: the sheet's photos beside this submission's, so a
+           duplicate is visible before approval. -->
       <div class="card">
         <div class="card-title">
           <span>Attached Photos</span>
           <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">
-            <% count = @submission.photos.attached? ? @submission.photos.count : (@payload["photos"]&.size || 0) %>
-            <%= count %> photo(s)
+            <% proposed_items = @submission.photo_review_items %>
+            <%= proposed_items.size %> proposed
           </span>
         </div>
 
-        <% if @submission.photos.attached? %>
-          <div class="photos-grid">
-            <% @submission.photos.each do |photo| %>
-              <div class="photo-box">
-                <%= image_tag photo, alt: photo.filename.to_s, **photo_dimension_attributes(photo) %>
-                <div class="photo-caption">
-                  <%= photo.filename %> (<%= number_to_human_size(photo.byte_size) %>)
-                </div>
-              </div>
-            <% end %>
-          </div>
-        <% elsif @payload["photos"].present? %>
-          <div class="photos-grid">
-            <% @payload["photos"].each do |pname| %>
-              <div class="photo-box">
-                <div style="height: 140px; display: flex; align-items: center; justify-content: center; background: var(--surface-elevated); font-size: 2rem;">
-                  📷
-                </div>
-                <div class="photo-caption"><%= pname %></div>
-              </div>
-            <% end %>
-          </div>
-        <% else %>
+        <% if proposed_items.empty? %>
           <p style="color: var(--text-muted); font-size: 0.9rem;">No photos attached to this submission.</p>
+        <% else %>
+          <div class="photo-compare">
+            <% if @master %>
+              <div class="compare-col compare-sheet">
+                <div class="compare-col-head">On the sheet now</div>
+                <% if @master.photo_items.any? %>
+                  <div class="photos-grid">
+                    <% @master.photo_items.each do |item| %>
+                      <div class="photo-box">
+                        <% if item[:attachment] %>
+                          <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
+                        <% else %>
+                          <div class="photo-placeholder" aria-hidden="true">📷</div>
+                        <% end %>
+                        <div class="photo-caption"><%= item[:name] %></div>
+                      </div>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <p class="compare-empty">No photos on the sheet yet.</p>
+                <% end %>
+              </div>
+            <% end %>
+            <div class="compare-col compare-proposed">
+              <div class="compare-col-head">Proposed by this submission</div>
+              <div class="photos-grid">
+                <% proposed_items.each do |item| %>
+                  <% selectable = @submission.status == "pending" && !@read_only && !item[:name_on_sheet] && !item[:bytes_on_sheet] %>
+                  <div class="photo-box">
+                    <% if item[:attachment] %>
+                      <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
+                    <% else %>
+                      <div class="photo-placeholder" aria-hidden="true">📷</div>
+                    <% end %>
+                    <div class="photo-caption">
+                      <% if item[:attachment] %><%= number_to_human_size(item[:attachment].byte_size) %> &bull; <% end %>
+                      <%= item[:name] %>
+                    </div>
+                    <% if item[:name_on_sheet] %>
+                      <div class="photo-flag echo">already on sheet</div>
+                    <% elsif item[:bytes_on_sheet] %>
+                      <div class="photo-flag">identical file already on sheet</div>
+                    <% elsif selectable %>
+                      <label class="pick-row">
+                        <input type="checkbox" data-photo-name="<%= item[:name] %>" checked>
+                        <span>Include</span>
+                      </label>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
         <% end %>
       </div>
     </div>
@@ -446,6 +536,7 @@
         <% if @submission.status == "pending" && !@read_only %>
           <div class="action-form">
             <%= form_with url: approve_admin_submission_path(@submission), method: :post do |f| %>
+              <input type="hidden" name="exclude_photos" id="exclude-photos-field" value="[]">
               <div class="form-group" style="margin-bottom: 1rem;">
                 <label>Approval Comment (Optional)</label>
                 <textarea name="reviewer_notes" placeholder="e.g., Verified against 2011 excavation diary. Approved for catalog."></textarea>
@@ -613,6 +704,26 @@
         startEdit(cell);
       }
     });
+  })();
+
+  // Photo selection sync: the include/exclude checkboxes ride the approve
+  // POST as a JSON list of excluded names. Nothing is written until the
+  // reviewer approves, matching how the rest of the approval state flows.
+  (function () {
+    const excludeField = document.getElementById("exclude-photos-field");
+    if (!excludeField) return;
+    const syncExclusions = () => {
+      const excluded = Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"))
+        .filter((box) => !box.checked)
+        .map((box) => box.dataset.photoName);
+      excludeField.value = JSON.stringify(excluded);
+    };
+    document.addEventListener("change", (event) => {
+      if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-name]")) {
+        syncExclusions();
+      }
+    });
+    syncExclusions();
   })();
 </script>
 <% end %>

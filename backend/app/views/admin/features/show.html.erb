@@ -121,28 +121,24 @@
     </section>
   <% end %>
 
-  <% uploaded = @feature.field_photos.to_a %>
-  <% uploaded_names = uploaded.map { |p| p.filename.to_s } %>
-  <% names_only = @feature.photos.reject { |name| uploaded_names.include?(name.to_s) } %>
+  <% photo_items = @feature.photo_items %>
   <section class="sheet-section">
     <div class="section-head">
       <span class="section-num"><%= format("%02d", section_count + 1) %></span>
-      <h3>Field Photos (<%= uploaded.size + names_only.size %>)</h3>
+      <h3>Field Photos (<%= photo_items.size %>)</h3>
     </div>
-    <% if uploaded.any? || names_only.any? %>
+    <% if photo_items.any? %>
       <ul class="photo-grid">
-        <% uploaded.each do |photo| %>
+        <% photo_items.each do |item| %>
           <li>
-            <%= link_to url_for(photo), target: "_blank", rel: "noopener" do %>
-              <%= image_tag photo, alt: photo.filename.to_s, loading: "lazy", **photo_dimension_attributes(photo) %>
+            <% if item[:attachment] %>
+              <%= link_to url_for(item[:attachment]), target: "_blank", rel: "noopener" do %>
+                <%= image_tag item[:attachment], alt: item[:name], loading: "lazy", **photo_dimension_attributes(item[:attachment]) %>
+              <% end %>
+            <% else %>
+              <div class="photo-placeholder" aria-hidden="true">📷</div>
             <% end %>
-            <span title="<%= photo.filename %>"><%= photo.filename %></span>
-          </li>
-        <% end %>
-        <% names_only.each do |name| %>
-          <li>
-            <div class="photo-placeholder" aria-hidden="true">📷</div>
-            <span title="<%= name %>"><%= name %></span>
+            <span title="<%= item[:name] %>"><%= item[:name] %></span>
           </li>
         <% end %>
       </ul>

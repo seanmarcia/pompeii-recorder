@@ -29,6 +29,14 @@ class Feature < ApplicationRecord
     field_photos.detect { |attachment| attachment.filename.to_s == name.to_s }
   end
 
+  # One display item per photos_data name: the attachment serving the name's
+  # bytes, or nil for a text-only name. Admin photo surfaces render one box
+  # per name through this, so attachment-level byte duplicates never
+  # double-render a page — the API resolves photos the same way.
+  def photo_items
+    photos.map { |name| { name: name.to_s, attachment: field_photo_for(name) } }
+  end
+
   def as_json_pompeii
     {
       "FEATURE_ID" => feature_id,

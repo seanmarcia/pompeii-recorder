@@ -198,6 +198,51 @@ class Submission < ApplicationRecord
     { is_new: false, changes: diffs }
   end
 
+  # Per-photo review facts for the comparison UI: each proposed name, the
+  # submission attachment carrying its bytes (nil for a text-only name), and
+  # whether the photo is already on the master sheet — by filename (the edit
+  # flow echoes the master's names back into the payload) or by bytes (a
+  # re-upload of the same file under a new filename produces a second blob
+  # with the same checksum). A photo already on the sheet gets no exclude
+  # control: under the additive-union merge, excluding it is a no-op.
+  def photo_review_items
+    feat = master_feature
+    sheet_names = feat ? feat.photos.map(&:to_s) : []
+    sheet_checksums = feat ? feat.field_photos_attachments.joins(:blob).pluck("active_storage_blobs.checksum") : []
+    # The payload's photo names are the merge source, so they drive the list;
+    # a submission with attachments but no photos key (older payloads) falls
+    # back to its attachment filenames, as the old photo card did.
+    names = payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }
+
+    names.map do |name|
+      attachment = photos.detect { |p| p.filename.to_s == name.to_s }
+      {
+        name: name.to_s,
+        attachment: attachment,
+        name_on_sheet: sheet_names.include?(name.to_s),
+        bytes_on_sheet: attachment ? sheet_checksums.include?(attachment.blob.checksum) : false
+      }
+    end
+  end
+
+  # Removes excluded photo names from the payload before approval, so the
+  # merge (an additive union of the payload's names) never carries them and
+  # the byte-linking loop never attaches them. The submission keeps its own
+  # attachments as evidence.
+  def exclude_photos!(names)
+    data = payload
+    proposed = data["photos"]
+    return false unless proposed.is_a?(Array)
+
+    dropped = names.map(&:to_s)
+    kept = proposed.reject { |name| dropped.include?(name.to_s) }
+    return false if kept.size == proposed.size
+
+    data["photos"] = kept
+    self.payload = data
+    save!
+  end
+
   # Approve this submission and merge it into the Feature master table
   def approve!(reviewer_note = nil)
     ActiveRecord::Base.transaction do
@@ -232,15 +277,24 @@ class Submission < ApplicationRecord
       # existing blobs — a row insert, no byte copy — and the submission
       # keeps its own attachments as evidence.
       #
-      # The "already linked?" check reads the raw field_photos_attachments
+      # A blob already linked is skipped, and so is any blob whose bytes the
+      # feature already carries under another name: two uploads of the same
+      # file produce two blobs with the same checksum, and one image per
+      # name on the sheet is the bar — never a duplicate attachment row.
+      #
+      # The "already linked?" snapshot reads the raw field_photos_attachments
       # association, never the field_photos proxy: attach leaves a pending
       # change on the record, and while one is pending the proxy returns a
       # plain array of built attachments (no query interface). The snapshot
       # is taken before the loop because attach only adds.
       names = new_photos.map(&:to_s)
-      existing_blob_ids = feat.field_photos_attachments.pluck(:blob_id)
+      linked = feat.field_photos_attachments.joins(:blob)
+                   .pluck(:blob_id, "active_storage_blobs.checksum")
+      linked_blob_ids = linked.map { |(blob_id, _checksum)| blob_id }
+      linked_checksums = linked.map { |_blob_id, checksum| checksum }
       photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
-        next if existing_blob_ids.include?(photo.blob_id)
+        next if linked_blob_ids.include?(photo.blob_id)
+        next if linked_checksums.include?(photo.blob.checksum)
         feat.field_photos.attach(photo.blob)
       end
 
