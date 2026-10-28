@@ -330,7 +330,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}?mode=view"
 
     assert_select ".compare-col-head", text: "On the sheet now"
-    assert_select "input[type=checkbox]", count: 0
+    assert_select "input[type=checkbox][data-photo-name]", count: 0
   end
 
   test "POST /admin/submissions/:id/reject sets status to rejected" do

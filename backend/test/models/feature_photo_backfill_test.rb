@@ -100,7 +100,7 @@ class FeaturePhotoBackfillTest < ActiveSupport::TestCase
   test "links every matching photo when one submission carries two" do
     sub = approved_submission("704", [ "IMG_1.jpg", "IMG_2.jpg" ])
     attach_photo(sub, "IMG_1.jpg")
-    attach_photo(sub, "IMG_2.jpg")
+    sub.photos.attach(io: StringIO.new("second photo bytes"), filename: "IMG_2.jpg", content_type: "image/jpeg")
     Feature.create!(sheet: "704", photos: [ "IMG_1.jpg", "IMG_2.jpg" ])
 
     result = FeaturePhotoBackfill.run!
