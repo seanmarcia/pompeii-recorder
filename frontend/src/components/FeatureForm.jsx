@@ -447,8 +447,8 @@ export default function FeatureForm({
 
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
-              <label>Researcher Name *</label>
-              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange} required>
+              <label>Researcher Name</label>
+              <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
                 <option value="">Select Researcher</option>
                 {RESEARCHER_OPTIONS.map((r) => (
                   <option key={r} value={r}>
