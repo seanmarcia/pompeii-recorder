@@ -4,8 +4,6 @@ import {
   CATEGORY_BUNDLES,
   bundleFor,
   typeListsFor,
-  LEGACY_FEATURE_TYPES,
-  LEGACY_SPACE_TYPES,
 } from "../src/data/registry.js";
 
 // The data/ layout (issue #42): one module per 2026 category carrying that
@@ -67,29 +65,22 @@ test("typeListsFor puts the own category's list first, then the other sheets", (
   ]);
 });
 
-test("legacy lists stay out of the bundles and the offering chain", () => {
-  // Kiln and Pipes exist only on the pre-2026 merged feature list.
-  const legacyFeatureNames = LEGACY_FEATURE_TYPES.map((t) => t.name);
-  assert.ok(legacyFeatureNames.includes("Kiln"));
-  assert.ok(legacyFeatureNames.includes("Pipes"));
+test("retired types stay out of the bundles and the offering chain", () => {
+  // Kiln and Pipes are on no 2026 sheet: the retired merged list is gone.
   CATEGORY_NAMES.forEach((category) => {
     const names = bundleFor(category).featureTypes.map((t) => t.name);
-    ["Kiln", "Pipes"].forEach((legacy) => {
-      assert.ok(!names.includes(legacy), `${legacy} is not offered for ${category}`);
+    ["Kiln", "Pipes"].forEach((retired) => {
+      assert.ok(!names.includes(retired), `${retired} is not offered for ${category}`);
     });
   });
-  // The bare "Dining" entry (with its merged attribute list) is legacy only;
-  // the 2026 sheets split it into atomic options.
-  const legacySpaceNames = LEGACY_SPACE_TYPES.map((t) => t.name);
-  assert.ok(legacySpaceNames.includes("Dining"));
+  // The bare "Dining" entry (with its merged attribute list) is retired; the
+  // 2026 sheets split it into atomic options.
   CATEGORY_NAMES.forEach((category) => {
     const names = bundleFor(category).spaceTypes.map((t) => t.name);
     assert.ok(!names.includes("Dining"), `bare Dining is not offered for ${category}`);
   });
-  // The registry's ordered chains end before legacy: adapters append legacy
-  // themselves, and late usage has no legacy list at all.
+  // The registry's ordered chains carry only category sheets.
   typeListsFor("Commercial", "lateUsageTypes").forEach((list) => {
-    assert.notEqual(list, LEGACY_SPACE_TYPES);
-    assert.notEqual(list, LEGACY_FEATURE_TYPES);
+    assert.ok(Array.isArray(list), "chain members are category sheet lists");
   });
 });
