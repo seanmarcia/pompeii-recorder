@@ -156,6 +156,9 @@
     gap: 1.25rem;
     margin-top: 1rem;
   }
+  /* A new-sheet submission has no comparison column: the proposed column
+     takes the full width instead of half of an empty grid. */
+  .photo-compare:has(> :only-child) { grid-template-columns: 1fr; }
   @media (max-width: 760px) {
     .photo-compare { grid-template-columns: 1fr; }
   }
