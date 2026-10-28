@@ -25,7 +25,7 @@ class Submission < ApplicationRecord
       "FEATURE_TYPE_ID" => "Feature Type",
       "SPACE_TYPE_ID" => "Space Type",
       "CATEGORY_ID" => "Category",
-      "USAGE_ID" => "Usage Classification"
+      "USAGE_ID" => "Late Usage"
     },
     "Interpretation" => {
       "NEGATIVE_FEATURE" => "Negative Feature (T/F)",
@@ -51,6 +51,30 @@ class Submission < ApplicationRecord
   LONG_TEXT_FIELDS = %w[DESCRIPTION BIBLIOGRAPHY CONTIGUOUS_RELATIONSHIP VIDEO_COMMENTS].freeze
   BOOLEAN_FIELDS = %w[NEGATIVE_FEATURE MINORITY_REPORT].freeze
   CATEGORY_OPTIONS = [ "Commercial", "Domestic" ].freeze
+
+  # Late Usage types per sheet category — mirrors frontend/src/data/lateUsage.js
+  # (COMMERCIAL_LATE_USAGE_TYPES / DOMESTIC_LATE_USAGE_TYPES). The reviewer's
+  # Late Usage editor suggests these; keep the two copies identical.
+  COMMERCIAL_LATE_USAGE_TYPES = [
+    "Agricultural", "Bakery", "Hotel/Inn", "Market Building",
+    "Food Distribution Center", "Drink Distribution Center", "Food & Drink Shop",
+    "Restaurant", "Shop-House", "Space for Public Eating and Drinking",
+    "Storage", "Thermopolium", "Warehouse/Granary", "Other"
+  ].freeze
+  DOMESTIC_LATE_USAGE_TYPES = [
+    "Apartment", "Farm House", "House", "House-Shop",
+    "Space - Public Eating and Drinking", "Villa rustica", "Villa Urbana", "Other"
+  ].freeze
+  LATE_USAGE_TYPES_BY_CATEGORY = {
+    "Commercial" => COMMERCIAL_LATE_USAGE_TYPES,
+    "Domestic" => DOMESTIC_LATE_USAGE_TYPES
+  }.freeze
+
+  # The Late Usage types offered for a category. Unknown category offers
+  # nothing, matching the field app's lateUsageTypesFor.
+  def self.late_usage_types_for(category)
+    LATE_USAGE_TYPES_BY_CATEGORY[category] || []
+  end
 
   # Payload key holding values the recorder left at the form's starting value
   # (today's date, Region VI, ...). Those only fill in blanks on the master

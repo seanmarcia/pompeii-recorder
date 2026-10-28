@@ -66,6 +66,12 @@ module Admin
         [ key, render_to_string(partial: "field_row", formats: [ :html ],
                                locals: { submission: @submission, key: key, label: labels[key], is_new: is_new }) ]
       end
+      # A category correction changes which Late Usage types the usage row
+      # offers, so re-render it alongside the edited rows.
+      if edits.key?("CATEGORY_ID") && !rows.key?("USAGE_ID")
+        rows["USAGE_ID"] = render_to_string(partial: "field_row", formats: [ :html ],
+                               locals: { submission: @submission, key: "USAGE_ID", label: labels["USAGE_ID"], is_new: is_new })
+      end
       render json: { rows: rows, changed_count: @submission.changed_field_count }
     rescue StandardError => e
       render json: { error: e.message }, status: :unprocessable_entity
