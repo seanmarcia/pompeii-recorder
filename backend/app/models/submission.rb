@@ -216,7 +216,9 @@ class Submission < ApplicationRecord
     # back to its attachment filenames, as the old photo card did. Duplicate
     # names collapse: the merge's .uniq does, so the display must not imply
     # two independent photos. Display order is name-sorted (digit-aware),
-    # matching the sheet column, so same or similar filenames sit adjacent.
+    # matching the sheet column, with one functional override: photos the
+    # reviewer can decide on sort above the already-on-sheet no-ops, so
+    # every checkbox sits in one block at the top of the proposed column.
     names = (payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }).map(&:to_s).uniq
                 .sort_by { |name| photo_name_key(name) }
 
@@ -234,6 +236,11 @@ class Submission < ApplicationRecord
         name_on_sheet: sheet_names.include?(name.to_s),
         bytes_on_sheet: own ? sheet_checksums.include?(own.blob.checksum) : false
       }
+    end.sort_by do |item|
+      # Decisions first, then the already-on-sheet no-ops; name order within
+      # each group.
+      already = item[:name_on_sheet] || item[:bytes_on_sheet]
+      [already ? 1 : 0, photo_name_key(item[:name])]
     end
   end
 

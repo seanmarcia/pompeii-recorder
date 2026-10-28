@@ -245,8 +245,18 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_not by_name["renamed.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:bytes_on_sheet]
-    # Display order is name-sorted, digit-aware and case-insensitive.
+    # Display order is decision-first: the selectable photo sorts above the
+    # already-on-sheet no-ops, name-sorted (digit-aware) within each group.
     assert_equal [ "fresh.jpg", "IMG_1.jpg", "renamed.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+  end
+
+  test "photo review order puts decisions above already-on-sheet no-ops" do
+    Feature.create!(sheet: "521", photos: [ "aaa_echo.jpg" ])
+    sub = submit("SHEET" => "521", "photos" => [ "aaa_echo.jpg", "zzz_new.jpg" ])
+
+    # Pure name order would put the echo first; the decision (zzz_new)
+    # must come before the no-op it outranks.
+    assert_equal [ "zzz_new.jpg", "aaa_echo.jpg" ], sub.photo_review_items.map { |i| i[:name] }
   end
 
   test "photo review flags for a new sheet mark nothing as already on the sheet" do
