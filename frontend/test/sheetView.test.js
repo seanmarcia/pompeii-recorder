@@ -48,6 +48,17 @@ test("sheet viewing renders saved values and filenames without form controls or 
   assert.equal(feature.CATEGORY_ID, "Religious");
 });
 
+test("photo URLs render as images with the filename decoded for the caption", () => {
+  const url = "http://localhost:3000/rails/active_storage/blobs/redirect/abc/9001%20IMG_E0380.jpg";
+  const html = renderToStaticMarkup(React.createElement(SheetView, {
+    feature: Object.freeze({ SHEET: "9001", photos: Object.freeze([url, "paper-era.jpg"]) }),
+  }));
+  assert.match(html, new RegExp(`<img[^>]*src="${url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+  assert.match(html, />9001 IMG_E0380\.jpg</, "the caption decodes the URL-encoded filename");
+  assert.match(html, /paper-era\.jpg/, "plain names keep their caption");
+  assert.match(html, /📷/, "names without a photo stay placeholders");
+});
+
 test("browse cards expose separate view and edit actions using the cached catalog", () => {
   const html = renderToStaticMarkup(React.createElement(BrowseView, {
     features: [{ SHEET: "123", SPACE_NUMBER: "Shrine" }],

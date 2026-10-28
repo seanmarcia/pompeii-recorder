@@ -51,6 +51,19 @@ const YES_NO = new Set(["NEGATIVE_FEATURE", "MINORITY_REPORT"]);
 const isBlank = (value) => value == null || String(value).trim() === "";
 const isImageUrl = (photo) => /^(https?:\/\/|\/(?!\/)|data:image\/|blob:)/i.test(photo);
 
+// The visible filename under a photo: a served URL ends in the photo's
+// original name, percent-encoded. Names without escape sequences pass
+// through unchanged; a name with a stray "%" stays as-is instead of
+// throwing.
+const displayFilename = (photo) => {
+  const lastSegment = String(photo).split("/").pop();
+  try {
+    return decodeURIComponent(lastSegment);
+  } catch {
+    return lastSegment;
+  }
+};
+
 function formatValue(key, value) {
   if (YES_NO.has(key)) return value === "T" ? "Yes" : "No";
   if (key === "SHEET_DATE") {
@@ -152,7 +165,7 @@ export default function SheetView({ feature, onBack, onEdit }) {
         {photos.length ? (
           <ul className="sheet-view-photos">
             {photos.map((photo, index) => {
-              const caption = /^(data:|blob:)/i.test(photo) ? `Photo ${index + 1}` : photo.split("/").pop();
+              const caption = /^(data:|blob:)/i.test(photo) ? `Photo ${index + 1}` : displayFilename(photo);
               return (
                 <li key={`${photo}_${index}`}>
                   {isImageUrl(photo) ? (

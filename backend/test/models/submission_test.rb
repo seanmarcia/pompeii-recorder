@@ -103,4 +103,82 @@ class SubmissionTest < ActiveSupport::TestCase
 
     assert_equal [ b ], a.other_pending_for_sheet.to_a
   end
+
+  test "approving a submission links its photo blobs to the master feature" do
+    sub = submit("SHEET" => "510", "DESCRIPTION" => "Oven", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    blob_ids = sub.photos.map(&:blob_id)
+    blob_count = ActiveStorage::Blob.count
+
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "510")
+    assert_equal [ "IMG_1.jpg" ], feat.photos
+    assert_equal blob_ids, feat.field_photos.map(&:blob_id),
+                 "the feature must reuse the submission's blobs, not copy bytes"
+    assert_equal blob_count, ActiveStorage::Blob.count, "no new blobs may be created"
+    assert_equal blob_ids, sub.reload.photos.map(&:blob_id), "the submission keeps its evidence"
+  end
+
+  test "photo names without blobs still merge and approve cleanly" do
+    sub = submit("SHEET" => "511", "photos" => [ "paper-era.jpg" ])
+
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "511")
+    assert_equal [ "paper-era.jpg" ], feat.photos
+    assert feat.field_photos.empty?, "names only, nothing to link"
+  end
+
+  test "re-approving a submission adds no duplicate photo links" do
+    sub = submit("SHEET" => "512", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+
+    sub.approve!
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "512")
+    assert_equal 1, feat.field_photos.count
+    assert_equal 1, ActiveStorage::Blob.count
+  end
+
+  test "two approvals carrying different photos with the same filename link both blobs" do
+    a = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
+    b = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
+    [ a, b ].each do |sub|
+      sub.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: "IMG_1.jpg", content_type: "image/jpeg"
+      )
+    end
+
+    a.approve!
+    b.approve!
+
+    feat = Feature.find_by(sheet: "513")
+    assert_equal 2, feat.field_photos.count, "each device's photo stays distinct evidence"
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "the name still merges to one entry"
+  end
+
+  test "photo URLs echoed back by the edit form store and merge as filenames" do
+    Feature.create!(sheet: "514", photos: [ "IMG_1.jpg" ])
+    url = "http://localhost:3000/rails/storage/abc123/9001%20IMG_E0380.jpg"
+    sub = submit("SHEET" => "514", "photos" => [ url, "new.jpg" ])
+
+    assert_equal [ "9001 IMG_E0380.jpg", "new.jpg" ], sub.payload["photos"],
+                 "a URL echoes only its filename into the stored payload"
+
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "514")
+    assert_equal [ "IMG_1.jpg", "9001 IMG_E0380.jpg", "new.jpg" ], feat.photos
+    assert feat.photos.none? { |photo| photo.to_s.start_with?("http") },
+           "host-specific URLs must never land in photos_data"
+  end
 end
