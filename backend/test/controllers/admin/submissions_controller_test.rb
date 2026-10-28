@@ -398,7 +398,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert body.index("no sheet row") > body.index("Sheet 99901"), "rows without a sheet number sort last"
   end
 
-  test "researcher header sorts alphabetically with blanks last in both directions" do
+  test "researcher header sorts alphabetically with blanks first ascending and last descending" do
     now = Time.current
     Feature.create!(sheet: "6083", researcher_id: "Sera Baker")
     Submission.create!(action_type: "create_new", target_sheet: "1111", status: "pending",
@@ -415,17 +415,17 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     get "/admin?sort=researcher&dir=asc"
     body = response.body
+    assert body.index("blank room") < body.index("anna room"), "blank researcher surfaces first ascending"
     assert body.index("anna room") < body.index("sera room")
     assert body.index("sera room") < body.index("zoe room")
     assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first ascending"
-    assert body.index("zoe older room") < body.index("blank room"), "blank researcher sorts last ascending"
 
     get "/admin?sort=researcher&dir=desc"
     body = response.body
     assert body.index("zoe room") < body.index("sera room")
     assert body.index("sera room") < body.index("anna room")
     assert body.index("zoe room") < body.index("zoe older room"), "same researcher stays newest first descending"
-    assert body.index("anna room") < body.index("blank room"), "blank researcher still last descending"
+    assert body.index("anna room") < body.index("blank room"), "blank researcher sinks last descending"
   end
 
   test "submitted header sorts by creation time in both directions" do

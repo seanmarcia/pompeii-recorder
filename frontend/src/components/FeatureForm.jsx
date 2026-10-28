@@ -248,6 +248,11 @@ export default function FeatureForm({
       return;
     }
 
+    if (!formData.RESEARCHER_ID?.trim()) {
+      alert("Please select a Researcher Name for this archaeological record.");
+      return;
+    }
+
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -411,7 +416,7 @@ export default function FeatureForm({
 
           <div className="form-grid-2" style={{ marginTop: "1rem" }}>
             <div className="form-field">
-              <label>Researcher Name</label>
+              <label>Researcher Name *</label>
               <select name="RESEARCHER_ID" value={formData.RESEARCHER_ID || ""} onChange={handleChange}>
                 <option value="">Select Researcher</option>
                 {RESEARCHER_OPTIONS.map((r) => (

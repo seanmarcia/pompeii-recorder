@@ -25,6 +25,16 @@ module Api
         payload = Submission.clean_field_payload(payload)
         target_sheet ||= payload["SHEET"]
 
+        # Reviewers route queue work by the researcher (PR) name, so a
+        # submission without one is orphaned in the queue (issue #34). The
+        # effective researcher is what the recorder picked, or — for updates
+        # that never touched the field — the master record's researcher.
+        if effective_researcher(payload, target_sheet).blank?
+          return render json: {
+            error: "Researcher Name is required. Select the researcher (PR) responsible for this sheet before submitting."
+          }, status: :unprocessable_entity
+        end
+
         submission = Submission.new(
           action_type: action_type,
           target_sheet: target_sheet,
@@ -70,6 +80,10 @@ module Api
         Submission.transaction do
           submissions_data.each do |sub_hash|
             payload = Submission.clean_field_payload(sub_hash["payload"])
+            sheet = sub_hash["target_sheet"].presence || payload["SHEET"]
+            if effective_researcher(payload, sheet).blank?
+              raise StandardError, "Submission #{sub_hash['client_id']}: Researcher Name is required — select the researcher (PR) responsible for the sheet."
+            end
             submission = Submission.create!(
               action_type: sub_hash["action_type"] || "create_new",
               target_sheet: sub_hash["target_sheet"] || payload["SHEET"],
@@ -111,6 +125,17 @@ module Api
         }
       rescue ActiveRecord::RecordNotFound
         render json: { error: "Submission not found" }, status: :not_found
+      end
+
+      private
+
+      # What the researcher (PR) will be once this submission is reviewed:
+      # the recorder's pick, or the master record's researcher when an update
+      # never touched the field (unchanged fields ride in _defaults, not the
+      # payload).
+      def effective_researcher(payload, target_sheet)
+        payload["RESEARCHER_ID"].presence ||
+          (target_sheet && Feature.find_by(sheet: target_sheet)&.researcher_id).presence
       end
     end
   end

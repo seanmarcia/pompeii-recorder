@@ -115,6 +115,31 @@ export const CategoryAndLateUsageStayIndependent = {
   },
 }
 
+// Issue #34: a submission without a researcher (PR) orphans itself in the
+// review queue. The form blocks it the same way it blocks a missing sheet
+// number: alert, no submit. The label carries the required marker.
+export const ResearcherRequiredBlocksSubmission = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const alerts = []
+    canvasElement.ownerDocument.defaultView.alert = (msg) => alerts.push(msg)
+
+    await expect(canvas.getByText('Researcher Name *')).toBeInTheDocument()
+
+    // Sheet number filled, researcher left at "Select Researcher".
+    await userEvent.type(canvas.getByPlaceholderText('e.g. 6083'), '9999')
+    await userEvent.click(canvas.getByRole('button', { name: 'Send to Review Queue →' }))
+    await expect(alerts.some((msg) => msg.includes('Researcher Name'))).toBe(true)
+
+    // Blocked before anything was sent: the form is still on screen.
+    await expect(canvas.getByRole('button', { name: 'Send to Review Queue →' })).toBeInTheDocument()
+  },
+}
+
 async function waitForCategorySelect(canvasElement) {
   for (let i = 0; i < 20; i++) {
     const select = canvasElement.querySelector('select[name="CATEGORY_ID"]')
