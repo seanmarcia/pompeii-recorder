@@ -306,25 +306,27 @@ export const BlankResearcherSubmits = {
       return realFetch(input, init)
     }
 
-    // Sheet number filled, researcher left at "Select Researcher".
-    await userEvent.type(canvas.getByPlaceholderText('e.g. 6083'), '9999')
-    await userEvent.click(canvas.getByRole('button', { name: 'Send to Review Queue →' }))
+    try {
+      // Sheet number filled, researcher left at "Select Researcher".
+      await userEvent.type(canvas.getByPlaceholderText('e.g. 6083'), '9999')
+      await userEvent.click(canvas.getByRole('button', { name: 'Send to Review Queue →' }))
 
-    // The submit ran: the outbox banner with a Record Token appeared.
-    await waitFor(async () => {
-      await expect(
-        canvas.getByText('Saved to Offline Outbox. Will sync when the server is reachable.')
-      ).toBeInTheDocument()
-      await expect(canvas.getByText(/Record Token: /)).toBeInTheDocument()
-    })
+      // The submit ran: the outbox banner with a Record Token appeared.
+      await waitFor(async () => {
+        await expect(
+          canvas.getByText('Saved to Offline Outbox. Will sync when the server is reachable.')
+        ).toBeInTheDocument()
+        await expect(canvas.getByText(/Record Token: /)).toBeInTheDocument()
+      })
 
-    // The stored outbox entry holds the sheet and no researcher value.
-    const outbox = JSON.parse(view.localStorage.getItem('pompeii_offline_outbox_v1') || '[]')
-    await expect(outbox).toHaveLength(1)
-    await expect(outbox[0].targetSheet).toBe('9999')
-    await expect(outbox[0].payload.RESEARCHER_ID).toBeUndefined()
-
-    view.fetch = realFetch
+      // The stored outbox entry holds the sheet and no researcher value.
+      const outbox = JSON.parse(view.localStorage.getItem('pompeii_offline_outbox_v1') || '[]')
+      await expect(outbox).toHaveLength(1)
+      await expect(outbox[0].targetSheet).toBe('9999')
+      await expect(outbox[0].payload.RESEARCHER_ID).toBeUndefined()
+    } finally {
+      view.fetch = realFetch
+    }
   },
 }
 
