@@ -56,6 +56,13 @@ mise exec -- bin/rails db:prepare
 
 On a fresh dev database, `db:prepare` runs the full seed chain: the features.json import (~4,959 master features), then `db/seeds/development.rb` (dev logins + the synthetic review queue). One command, no manual seed step, no credentials needed.
 
+### Working in worktrees
+
+- Secondary git worktrees are first-class: each gets its **own SQLite dev DB** (`backend/storage/development.sqlite3` lives inside the worktree), so database state never crosses between them.
+- Bootstrap a fresh worktree with `bin/worktree-setup` (run from the worktree root). It copies the gitignored per-machine files (`AGENTS.local.md`, `backend/config/master.key`) from the primary checkout, runs `bundle install`, `db:prepare` (full seed chain), and `npm install`. Never commit those copied files.
+- Run a worktree's dev servers on a **distinct port**: `RAILS_PORT=3001 overmind start -f Procfile.dev`. `RAILS_PORT` moves Rails and rewires `VITE_BACKEND_URL` for the frontend. Don't use overmind's own `$PORT` — it steps per process.
+- Practical convention: one worktree runs the dev servers; other worktrees do code-only work (tests, review) unless two parallel browser-verification sessions are actually needed.
+
 ### Dev servers and URLs
 
 - Start both with one command ([overmind](https://github.com/DarthSim/overmind)): `overmind start -f Procfile.dev` (Rails + Vite from the root `Procfile.dev`; overmind installs via `brew bundle` from the root `Brewfile`).

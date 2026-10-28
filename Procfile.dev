@@ -1,3 +1,5 @@
 # Run both dev servers together: overmind start -f Procfile.dev
-backend:  cd backend && mise exec -- bin/rails server -p 3000
-frontend: cd frontend && npm run dev
+# Second worktree? Give it its own port: RAILS_PORT=3001 overmind start -f Procfile.dev
+# (RAILS_PORT is ours; overmind also injects a per-process $PORT we must not collide with)
+backend: cd backend && mise exec -- bin/rails server -p ${RAILS_PORT:-3000}
+frontend: cd frontend && VITE_BACKEND_URL=http://localhost:${RAILS_PORT:-3000} npm run dev

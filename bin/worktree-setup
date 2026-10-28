@@ -1,0 +1,49 @@
+#!/bin/bash
+# Bootstrap a fresh git worktree of pompeii-recorder for development.
+# Usage: from the worktree root: bin/worktree-setup
+#
+# Copies gitignored per-machine files from the primary checkout, installs
+# dependencies, and prepares the worktree's own SQLite dev database
+# (db:prepare runs the full seed chain on a fresh DB — no credentials needed).
+set -euo pipefail
+
+primary="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
+here="$(git rev-parse --show-toplevel)"
+if [ "$primary" = "$here" ]; then
+  echo "This is the primary checkout; bin/worktree-setup is for secondary worktrees."
+  exit 0
+fi
+echo "primary checkout: $primary"
+
+# Per-machine, gitignored files never arrive with a checkout — copy them.
+for f in AGENTS.local.md backend/config/master.key; do
+  if [ -e "$primary/$f" ] && [ ! -e "$here/$f" ]; then
+    cp "$primary/$f" "$here/$f"
+    echo "copied $f (gitignored — never committed)"
+  elif [ -e "$here/$f" ]; then
+    echo "$f already present"
+  else
+    echo "skipped $f (not present in primary checkout either)"
+  fi
+done
+
+echo "-- backend gems --"
+cd "$here/backend"
+mise exec -- bundle install
+
+echo "-- dev database (seed chain runs on a fresh DB) --"
+mise exec -- bin/rails db:prepare
+
+echo "-- frontend packages --"
+cd "$here/frontend"
+npm install
+
+cat <<'EOF'
+
+Worktree ready. Start it on a port no other worktree uses:
+
+  RAILS_PORT=3001 overmind start -f Procfile.dev
+
+Rails runs on $RAILS_PORT (default 3000). Vite picks the next free
+port and prints it; the frontend already points at $RAILS_PORT.
+EOF
