@@ -45,6 +45,15 @@ export const NewSheetRegionDefaultsBlank = {
     initialFeature: null,
   },
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // Hydration lands the new-sheet defaults in an effect after mount. Wait
+    // for a marker default (SEASON = the current year) so the blank Region
+    // assertion below cannot pass against a still-empty formData.
+    const season = canvasElement.querySelector('input[name="SEASON"]')
+    await expect(season).not.toBeNull()
+    await waitFor(async () => {
+      await expect(season.value).toBe(new Date().getFullYear().toString())
+    })
     const select = canvasElement.querySelector('select[name="REGION"]')
     await expect(select).not.toBeNull()
     await expect(select.value).toBe('')
@@ -393,12 +402,13 @@ export const EditSheetPrefillsRegion = {
     },
   },
   play: async ({ canvasElement }) => {
-    const select = await waitFor(async () => {
-      const select = canvasElement.querySelector('select[name="REGION"]')
-      await expect(select).not.toBeNull()
-      return select
+    const select = canvasElement.querySelector('select[name="REGION"]')
+    await expect(select).not.toBeNull()
+    // The edit form hydrates the master values in an effect after mount;
+    // wait for the prefill to land.
+    await waitFor(async () => {
+      await expect(select.value).toBe('IX')
     })
-    await expect(select.value).toBe('IX')
   },
 }
 

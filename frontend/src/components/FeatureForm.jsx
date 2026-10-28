@@ -294,8 +294,8 @@ export default function FeatureForm({
     }
 
     // Send what this person entered or changed. Untouched starting values
-    // (today's date, Region VI, ...) go separately and only fill in blanks
-    // on the master sheet when an admin approves it.
+    // (today's date, this season's year, ...) go separately and only fill in
+    // blanks on the master sheet when an admin approves it.
     const changed = { SHEET: formData.SHEET };
     const defaults = {};
     Object.entries(formData).forEach(([key, value]) => {
