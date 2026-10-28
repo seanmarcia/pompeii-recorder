@@ -429,7 +429,7 @@
           <span>Attached Photos</span>
           <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">
             <% proposed_items = @submission.photo_review_items %>
-            <%= proposed_items.size %> proposed
+            <%= proposed_items.size %> <%= @submission.status == "pending" ? "proposed" : "photos" %>
           </span>
         </div>
 
@@ -462,7 +462,12 @@
               <div class="compare-col-head">Proposed by this submission</div>
               <div class="photos-grid">
                 <% proposed_items.each do |item| %>
-                  <% selectable = @submission.status == "pending" && !@read_only && !item[:name_on_sheet] && !item[:bytes_on_sheet] %>
+                  <% # Controls only for a payload the merge will actually read:
+                     # a legacy submission without a photos key never merges
+                     # its attachment names, so they are display-only.
+                     selectable = @submission.status == "pending" && !@read_only &&
+                       @submission.payload["photos"].is_a?(Array) &&
+                       !item[:name_on_sheet] && !item[:bytes_on_sheet] %>
                   <div class="photo-box">
                     <% if item[:attachment] %>
                       <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>

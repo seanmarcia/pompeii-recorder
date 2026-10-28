@@ -211,8 +211,10 @@ class Submission < ApplicationRecord
     sheet_checksums = feat ? feat.field_photos_attachments.joins(:blob).pluck("active_storage_blobs.checksum") : []
     # The payload's photo names are the merge source, so they drive the list;
     # a submission with attachments but no photos key (older payloads) falls
-    # back to its attachment filenames, as the old photo card did.
-    names = payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }
+    # back to its attachment filenames, as the old photo card did. Duplicate
+    # names collapse: the merge's .uniq does, so the display must not imply
+    # two independent photos.
+    names = (payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }).map(&:to_s).uniq
 
     names.map do |name|
       attachment = photos.detect { |p| p.filename.to_s == name.to_s }
@@ -296,6 +298,11 @@ class Submission < ApplicationRecord
         next if linked_blob_ids.include?(photo.blob_id)
         next if linked_checksums.include?(photo.blob.checksum)
         feat.field_photos.attach(photo.blob)
+        # The snapshot must grow with the record: two names carrying the same
+        # bytes (the " (1)" copy-suffix re-upload) in one submission attach
+        # once, exactly like the backfill's walk.
+        linked_blob_ids << photo.blob_id
+        linked_checksums << photo.blob.checksum
       end
 
       self.status = "approved"

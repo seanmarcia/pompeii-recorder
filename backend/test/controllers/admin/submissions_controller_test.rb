@@ -211,12 +211,11 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
   test "approve links every matching photo when the submission has two" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
     @submission.save!
-    [ "portrait_test.jpg", "second.jpg" ].each do |name|
-      @submission.photos.attach(
-        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-        filename: name, content_type: "image/jpeg"
-      )
-    end
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.attach(io: StringIO.new("second photo bytes"), filename: "second.jpg", content_type: "image/jpeg")
 
     post "/admin/submissions/#{@submission.id}/approve"
 
@@ -229,6 +228,27 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, blob_ids.size
     assert_equal blob_ids, Feature.find_by!(sheet: "8888").field_photos.map(&:blob_id).sort,
       "both matching photos link to the master feature"
+  end
+
+  # Issue #37: two names in one submission carrying the same bytes — the
+  # " (1)" copy-suffix re-upload — attach once. One image per name is not the
+  # bar here: the bytes are the same photo, so one attachment row.
+  test "approve attaches byte-identical blobs under two names once" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "portrait_test (1).jpg" ] }
+    @submission.save!
+    [ "portrait_test.jpg", "portrait_test (1).jpg" ].each do |name|
+      @submission.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: name, content_type: "image/jpeg"
+      )
+    end
+
+    post "/admin/submissions/#{@submission.id}/approve"
+
+    assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
+    feat = Feature.find_by!(sheet: "8888")
+    assert_equal [ "portrait_test.jpg", "portrait_test (1).jpg" ], feat.photos, "names still merge"
+    assert_equal 1, feat.field_photos.count, "one attachment row for one file's bytes"
   end
 
   # Issue #37: the reviewer's per-photo selection rides the approve POST.
@@ -261,12 +281,11 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
   test "approve without excluded photos merges everything" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
     @submission.save!
-    [ "portrait_test.jpg", "second.jpg" ].each do |name|
-      @submission.photos.attach(
-        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-        filename: name, content_type: "image/jpeg"
-      )
-    end
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.attach(io: StringIO.new("second photo bytes"), filename: "second.jpg", content_type: "image/jpeg")
 
     post "/admin/submissions/#{@submission.id}/approve"
 
@@ -331,6 +350,32 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".compare-col-head", text: "On the sheet now"
     assert_select "input[type=checkbox][data-photo-name]", count: 0
+  end
+
+  test "an already-reviewed submission shows the comparison without selection controls" do
+    feat = Feature.create!(sheet: "8888", photos: [ "fresh.jpg" ])
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "fresh.jpg", "newer.jpg" ] }
+    @submission.save!
+    @submission.approve!
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select ".compare-col-head", text: "On the sheet now"
+    assert_select "input[type=checkbox][data-photo-name]", count: 0
+  end
+
+  test "a legacy submission without a photos key shows its attachments display-only, without controls" do
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select ".compare-col-head", text: "Proposed by this submission"
+    assert_select ".compare-proposed .photo-box", count: 1
+    assert_select "input[type=checkbox][data-photo-name]", count: 0,
+      message: "legacy payload photos are display-only: they never merge, so they get no control"
   end
 
   test "POST /admin/submissions/:id/reject sets status to rejected" do
