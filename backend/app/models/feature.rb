@@ -1,3 +1,51 @@
+# == Schema Information
+#
+# Table name: features
+#
+#  id                      :integer          not null, primary key
+#  ac2_probe               :string
+#  bibliography            :text
+#  bw_roll                 :string
+#  color_roll              :string
+#  contiguous_relationship :text
+#  description             :text
+#  digital_image           :string
+#  entrance                :string
+#  file_number             :string
+#  insula                  :string
+#  minority_report         :string
+#  negative_feature        :string
+#  photos_data             :text
+#  region                  :string
+#  season                  :string
+#  sheet                   :string           not null
+#  sheet_date              :string
+#  space_number            :string
+#  tape_number             :string
+#  time_count              :string
+#  video_comments          :text
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  artist_id               :string
+#  category_id             :string
+#  feature_id              :string
+#  feature_type_id         :string
+#  gate_id                 :string
+#  photographer_id         :string
+#  recorder_id             :string
+#  researcher_id           :string
+#  sheet_type_id           :string
+#  space_type_id           :string
+#  structure_id            :string
+#  usage_id                :string
+#  videographer_id         :string
+#
+# Indexes
+#
+#  index_features_on_region_and_insula_and_entrance  (region,insula,entrance)
+#  index_features_on_sheet                           (sheet) UNIQUE
+#
+
 class Feature < ApplicationRecord
   include PhotoNameOrder
 

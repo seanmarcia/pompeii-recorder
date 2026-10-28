@@ -1,3 +1,25 @@
+# == Schema Information
+#
+# Table name: submissions
+#
+#  id              :integer          not null, primary key
+#  action_type     :string           default("create_new"), not null
+#  payload_data    :text             not null
+#  reviewed_at     :datetime
+#  reviewer_notes  :text
+#  status          :string           default("pending"), not null
+#  submitter_name  :string
+#  submitter_notes :text
+#  target_sheet    :string
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#
+# Indexes
+#
+#  index_submissions_on_created_at    (created_at)
+#  index_submissions_on_status        (status)
+#  index_submissions_on_target_sheet  (target_sheet)
+#
 class Submission < ApplicationRecord
   include PhotoNameOrder
 
