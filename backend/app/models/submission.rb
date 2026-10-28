@@ -77,8 +77,9 @@ class Submission < ApplicationRecord
   CATEGORY_OPTIONS = [ "Commercial", "Domestic", "Religion", "Public" ].freeze
 
   # Payload key holding values the recorder left at the form's starting value
-  # (today's date, Region VI, ...). Those only fill in blanks on the master
-  # record, so a second person adding photos to a sheet doesn't overwrite it.
+  # (today's date, this season's year, ...). Those only fill in blanks on the
+  # master record, so a second person adding photos to a sheet doesn't
+  # overwrite it.
   DEFAULTS_KEY = "_defaults".freeze
 
   # Cleans a payload arriving from the field app. Blank values are dropped
