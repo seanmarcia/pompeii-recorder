@@ -18,6 +18,16 @@ The macOS keychain helper fails in non-interactive agent shells; if a push ever 
 - PRs are **squash-merged** — team practice (GitHub's merge-commit/rebase options are also enabled; we don't use them). The PR title becomes the squash commit subject, so the semantic prefix (`feat:`, `fix:`, `chore:`, …) belongs on the **PR title**, not on intermediate commits.
 - Intermediate branch commits exist for review granularity only — don't amend or rewrite local history for tidiness; the squash collapses everything at merge.
 
+## Stacked PRs
+
+Layered work uses the `gh` CLI's `gh-stack` extension: a stack is a chain of branches, each with one PR based on the branch below it, so a reviewer sees only that layer's diff. Stack bottom-to-top — foundational layer first. (`gh stack help <command>` does not work; use `<command> --help`.)
+
+- **New work:** `gh stack init <bottom> <top>` lays down the whole chain and checks out the top branch (existing branches are adopted; new ones are created from the branch before them). Grow a stack with `gh stack add <branch>` — must run from the top branch.
+- **Adopting PRs that already exist** (opened by hand, or with branches checked out in separate worktrees): `gh stack link <bottom> <top>` creates the GitHub stack from existing branches and PRs and corrects wrong bases. `link` writes no local tracking state — follow it with `gh stack checkout <stack-number>` to import the stack; after that, `gh stack view --json` and `gh stack sync` work from any checkout of a stack branch. Plain `view`/`sync` fail with "not part of a stack" until that import runs. A PR opened by hand with `gh pr create` is also not auto-linked by a later `sync` — append it with `gh stack link <stack-number> <branch>`.
+- **Worktree rule:** `gh stack sync` cascade-rebases by checking out each branch in the stack, and git refuses to check out a branch another worktree holds — sync dies mid-rebase. Run sync from the top-branch worktree and keep the other stack branches unheld: detach spare checkouts (`git checkout --detach`) or remove their worktrees.
+- **Routine:** after a lower PR merges, `gh stack sync` retargets the PRs above it, rebases, and pushes. Add `--prune` to delete local branches for merged PRs.
+- **Non-interactive flags** (agents/scripts): `view --json`, `submit --auto`, `merge <n> --yes`. This repo has a single remote, so `--remote` is never needed.
+
 ## PR conventions
 
 **Before creating or editing any PR, read `CONTRIBUTING.md` (PR rules) and `.github/PULL_REQUEST_TEMPLATE.md` (body skeleton).** Apply the template's sections and its comment instructions; strip instruction comments from the final body.
