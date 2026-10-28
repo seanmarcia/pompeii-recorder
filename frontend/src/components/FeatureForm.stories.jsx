@@ -267,7 +267,7 @@ const DOMESTIC_LATE_USAGE_NAMES = [
   'Other',
 ]
 
-// Issue #39: Researcher Name is optional. A sheet with no researcher picked
+// Researcher Name is optional. A sheet with no researcher picked
 // goes through the submit flow like any other: the browser does not block it,
 // the JS handler runs, and the submission lands somewhere durable. In the
 // test browser the backend is unreachable, so that somewhere is the offline
