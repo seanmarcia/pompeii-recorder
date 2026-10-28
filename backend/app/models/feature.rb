@@ -89,6 +89,36 @@ class Feature < ApplicationRecord
           .sort_by { |item| photo_name_key(item[:name]) }
   end
 
+  # Attach the given photo blobs to this feature, unless it already
+  # carries them — by link (the blob is attached) or by bytes (a re-upload
+  # of the same file under a new name produces a second blob with the same
+  # checksum). One image per name on the sheet is the bar: never a
+  # duplicate attachment row. Attaching reuses existing blobs — a row
+  # insert, no byte copy. Returns the attachments it attached.
+  #
+  # The "already carried?" snapshot reads the raw field_photos_attachments
+  # association, never the field_photos proxy: attach leaves a pending
+  # change on the record, and while one is pending the proxy returns a
+  # plain array of built attachments (no query interface). The snapshot
+  # grows as the loop attaches, so two names carrying the same bytes in
+  # one pass attach once. Both writers of master photos go through here —
+  # approval (Submission#approve!) and the backfill — so the dedup rules
+  # live in one place.
+  def attach_new_photo_blobs(attachments)
+    linked = field_photos_attachments.joins(:blob)
+                                     .pluck(:blob_id, "active_storage_blobs.checksum")
+    linked_blob_ids = linked.map { |(blob_id, _checksum)| blob_id }
+    linked_checksums = linked.map { |_blob_id, checksum| checksum }
+    attachments.uniq(&:blob_id).filter_map do |photo|
+      next if linked_blob_ids.include?(photo.blob_id)
+      next if linked_checksums.include?(photo.blob.checksum)
+      field_photos.attach(photo.blob)
+      linked_blob_ids << photo.blob_id
+      linked_checksums << photo.blob.checksum
+      photo
+    end
+  end
+
   def as_json_pompeii
     {
       "FEATURE_ID" => feature_id,

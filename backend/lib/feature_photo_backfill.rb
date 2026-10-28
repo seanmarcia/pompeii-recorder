@@ -7,8 +7,8 @@
 #
 # Attach-only: reuses existing blobs (a row insert, no byte copy), never
 # detaches or destroys anything, never creates Feature rows. Safe to re-run:
-# blobs already linked are skipped, and photos whose filename the feature's
-# photo names don't carry are left alone.
+# blobs the feature already carries (by link or by bytes) are skipped, and
+# photos whose filename the feature's photo names don't carry are left alone.
 class FeaturePhotoBackfill
   def self.run!
     new.run!
@@ -25,30 +25,13 @@ class FeaturePhotoBackfill
         next
       end
       names = feature.photos.map(&:to_s)
-      # The "already linked?" snapshot reads the raw association, never the
-      # field_photos proxy: attach leaves a pending change on the record,
-      # and while one is pending the proxy has no query interface. Snapshots
-      # of blob IDs and byte checksums are taken before the loop because
-      # attach only adds — and a blob whose bytes the feature already
-      # carries under another name is skipped too: two uploads of the same
-      # file produce two blobs with the same checksum, and one image per
-      # name on the sheet is the bar.
-      linked = feature.field_photos_attachments.joins(:blob)
-                      .pluck(:blob_id, "active_storage_blobs.checksum")
-      linked_blob_ids = linked.map { |(blob_id, _checksum)| blob_id }
-      linked_checksums = linked.map { |_blob_id, checksum| checksum }
-      submission.photos.each do |photo|
-        if names.include?(photo.filename.to_s)
-          next if linked_blob_ids.include?(photo.blob_id)
-          next if linked_checksums.include?(photo.blob.checksum)
-          feature.field_photos.attach(photo.blob)
-          linked_blob_ids << photo.blob_id
-          linked_checksums << photo.blob.checksum
-          stats[:attached] += 1
-        else
-          stats[:unmatched_photos] += 1
-        end
-      end
+      # Only photos the feature's photo names carry ever merged; the rest are
+      # evidence on the submission alone. The attach itself is the shared
+      # dedup walk (Feature#attach_new_photo_blobs), the same one approval
+      # uses.
+      matching = submission.photos.select { |photo| names.include?(photo.filename.to_s) }
+      stats[:attached] += feature.attach_new_photo_blobs(matching).size
+      stats[:unmatched_photos] += submission.photos.size - matching.size
     end
     stats
   end

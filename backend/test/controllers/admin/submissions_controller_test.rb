@@ -251,9 +251,11 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, feat.field_photos.count, "one attachment row for one file's bytes"
   end
 
-  # Issue #37: the reviewer's per-photo selection rides the approve POST.
-  # Excluded names leave the payload before the merge, so approve! needs no
-  # new parameters, and the submission keeps its own attachments as evidence.
+  # Issue #37: the reviewer's per-photo selection rides the approve POST
+  # through native form serialization — the include checkboxes ride the
+  # approve form via their form attribute, and only checked boxes submit.
+  # The approve action drops what the page offered minus what stayed
+  # checked; the submission keeps its own attachments as evidence.
   test "approve with excluded photos drops them from the master and the payload" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
     @submission.save!
@@ -266,7 +268,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     portrait_blob_id = @submission.photos.find { |p| p.filename.to_s == "portrait_test.jpg" }.blob_id
 
     post "/admin/submissions/#{@submission.id}/approve", params: {
-      exclude_photos: [ "second.jpg" ].to_json
+      photo_selection: "1", include_photos: [ "portrait_test.jpg" ]
     }
 
     assert_redirected_to admin_submission_path(@submission)
@@ -278,7 +280,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
   end
 
-  test "approve without excluded photos merges everything" do
+  test "approve with every photo included merges everything" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
     @submission.save!
     @submission.photos.attach(
@@ -287,7 +289,9 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     )
     @submission.photos.attach(io: StringIO.new("second photo bytes"), filename: "second.jpg", content_type: "image/jpeg")
 
-    post "/admin/submissions/#{@submission.id}/approve"
+    post "/admin/submissions/#{@submission.id}/approve", params: {
+      photo_selection: "1", include_photos: [ "portrait_test.jpg", "second.jpg" ]
+    }
 
     assert_redirected_to admin_submission_path(@submission)
     assert_equal [ "portrait_test.jpg", "second.jpg" ], Feature.find_by!(sheet: "8888").photos
@@ -323,10 +327,18 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-proposed .photo-box", count: 3
     assert_select ".photo-flag", text: "image with name already on sheet"
     assert_select ".photo-flag", text: "identical image already on sheet"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
-    assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
-    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
-    assert_select "input[name='exclude_photos']"
+    # The include checkboxes ride the approve form (the form attribute
+    # points at it) and only checked boxes submit.
+    assert_select "form#approve-form input[name='photo_selection'][type=hidden]"
+    assert_select ".compare-proposed input[type=checkbox][name='include_photos[]'][value='fresh.jpg']"
+    assert_select ".compare-proposed input[type=checkbox][value='portrait_test.jpg']", count: 0
+    assert_select ".compare-proposed input[type=checkbox][value='renamed.jpg']", count: 0
+    assert_select ".compare-proposed input[type=checkbox][value='fresh.jpg'][form=approve-form]"
+    # The decisions render above the already-on-sheet no-ops, so every
+    # checkbox sits in one block at the top of the column.
+    body = @response.body
+    assert body.index("value=\"fresh.jpg\"") < body.index("image with name already on sheet"),
+           "the include control renders above the flagged no-ops"
     # The control's copy names the destination and the trigger: an unchecked
     # box drops the photo at approval time.
     assert_select ".pick-row", text: "Add to sheet on approval"
@@ -341,7 +353,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-col-head", text: "On the sheet now", count: 0
     assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
     assert_select "#proposed-selection-summary", text: "1 included on approval"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
+    assert_select ".compare-proposed input[type=checkbox][name='include_photos[]'][value='fresh.jpg']"
   end
 
   test "read-only review shows the comparison without selection controls" do
@@ -357,7 +369,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".compare-col-head", text: "On the sheet now 1 photo"
     assert_select "#proposed-selection-summary", count: 0, message: "no decision tally in read-only mode"
-    assert_select "input[type=checkbox][data-photo-name]", count: 0
+    assert_select "input[type=checkbox][name='include_photos[]']", count: 0
   end
 
   test "an already-reviewed submission shows the comparison without selection controls" do
@@ -372,7 +384,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     # carries both names.
     assert_select ".compare-col-head", text: "On the sheet now 2 photos"
     assert_select "#proposed-selection-summary", count: 0, message: "no decision tally after review"
-    assert_select "input[type=checkbox][data-photo-name]", count: 0
+    assert_select "input[type=checkbox][name='include_photos[]']", count: 0
   end
 
   test "a legacy submission without a photos key shows its attachments display-only, without controls" do
@@ -386,7 +398,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
     assert_select "#proposed-selection-summary", count: 0, message: "no decision tally for a legacy payload"
     assert_select ".compare-proposed .photo-box", count: 1
-    assert_select "input[type=checkbox][data-photo-name]", count: 0,
+    assert_select "input[type=checkbox][name='include_photos[]']", count: 0,
       message: "legacy payload photos are display-only: they never merge, so they get no control"
   end
 

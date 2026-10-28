@@ -36,25 +36,9 @@
   .not-recorded { color: var(--text-muted); font-size: 0.82rem; margin-top: 1.1rem; padding-top: 0.75rem; border-top: 1px dashed #e7dcc7; }
   .not-recorded strong { font-weight: 700; }
   .none { color: var(--text-muted); font-size: 0.9rem; }
-
-  .photo-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.9rem; }
-  .photo-grid li { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
-  .photo-grid img, .photo-missing { max-width: 100%; max-height: 240px; width: auto; height: auto; border-radius: var(--radius); background: var(--surface-elevated); }
-  .photo-grid img { display: block; transition: transform 0.15s ease; }
-  .photo-grid a:hover img { transform: scale(1.02); }
-  .photo-missing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 100%;
-    min-height: 120px;
-    border: 1px dashed var(--border);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    text-align: center;
-    padding: 0.5rem;
-  }
-  .photo-grid span { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The photo boxes themselves (.photos-grid, .photo-box, .photo-caption,
+     .photo-missing) are shared admin CSS — they live in the admin layout,
+     alongside the review comparison. */
 
   .history { list-style: none; }
   .history li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.7rem 0; border-bottom: 1px solid #eadfca; }
@@ -139,20 +123,11 @@
       <h3>Field Photos (<%= photo_items.size %>)</h3>
     </div>
     <% if photo_items.any? %>
-      <ul class="photo-grid">
+      <div class="photos-grid">
         <% photo_items.each do |item| %>
-          <li>
-            <% if item[:attachment] %>
-              <%= link_to url_for(item[:attachment]), target: "_blank", rel: "noopener" do %>
-                <%= image_tag item[:attachment], alt: item[:name], loading: "lazy", **photo_dimension_attributes(item[:attachment]) %>
-              <% end %>
-            <% else %>
-              <div class="photo-missing"><span>No image on file</span></div>
-            <% end %>
-            <span title="<%= item[:name] %>"><%= item[:name] %></span>
-          </li>
+          <%= render "admin/shared/photo_box", item: item, linked: true, lazy: true %>
         <% end %>
-      </ul>
+      </div>
     <% else %>
       <p class="none">No photos recorded.</p>
     <% end %>

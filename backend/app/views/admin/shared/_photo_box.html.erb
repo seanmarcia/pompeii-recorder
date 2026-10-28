@@ -1,0 +1,25 @@
+<%# One photo box: the image serving the name's bytes (or the dashed
+    "No image on file" placeholder for a text-only name) and its caption.
+    linked: true wraps the image in a link to the full-size file; lazy:
+    true defers loading. A block, when given, renders below the caption —
+    the review page's duplicate flag or include control. %>
+<div class="photo-box">
+  <% if item[:attachment] %>
+    <% html_options = { alt: item[:name] }.merge(photo_dimension_attributes(item[:attachment])) %>
+    <% html_options[:loading] = "lazy" if local_assigns[:lazy] %>
+    <% if local_assigns[:linked] %>
+      <%= link_to url_for(item[:attachment]), target: "_blank", rel: "noopener" do %>
+        <%= image_tag item[:attachment], **html_options %>
+      <% end %>
+    <% else %>
+      <%= image_tag item[:attachment], **html_options %>
+    <% end %>
+  <% else %>
+    <div class="photo-missing"><span>No image on file</span></div>
+  <% end %>
+  <% caption = local_assigns.fetch(:caption, item[:name]) %>
+  <div class="photo-caption" title="<%= caption %>"><%= caption %></div>
+  <% if block_given? %>
+    <%= yield %>
+  <% end %>
+</div>
