@@ -1,4 +1,6 @@
 class Submission < ApplicationRecord
+  include PhotoNameOrder
+
   has_many_attached :photos
 
   # Fields a reviewer can correct before approving, grouped and labelled to
@@ -213,8 +215,10 @@ class Submission < ApplicationRecord
     # a submission with attachments but no photos key (older payloads) falls
     # back to its attachment filenames, as the old photo card did. Duplicate
     # names collapse: the merge's .uniq does, so the display must not imply
-    # two independent photos.
+    # two independent photos. Display order is name-sorted (digit-aware),
+    # matching the sheet column, so same or similar filenames sit adjacent.
     names = (payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }).map(&:to_s).uniq
+                .sort_by { |name| photo_name_key(name) }
 
     names.map do |name|
       attachment = photos.detect { |p| p.filename.to_s == name.to_s }

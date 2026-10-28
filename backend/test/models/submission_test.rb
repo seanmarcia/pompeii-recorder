@@ -245,7 +245,8 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_not by_name["renamed.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:bytes_on_sheet]
-    assert_equal [ "IMG_1.jpg", "renamed.jpg", "fresh.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+    # Display order is name-sorted, digit-aware and case-insensitive.
+    assert_equal [ "fresh.jpg", "IMG_1.jpg", "renamed.jpg" ], sub.photo_review_items.map { |i| i[:name] }
   end
 
   test "photo review flags for a new sheet mark nothing as already on the sheet" do

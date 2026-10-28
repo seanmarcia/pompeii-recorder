@@ -31,6 +31,16 @@ class FeatureTest < ActiveSupport::TestCase
     assert_nil feat.field_photo_for("never-seen.jpg")
   end
 
+  test "photo_items sorts names digit-aware and case-insensitively" do
+    feat = Feature.create!(sheet: "603", photos: [ "IMG_10.jpg", "img_9.jpg", "9001 IMG_E0380.jpg", "IMG_1004.jpg" ])
+
+    assert_equal [ "9001 IMG_E0380.jpg", "IMG_1004.jpg", "IMG_10.jpg", "img_9.jpg" ].sort,
+                 feat.photo_items.map { |i| i[:name] }.sort
+    # Digit runs compare numerically, not lexicographically: IMG_9 before IMG_10.
+    order = feat.photo_items.map { |i| i[:name] }
+    assert order.index("img_9.jpg") < order.index("IMG_10.jpg"), "natural sort: 9 before 10"
+  end
+
   test "photos keeps reading names when photos_data holds junk" do
     feat = Feature.create!(sheet: "601")
     feat.update_column(:photos_data, "not json")
