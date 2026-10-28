@@ -205,6 +205,32 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Lararium shrine room", feature.space_number
   end
 
+  # Issue #40: the second iteration of the photo-linking loop called .where on
+  # the Attached::Many proxy after a prior attach left a pending change —
+  # approval aborted and rolled back.
+  test "approve links every matching photo when the submission has two" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
+    @submission.save!
+    [ "portrait_test.jpg", "second.jpg" ].each do |name|
+      @submission.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: name, content_type: "image/jpeg"
+      )
+    end
+
+    post "/admin/submissions/#{@submission.id}/approve"
+
+    assert_redirected_to admin_submission_path(@submission)
+    assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
+    @submission.reload
+    assert_equal "approved", @submission.status
+
+    blob_ids = @submission.photos.map(&:blob_id).sort
+    assert_equal 2, blob_ids.size
+    assert_equal blob_ids, Feature.find_by!(sheet: "8888").field_photos.map(&:blob_id).sort,
+      "both matching photos link to the master feature"
+  end
+
   test "POST /admin/submissions/:id/reject sets status to rejected" do
     post "/admin/submissions/#{@submission.id}/reject", params: {
       reviewer_notes: "Duplicate sheet entry"
