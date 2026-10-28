@@ -151,12 +151,14 @@ class SubmissionTest < ActiveSupport::TestCase
   test "two approvals carrying different photos with the same filename link both blobs" do
     a = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
     b = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
-    [ a, b ].each do |sub|
-      sub.photos.attach(
-        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-        filename: "IMG_1.jpg", content_type: "image/jpeg"
-      )
-    end
+    # The bytes must differ: byte-identical re-uploads are the duplicate this
+    # issue collapses (see the checksum test below). Two devices photographing
+    # under the same filename produce different bytes and both stay evidence.
+    a.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    b.photos.attach(io: StringIO.new("device B photo bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
 
     a.approve!
     b.approve!
@@ -164,6 +166,96 @@ class SubmissionTest < ActiveSupport::TestCase
     feat = Feature.find_by(sheet: "513")
     assert_equal 2, feat.field_photos.count, "each device's photo stays distinct evidence"
     assert_equal [ "IMG_1.jpg" ], feat.photos, "the name still merges to one entry"
+  end
+
+  test "a byte-identical re-upload under a new filename merges the name but never the bytes" do
+    feat = Feature.create!(sheet: "515", photos: [ "IMG_1.jpg" ])
+    feat.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    sub = submit("SHEET" => "515", "photos" => [ "IMG_1 (1).jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
+    )
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg", "IMG_1 (1).jpg" ], feat.photos, "the name still merges (additive union)"
+    assert_equal 1, feat.field_photos.count, "bytes already on the sheet must not attach again"
+    assert sub.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "exclude_photos! drops the names from the payload and approval skips them" do
+    sub = submit("SHEET" => "517", "photos" => [ "keep.jpg", "dup.jpg" ])
+    [ "keep.jpg", "dup.jpg" ].each do |name|
+      sub.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: name, content_type: "image/jpeg"
+      )
+    end
+
+    sub.exclude_photos!([ "dup.jpg" ])
+    assert_equal [ "keep.jpg" ], sub.reload.payload["photos"]
+
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "517")
+    assert_equal [ "keep.jpg" ], feat.photos
+    assert_equal [ "keep.jpg" ], feat.field_photos.map { |a| a.filename.to_s }
+    assert_equal %w[dup.jpg keep.jpg], sub.reload.photos.map { |a| a.filename.to_s }.sort,
+                 "the submission keeps its evidence"
+  end
+
+  test "excluding every proposed photo merges nothing" do
+    sub = submit("SHEET" => "519", "photos" => [ "dup.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "dup.jpg", content_type: "image/jpeg"
+    )
+
+    sub.exclude_photos!([ "dup.jpg" ])
+    sub.approve!
+
+    feat = Feature.find_by(sheet: "519")
+    assert_equal [], feat.photos
+    assert feat.field_photos.empty?
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "photo review flags mark filename echoes and byte-identical re-uploads as already on the sheet" do
+    feat = Feature.create!(sheet: "518", photos: [ "IMG_1.jpg" ])
+    feat.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    sub = submit("SHEET" => "518", "photos" => [ "IMG_1.jpg", "renamed.jpg", "fresh.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "renamed.jpg", content_type: "image/jpeg"
+    )
+
+    by_name = sub.photo_review_items.index_by { |item| item[:name] }
+
+    assert by_name["IMG_1.jpg"][:name_on_sheet], "an echoed filename is already on the sheet"
+    assert_not by_name["IMG_1.jpg"][:bytes_on_sheet]
+    assert by_name["renamed.jpg"][:bytes_on_sheet], "identical bytes under a new name are on the sheet"
+    assert_not by_name["renamed.jpg"][:name_on_sheet]
+    assert_not by_name["fresh.jpg"][:name_on_sheet]
+    assert_not by_name["fresh.jpg"][:bytes_on_sheet]
+    assert_equal [ "IMG_1.jpg", "renamed.jpg", "fresh.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+  end
+
+  test "photo review flags for a new sheet mark nothing as already on the sheet" do
+    sub = submit("SHEET" => "520", "photos" => [ "fresh.jpg" ])
+
+    items = sub.photo_review_items
+
+    assert_equal [ "fresh.jpg" ], items.map { |i| i[:name] }
+    assert_not items.first[:name_on_sheet]
+    assert_not items.first[:bytes_on_sheet]
   end
 
   test "photo URLs echoed back by the edit form store and merge as filenames" do

@@ -231,6 +231,108 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
       "both matching photos link to the master feature"
   end
 
+  # Issue #37: the reviewer's per-photo selection rides the approve POST.
+  # Excluded names leave the payload before the merge, so approve! needs no
+  # new parameters, and the submission keeps its own attachments as evidence.
+  test "approve with excluded photos drops them from the master and the payload" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
+    @submission.save!
+    [ "portrait_test.jpg", "second.jpg" ].each do |name|
+      @submission.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: name, content_type: "image/jpeg"
+      )
+    end
+    portrait_blob_id = @submission.photos.find { |p| p.filename.to_s == "portrait_test.jpg" }.blob_id
+
+    post "/admin/submissions/#{@submission.id}/approve", params: {
+      exclude_photos: [ "second.jpg" ].to_json
+    }
+
+    assert_redirected_to admin_submission_path(@submission)
+    assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
+    feat = Feature.find_by!(sheet: "8888")
+    assert_equal [ "portrait_test.jpg" ], feat.photos
+    assert_equal [ portrait_blob_id ], feat.field_photos.map(&:blob_id)
+    assert_equal [ "portrait_test.jpg" ], @submission.reload.payload["photos"]
+    assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
+  end
+
+  test "approve without excluded photos merges everything" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
+    @submission.save!
+    [ "portrait_test.jpg", "second.jpg" ].each do |name|
+      @submission.photos.attach(
+        io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+        filename: name, content_type: "image/jpeg"
+      )
+    end
+
+    post "/admin/submissions/#{@submission.id}/approve"
+
+    assert_redirected_to admin_submission_path(@submission)
+    assert_equal [ "portrait_test.jpg", "second.jpg" ], Feature.find_by!(sheet: "8888").photos
+  end
+
+  test "review page shows the sheet's photos beside the proposed ones with duplicate flags" do
+    feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg", "paper-era.jpg" ])
+    feat.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "renamed.jpg", "fresh.jpg" ] }
+    @submission.save!
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "renamed.jpg", content_type: "image/jpeg"
+    )
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_response :success
+    assert_select ".compare-col-head", text: "On the sheet now"
+    assert_select ".compare-col-head", text: "Proposed by this submission"
+    # The sheet's column renders one box per name through field_photo_for:
+    # the linked name shows its image, the text-only name a placeholder.
+    assert_select ".compare-sheet .photo-box img", count: 1
+    assert_select ".compare-sheet .photo-box .photo-placeholder", count: 1
+    # Proposed: three boxes; the filename echo and the byte-identical
+    # re-upload are flagged, the fresh name gets an include control.
+    assert_select ".compare-proposed .photo-box", count: 3
+    assert_select ".photo-flag", text: "already on sheet"
+    assert_select ".photo-flag", text: "identical file already on sheet"
+    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
+    assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
+    assert_select "input[name='exclude_photos']"
+  end
+
+  test "review page without a master shows proposed photos only, all controllable" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "fresh.jpg" ] }
+    @submission.save!
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select ".compare-col-head", text: "On the sheet now", count: 0
+    assert_select ".compare-col-head", text: "Proposed by this submission"
+    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
+  end
+
+  test "read-only review shows the comparison without selection controls" do
+    feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg" ])
+    feat.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "fresh.jpg" ] }
+    @submission.save!
+
+    get "/admin/submissions/#{@submission.id}?mode=view"
+
+    assert_select ".compare-col-head", text: "On the sheet now"
+    assert_select "input[type=checkbox]", count: 0
+  end
+
   test "POST /admin/submissions/:id/reject sets status to rejected" do
     post "/admin/submissions/#{@submission.id}/reject", params: {
       reviewer_notes: "Duplicate sheet entry"
