@@ -36,7 +36,7 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     end
     # The grid must fit whole images at their natural aspect ratio: no fixed
     # 4:3 box and no cover crop on the rendered photo.
-    styles = response.body.scrub[/\.photo-grid\s+img\s*,\s*\.photo-placeholder\s*\{[^}]*\}/]
+    styles = response.body.scrub[/\.photo-grid\s+img\s*,\s*\.photo-missing\s*\{[^}]*\}/]
     assert styles, "photo-grid img style block missing"
     assert_match(/max-height:\s*240px/, styles)
     assert_no_match(/object-fit:\s*cover/, styles)
@@ -57,7 +57,7 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".photo-grid img", count: 0
-    assert_select ".photo-placeholder", count: 1
+    assert_select ".photo-missing", count: 1
   end
 
   test "master sheets catalog supports search and view links" do

@@ -317,7 +317,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     # The sheet's column renders one box per name through field_photo_for:
     # the linked name shows its image, the text-only name a placeholder.
     assert_select ".compare-sheet .photo-box img", count: 1
-    assert_select ".compare-sheet .photo-box .photo-placeholder", count: 1
+    assert_select ".compare-sheet .photo-box .photo-missing", count: 1
     # Proposed: three boxes; the filename echo and the byte-identical
     # re-upload are flagged, the fresh name gets an include control.
     assert_select ".compare-proposed .photo-box", count: 3

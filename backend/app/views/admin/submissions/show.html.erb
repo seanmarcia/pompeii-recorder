@@ -142,13 +142,17 @@
     white-space: nowrap;
     background: var(--surface-elevated);
   }
-  .photo-placeholder {
+  .photo-missing {
     height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--surface-elevated);
-    font-size: 2rem;
+    border: 1px dashed var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 0 0.75rem;
   }
   .photo-compare {
     display: grid;
@@ -213,7 +217,7 @@
   /* A deselected photo grays out on the spot: pure CSS off the checkbox
      state, no client logic. */
   .photo-box:has(input[type="checkbox"]:not(:checked)) img,
-  .photo-box:has(input[type="checkbox"]:not(:checked)) .photo-placeholder {
+  .photo-box:has(input[type="checkbox"]:not(:checked)) .photo-missing {
     filter: grayscale(1);
     opacity: 0.45;
   }
@@ -465,7 +469,7 @@
                         <% if item[:attachment] %>
                           <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
                         <% else %>
-                          <div class="photo-placeholder" aria-hidden="true">📷</div>
+                          <div class="photo-missing"><span>No image on file</span></div>
                         <% end %>
                         <div class="photo-caption"><%= item[:name] %></div>
                       </div>
@@ -502,7 +506,7 @@
                     <% if item[:attachment] %>
                       <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
                     <% else %>
-                      <div class="photo-placeholder" aria-hidden="true">📷</div>
+                      <div class="photo-missing"><span>No image on file</span></div>
                     <% end %>
                     <div class="photo-caption">
                       <% if item[:attachment] %><%= number_to_human_size(item[:attachment].byte_size) %> &bull; <% end %>

@@ -39,10 +39,21 @@
 
   .photo-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.9rem; }
   .photo-grid li { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
-  .photo-grid img, .photo-placeholder { max-width: 100%; max-height: 240px; width: auto; height: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-elevated); }
+  .photo-grid img, .photo-missing { max-width: 100%; max-height: 240px; width: auto; height: auto; border-radius: var(--radius); background: var(--surface-elevated); }
   .photo-grid img { display: block; transition: transform 0.15s ease; }
   .photo-grid a:hover img { transform: scale(1.02); }
-  .photo-placeholder { display: flex; align-items: center; justify-content: center; min-width: 100%; min-height: 120px; font-size: 1.75rem; opacity: 0.7; }
+  .photo-missing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    min-height: 120px;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 0.5rem;
+  }
   .photo-grid span { font-family: monospace; font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .history { list-style: none; }
@@ -136,7 +147,7 @@
                 <%= image_tag item[:attachment], alt: item[:name], loading: "lazy", **photo_dimension_attributes(item[:attachment]) %>
               <% end %>
             <% else %>
-              <div class="photo-placeholder" aria-hidden="true">📷</div>
+              <div class="photo-missing"><span>No image on file</span></div>
             <% end %>
             <span title="<%= item[:name] %>"><%= item[:name] %></span>
           </li>
