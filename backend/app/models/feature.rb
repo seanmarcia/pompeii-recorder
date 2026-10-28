@@ -1,4 +1,6 @@
 class Feature < ApplicationRecord
+  include PhotoNameOrder
+
   # Photo bytes carried into the master record: attached on approval
   # (Submission#approve!) or by the backfill for approvals that predate the
   # linkage. Kept in a separate association because `photos`/`photos=` are
@@ -27,6 +29,17 @@ class Feature < ApplicationRecord
   # nothing and keep their placeholder.
   def field_photo_for(name)
     field_photos.detect { |attachment| attachment.filename.to_s == name.to_s }
+  end
+
+  # One display item per photos_data name: the attachment serving the name's
+  # bytes, or nil for a text-only name. Admin photo surfaces render one box
+  # per name through this, so attachment-level byte duplicates never
+  # double-render a page — the API resolves photos the same way. Display
+  # order is name-sorted (digit-aware), independent of the stored merge
+  # order, so the same name sits in the same spot everywhere.
+  def photo_items
+    photos.map { |name| { name: name.to_s, attachment: field_photo_for(name) } }
+          .sort_by { |item| photo_name_key(item[:name]) }
   end
 
   def as_json_pompeii

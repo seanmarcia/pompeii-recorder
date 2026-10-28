@@ -97,6 +97,44 @@ class FeaturePhotoBackfillTest < ActiveSupport::TestCase
     assert Feature.find_by(sheet: "703").field_photos.empty?
   end
 
+  test "links every matching photo when one submission carries two" do
+    sub = approved_submission("704", [ "IMG_1.jpg", "IMG_2.jpg" ])
+    attach_photo(sub, "IMG_1.jpg")
+    sub.photos.attach(io: StringIO.new("second photo bytes"), filename: "IMG_2.jpg", content_type: "image/jpeg")
+    Feature.create!(sheet: "704", photos: [ "IMG_1.jpg", "IMG_2.jpg" ])
+
+    result = FeaturePhotoBackfill.run!
+
+    feat = Feature.find_by(sheet: "704")
+    assert_equal 2, feat.field_photos.count
+    assert_equal 2, result[:attached]
+  end
+
+  test "does not attach a blob whose bytes the feature already carries" do
+    sub_a = approved_submission("705", [ "IMG_1.jpg" ])
+    attach_photo(sub_a, "IMG_1.jpg")
+    sub_b = approved_submission("705", [ "IMG_1.jpg" ])
+    attach_photo(sub_b, "IMG_1.jpg")
+    Feature.create!(sheet: "705", photos: [ "IMG_1.jpg" ])
+
+    result = FeaturePhotoBackfill.run!
+
+    feat = Feature.find_by(sheet: "705")
+    assert_equal 1, feat.field_photos.count, "byte-identical re-uploads must not duplicate the attachment"
+    assert_equal 1, result[:attached]
+  end
+
+  test "a submission's byte-identical attachments under two names attach once" do
+    sub = approved_submission("706", [ "a.jpg", "b.jpg" ])
+    attach_photo(sub, "a.jpg")
+    attach_photo(sub, "b.jpg")
+    Feature.create!(sheet: "706", photos: [ "a.jpg", "b.jpg" ])
+
+    FeaturePhotoBackfill.run!
+
+    assert_equal 1, Feature.find_by(sheet: "706").field_photos.count
+  end
+
   test "a submission's photos link only to its own sheet, never a same-named photo on another sheet" do
     sub = approved_submission("800", [ "IMG_1.jpg" ])
     attach_photo(sub, "IMG_1.jpg")
