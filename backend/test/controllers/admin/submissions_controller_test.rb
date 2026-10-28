@@ -309,8 +309,11 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}"
 
     assert_response :success
-    assert_select ".compare-col-head", text: "On the sheet now"
-    assert_select ".compare-col-head", text: "Proposed by this submission"
+    assert_select ".compare-sheet .compare-col-head", text: "On the sheet now 2 photos"
+    assert_select ".compare-proposed .compare-col-head", text: "Proposed by this submission 3 photos"
+    # The selection tally counts only the photos the reviewer can decide on:
+    # flagged duplicates are no-ops and get no tally line item.
+    assert_select "#proposed-selection-summary", text: "1 included on approval"
     # The sheet's column renders one box per name through field_photo_for:
     # the linked name shows its image, the text-only name a placeholder.
     assert_select ".compare-sheet .photo-box img", count: 1
@@ -336,7 +339,8 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     get "/admin/submissions/#{@submission.id}"
 
     assert_select ".compare-col-head", text: "On the sheet now", count: 0
-    assert_select ".compare-col-head", text: "Proposed by this submission"
+    assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
+    assert_select "#proposed-selection-summary", text: "1 included on approval"
     assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
   end
 
@@ -351,7 +355,8 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     get "/admin/submissions/#{@submission.id}?mode=view"
 
-    assert_select ".compare-col-head", text: "On the sheet now"
+    assert_select ".compare-col-head", text: "On the sheet now 1 photo"
+    assert_select "#proposed-selection-summary", count: 0, message: "no decision tally in read-only mode"
     assert_select "input[type=checkbox][data-photo-name]", count: 0
   end
 
@@ -363,7 +368,10 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     get "/admin/submissions/#{@submission.id}"
 
-    assert_select ".compare-col-head", text: "On the sheet now"
+    # The approval merged "newer.jpg" into the master, so the sheet now
+    # carries both names.
+    assert_select ".compare-col-head", text: "On the sheet now 2 photos"
+    assert_select "#proposed-selection-summary", count: 0, message: "no decision tally after review"
     assert_select "input[type=checkbox][data-photo-name]", count: 0
   end
 
@@ -375,7 +383,8 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     get "/admin/submissions/#{@submission.id}"
 
-    assert_select ".compare-col-head", text: "Proposed by this submission"
+    assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
+    assert_select "#proposed-selection-summary", count: 0, message: "no decision tally for a legacy payload"
     assert_select ".compare-proposed .photo-box", count: 1
     assert_select "input[type=checkbox][data-photo-name]", count: 0,
       message: "legacy payload photos are display-only: they never merge, so they get no control"

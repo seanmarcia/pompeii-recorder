@@ -163,12 +163,26 @@
     .photo-compare { grid-template-columns: 1fr; }
   }
   .compare-col-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-muted);
     margin-bottom: 0.6rem;
+  }
+  .compare-col-head .col-count {
+    font-weight: 400;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .compare-selection {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: -0.25rem 0 0.6rem;
   }
   .compare-empty {
     color: var(--text-muted);
@@ -426,23 +440,24 @@
       </div>
 
       <!-- Photos Section: the sheet's photos beside this submission's, so a
-           duplicate is visible before approval. -->
+           duplicate is visible before approval. Counts live in the column
+           heads, not the card title, so each side states its own size. -->
       <div class="card">
         <div class="card-title">
           <span>Attached Photos</span>
-          <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">
-            <% proposed_items = @submission.photo_review_items %>
-            <%= proposed_items.size %> <%= @submission.status == "pending" ? "proposed" : "photos" %>
-          </span>
         </div>
 
+        <% proposed_items = @submission.photo_review_items %>
         <% if proposed_items.empty? %>
           <p style="color: var(--text-muted); font-size: 0.9rem;">No photos attached to this submission.</p>
         <% else %>
           <div class="photo-compare">
             <% if @master %>
               <div class="compare-col compare-sheet">
-                <div class="compare-col-head">On the sheet now</div>
+                <div class="compare-col-head">
+                  <span>On the sheet now</span>
+                  <span class="col-count"><%= pluralize(@master.photo_items.size, "photo") %></span>
+                </div>
                 <% if @master.photo_items.any? %>
                   <div class="photos-grid">
                     <% @master.photo_items.each do |item| %>
@@ -462,7 +477,16 @@
               </div>
             <% end %>
             <div class="compare-col compare-proposed">
-              <div class="compare-col-head">Proposed by this submission</div>
+              <div class="compare-col-head">
+                <span>Proposed by this submission</span>
+                <span class="col-count"><%= pluralize(proposed_items.size, "photo") %></span>
+              </div>
+              <% # A live tally of the reviewer's decision — hidden when there is
+                 # nothing to decide (flagged duplicates, read-only, reviewed). %>
+              <% decision_count = (@submission.status == "pending" && !@read_only && @submission.payload["photos"].is_a?(Array)) ? proposed_items.count { |i| !i[:name_on_sheet] && !i[:bytes_on_sheet] } : 0 %>
+              <% if decision_count > 0 %>
+                <p class="compare-selection" id="proposed-selection-summary"><%= decision_count %> included on approval</p>
+              <% end %>
               <div class="photos-grid">
                 <% proposed_items.each do |item| %>
                   <% # Controls only for a payload the merge will actually read:
@@ -717,21 +741,34 @@
   // Photo selection sync: the include/exclude checkboxes ride the approve
   // POST as a JSON list of excluded names. Nothing is written until the
   // reviewer approves, matching how the rest of the approval state flows.
+  // The column-head tally (N included on approval · M dropped) tracks the
+  // same checkboxes so the decision is visible where the photos live.
   (function () {
     const excludeField = document.getElementById("exclude-photos-field");
     if (!excludeField) return;
+    const summary = document.getElementById("proposed-selection-summary");
+    const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"));
     const syncExclusions = () => {
-      const excluded = Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"))
-        .filter((box) => !box.checked)
-        .map((box) => box.dataset.photoName);
+      const excluded = selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoName);
       excludeField.value = JSON.stringify(excluded);
+    };
+    const syncSummary = () => {
+      if (!summary) return;
+      const boxes = selectionBoxes();
+      const included = boxes.filter((box) => box.checked).length;
+      const dropped = boxes.length - included;
+      summary.textContent = dropped === 0
+        ? `${included} included on approval`
+        : `${included} of ${boxes.length} included on approval · ${dropped} dropped`;
     };
     document.addEventListener("change", (event) => {
       if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-name]")) {
         syncExclusions();
+        syncSummary();
       }
     });
     syncExclusions();
+    syncSummary();
   })();
 </script>
 <% end %>
