@@ -131,8 +131,10 @@ module Api
 
       # What the researcher (PR) will be once this submission is reviewed:
       # the recorder's pick, or the master record's researcher when an update
-      # never touched the field (unchanged fields ride in _defaults, not the
-      # payload).
+      # never touched the field. Unchanged fields ride in _defaults, not the
+      # payload — but a parked default always mirrors the master's value (the
+      # form hydrates the baseline from the master record), so the master
+      # lookup below covers it.
       def effective_researcher(payload, target_sheet)
         payload["RESEARCHER_ID"].presence ||
           (target_sheet && Feature.find_by(sheet: target_sheet)&.researcher_id).presence

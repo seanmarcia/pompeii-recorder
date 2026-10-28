@@ -117,4 +117,28 @@ class Api::V1::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_match /local-orphan/, JSON.parse(response.body)["error"]
     assert_equal 0, Submission.count, "the whole batch rolls back so nothing queues half-synced"
   end
+
+  test "a whitespace-only RESEARCHER_ID counts as missing" do
+    # clean_field_payload drops blank strings, so this reaches the guard the
+    # same way an omitted field does.
+    post "/api/v1/submissions", params: {
+      action_type: "create_new",
+      payload: { "SHEET" => "9400", "RESEARCHER_ID" => "   " }
+    }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_match /Researcher Name is required/, JSON.parse(response.body)["error"]
+    assert_equal 0, Submission.count
+  end
+
+  test "update_existing on a sheet with no master record still requires a researcher" do
+    post "/api/v1/submissions", params: {
+      action_type: "update_existing",
+      target_sheet: "6084",
+      payload: { "SHEET" => "6084", "DESCRIPTION" => "No master feature yet" }
+    }, as: :json
+
+    assert_response :unprocessable_entity
+    assert_equal 0, Submission.count
+  end
 end
