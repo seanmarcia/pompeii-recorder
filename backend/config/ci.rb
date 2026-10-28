@@ -5,6 +5,11 @@ CI.run do
 
   step "Style: Ruby", "bin/rubocop"
 
+  # Regenerate the schema comments above each model, then fail if that
+  # changed anything — i.e. a migration landed without re-annotating.
+  # The regen leaves the working tree with the corrected blocks; commit them.
+  step "Annotations: models up to date", "bin/annotate && git diff --exit-code -- app/models"
+
   step "Security: Gem audit", "bin/bundler-audit"
   step "Security: Importmap vulnerability audit", "bin/importmap audit"
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"

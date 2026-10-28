@@ -59,4 +59,9 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Adds schema comment blocks above each model and regenerates them on
+  # `db:migrate` (bin/ci also regenerates and fails on drift). Successor to
+  # the ctran `annotate` gem, which caps activerecord < 8.0.
+  gem "annotaterb"
 end

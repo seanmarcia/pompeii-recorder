@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Regenerate the schema annotation blocks above each model
+# (see .annotaterb.yml — models only). Used by bin/ci to fail on drift.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec bundle exec annotaterb models
