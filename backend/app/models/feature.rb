@@ -3,7 +3,6 @@
 # Table name: features
 #
 #  id                      :integer          not null, primary key
-#  ac2_probe               :string
 #  bibliography            :text
 #  bw_roll                 :string
 #  color_roll              :string
