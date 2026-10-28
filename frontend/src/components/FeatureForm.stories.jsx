@@ -267,52 +267,73 @@ const DOMESTIC_LATE_USAGE_NAMES = [
   'Other',
 ]
 
-// Issue #34: a submission without a researcher (PR) orphans itself in the
-// review queue. The form blocks it the same way it blocks a missing sheet
-// number: native HTML5 validation on a required field, so the browser
-// renders the standard validation bubble. The JS alert in handleSubmit is
-// only a fallback for submits that bypass the browser's checks.
-export const ResearcherRequiredBlocksSubmission = {
+// Researcher Name is optional. A sheet with no researcher picked
+// goes through the submit flow like any other: the browser does not block it,
+// the JS handler runs, and the submission lands somewhere durable. In the
+// test browser the backend is unreachable, so that somewhere is the offline
+// outbox — and its payload carries no researcher at all (a blank researcher
+// is a valid submission, not an error).
+export const BlankResearcherSubmits = {
   args: {
     actionType: 'create_new',
     initialFeature: null,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const alerts = []
-    canvasElement.ownerDocument.defaultView.alert = (msg) => alerts.push(msg)
+    const view = canvasElement.ownerDocument.defaultView
 
-    await expect(canvas.getByText('Researcher Name *')).toBeInTheDocument()
+    // The label has no required marker and the select is not required.
+    await expect(canvas.getByText('Researcher Name')).toBeInTheDocument()
+    const researcher = canvasElement.querySelector('select[name="RESEARCHER_ID"]')
+    await expect(researcher.required).toBe(false)
 
     // A new sheet offers exactly the three submission-side researchers.
-    const researcher = canvasElement.querySelector('select[name="RESEARCHER_ID"]')
     await expect(Array.from(researcher.options).map((o) => o.value)).toEqual([
       '',
       'Lisa Kahn',
       'Mary Meier',
       'Suzanne Stone',
     ])
-    await expect(researcher.required).toBe(true)
 
-    // Sheet number filled, researcher left at "Select Researcher".
-    await userEvent.type(canvas.getByPlaceholderText('e.g. 6083'), '9999')
-    await userEvent.click(canvas.getByRole('button', { name: 'Send to Review Queue →' }))
+    // Keep the test offline even if a dev server happens to be listening:
+    // the outbox path is the deterministic one in a browser test.
+    const realFetch = view.fetch
+    view.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url
+      if (url.includes('/up') || url.includes('/api/v1/')) {
+        return Promise.reject(new TypeError('Offline for this test'))
+      }
+      return realFetch(input, init)
+    }
 
-    // The browser's constraint validation blocks the submit before the JS
-    // handler runs: valueMissing on the select, and no JS alert.
-    await expect(researcher.validity.valueMissing).toBe(true)
-    await expect(researcher.validationMessage).not.toBe('')
-    await expect(alerts).toEqual([])
+    try {
+      // Sheet number filled, researcher left at "Select Researcher".
+      await userEvent.type(canvas.getByPlaceholderText('e.g. 6083'), '9999')
+      await userEvent.click(canvas.getByRole('button', { name: 'Send to Review Queue →' }))
 
-    // Blocked before anything was sent: the form is still on screen.
-    await expect(canvas.getByRole('button', { name: 'Send to Review Queue →' })).toBeInTheDocument()
+      // The submit ran: the outbox banner with a Record Token appeared.
+      await waitFor(async () => {
+        await expect(
+          canvas.getByText('Saved to Offline Outbox. Will sync when the server is reachable.')
+        ).toBeInTheDocument()
+        await expect(canvas.getByText(/Record Token: /)).toBeInTheDocument()
+      })
+
+      // The stored outbox entry holds the sheet and no researcher value.
+      const outbox = JSON.parse(view.localStorage.getItem('pompeii_offline_outbox_v1') || '[]')
+      await expect(outbox).toHaveLength(1)
+      await expect(outbox[0].targetSheet).toBe('9999')
+      await expect(outbox[0].payload.RESEARCHER_ID).toBeUndefined()
+    } finally {
+      view.fetch = realFetch
+    }
   },
 }
 
 // An edit on a legacy sheet keeps that sheet's own researcher selectable:
 // the form lists the three submission-side researchers plus whatever
-// researcher the master record already carries, so the prefill renders and
-// the native required check passes without the recorder re-picking.
+// researcher the master record already carries, so the prefill renders
+// without the recorder re-picking.
 export const LegacyResearcherStaysSelectable = {
   args: {
     actionType: 'update_existing',
