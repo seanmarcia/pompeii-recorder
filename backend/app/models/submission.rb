@@ -231,9 +231,16 @@ class Submission < ApplicationRecord
       # merged above are dead references without them. Attaching reuses the
       # existing blobs — a row insert, no byte copy — and the submission
       # keeps its own attachments as evidence.
+      #
+      # The "already linked?" check reads the raw field_photos_attachments
+      # association, never the field_photos proxy: attach leaves a pending
+      # change on the record, and while one is pending the proxy returns a
+      # plain array of built attachments (no query interface). The snapshot
+      # is taken before the loop because attach only adds.
       names = new_photos.map(&:to_s)
+      existing_blob_ids = feat.field_photos_attachments.pluck(:blob_id)
       photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
-        next if feat.field_photos.where(blob_id: photo.blob_id).exists?
+        next if existing_blob_ids.include?(photo.blob_id)
         feat.field_photos.attach(photo.blob)
       end
 
