@@ -10,8 +10,9 @@ import { createServer } from "vite";
 //   Drinking, Storage, Thermopolium, Warehouse/Granary, Other.
 // Domestic (flat): Apartment, Farm House, House, House-Shop, Space - Public
 //   Eating and Drinking, Villa rustica, Villa Urbana, Other.
-// Religion (flat): Association Structure, Crossroad Shrine, Shop, Storage,
-//   Space - Public Eating and Drinking, Temple, Temple Shop, Other.
+// Religion: Association Structure, Crossroad Shrine, Shop, Storage,
+//   Space - Public Eating and Drinking, Temple (attribute: Temple Shop),
+//   Other.
 // Public (flat, spellings as printed on the sheet): Amphitheater, Basilica,
 //   Bath, Civic Building-Archives, Colonnade-forum, paving stones, Fountain,
 //   public, Gate, Gladiatorial Barracks, Gymnasium, Market Building, Market,
@@ -54,7 +55,6 @@ const RELIGION = [
   "Storage",
   "Space - Public Eating and Drinking",
   "Temple",
-  "Temple Shop",
   "Other",
 ];
 
@@ -122,7 +122,9 @@ test("religion sheets offer the 2026 religion list, deprecated types excluded", 
   const options = lateUsage.lateUsageOptionsFor("Religion", "");
   assert.deepEqual(options, RELIGION);
   DEPRECATED.forEach((d) => assert.ok(!options.includes(d), `${d} must not be offered`));
-  assert.ok(options.includes("Temple Shop"), "Temple Shop is a religion type");
+  // The sheet prints "Temple Shop" indented under Temple: an attribute,
+  // not a sibling type.
+  assert.deepEqual(lateUsage.attributesForLateUsageType("Religion", "Temple"), ["Temple Shop"]);
 });
 
 test("public sheets offer the 2026 public list, deprecated types excluded", () => {
@@ -175,10 +177,7 @@ test("attributes follow the category list and union with stored attributes", () 
   assert.deepEqual(lateUsage.attributesForLateUsageType("Commercial", "Storage"), []);
 });
 
-test("religion and public lists are flat: no type carries attributes", () => {
-  RELIGION.forEach((t) => {
-    assert.deepEqual(lateUsage.attributesForLateUsageType("Religion", t), [], `${t} has no attributes`);
-  });
+test("the public list is flat: no type carries attributes", () => {
   PUBLIC.forEach((t) => {
     assert.deepEqual(lateUsage.attributesForLateUsageType("Public", t), [], `${t} has no attributes`);
   });

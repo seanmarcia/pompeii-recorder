@@ -9,10 +9,11 @@
 // sub-categories are combined into a single "Type: Sub1; Sub2" string, the
 // same pattern used for Feature Type and Space Type.
 //
-// The Religion and Public sheets print flat lists — no type carries
-// attributes there. Entries are kept as printed, including the Public
-// sheet's "Theater, Small" next to "Theatre, Large" and its lowercase
-// "paving stones" list line.
+// The Public sheet prints a flat list — no type carries attributes there.
+// On the Religion sheet, Temple is the one type with an attribute: the
+// sheet prints "Temple Shop" indented under it. Entries are kept as
+// printed, including the Public sheet's "Theater, Small" next to
+// "Theatre, Large" and its lowercase "paving stones" list line.
 //
 // Deprecated types: values on no 2026 sheet (Tomb, plain "Theater", "Street
 // shrine", ...). A sheet that already stores one keeps it visible; new
@@ -53,8 +54,7 @@ export const RELIGION_LATE_USAGE_TYPES = [
   { name: "Shop", attributes: [] },
   { name: "Storage", attributes: [] },
   { name: "Space - Public Eating and Drinking", attributes: [] },
-  { name: "Temple", attributes: [] },
-  { name: "Temple Shop", attributes: [] },
+  { name: "Temple", attributes: ["Temple Shop"] },
   { name: "Other", attributes: [] },
 ];
 
