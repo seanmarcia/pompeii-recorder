@@ -155,7 +155,7 @@ export default function FeatureForm({
         RECORDER_ID: RECORDER_OPTIONS.includes(currentUser?.full_name) ? currentUser.full_name : "",
         RESEARCHER_ID: "",
         SEASON: new Date().getFullYear().toString(),
-        REGION: "VI",
+        REGION: "",
         INSULA: "",
         ENTRANCE: "",
         SPACE_NUMBER: "",

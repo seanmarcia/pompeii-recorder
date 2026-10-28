@@ -37,6 +37,20 @@ export default {
   },
 }
 
+// A new sheet opens with no region picked: the recorder chooses the region
+// from the master feature's actual location, so the form does not guess.
+export const NewSheetRegionDefaultsBlank = {
+  args: {
+    actionType: 'create_new',
+    initialFeature: null,
+  },
+  play: async ({ canvasElement }) => {
+    const select = canvasElement.querySelector('select[name="REGION"]')
+    await expect(select).not.toBeNull()
+    await expect(select.value).toBe('')
+  },
+}
+
 export const NewSheetCategoryRestricted = {
   args: {
     actionType: 'create_new',
@@ -364,6 +378,27 @@ export const LegacyResearcherStaysSelectable = {
     })
     await expect(researcher.validity.valueMissing).toBe(false)
     await expect(researcher.validity.valid).toBe(true)
+  },
+}
+
+// An edit on a stored sheet pre-fills Region from the master record instead
+// of the new-sheet blank: the blank default only applies to create_new.
+export const EditSheetPrefillsRegion = {
+  args: {
+    actionType: 'update_existing',
+    initialFeature: {
+      SHEET: '60833',
+      SHEET_TYPE_ID: 'Feature',
+      REGION: 'IX',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const select = await waitFor(async () => {
+      const select = canvasElement.querySelector('select[name="REGION"]')
+      await expect(select).not.toBeNull()
+      return select
+    })
+    await expect(select.value).toBe('IX')
   },
 }
 
