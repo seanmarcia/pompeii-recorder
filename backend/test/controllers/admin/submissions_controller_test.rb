@@ -324,6 +324,9 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
     assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
     assert_select "input[name='exclude_photos']"
+    # The control's copy names the destination and the trigger: an unchecked
+    # box drops the photo at approval time.
+    assert_select ".pick-row", text: "Add to sheet on approval"
   end
 
   test "review page without a master shows proposed photos only, all controllable" do
