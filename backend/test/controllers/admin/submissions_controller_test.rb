@@ -310,7 +310,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".compare-sheet .compare-col-head", text: "On the sheet now 2 photos"
-    assert_select ".compare-proposed .compare-col-head", text: "Proposed by this submission 3 photos"
+    assert_select ".compare-proposed .compare-col-head", text: "Proposed by this submission 3 photos · 2 already on sheet"
     # The selection tally counts only the photos the reviewer can decide on:
     # flagged duplicates are no-ops and get no tally line item.
     assert_select "#proposed-selection-summary", text: "1 included on approval"

@@ -479,7 +479,10 @@
             <div class="compare-col compare-proposed">
               <div class="compare-col-head">
                 <span>Proposed by this submission</span>
-                <span class="col-count"><%= pluralize(proposed_items.size, "photo") %></span>
+                <% already_count = proposed_items.count { |i| i[:name_on_sheet] || i[:bytes_on_sheet] } %>
+                <span class="col-count">
+                  <%= pluralize(proposed_items.size, "photo") %><%= " · #{already_count} already on sheet" if already_count > 0 %>
+                </span>
               </div>
               <% # A live tally of the reviewer's decision — hidden when there is
                  # nothing to decide (flagged duplicates, read-only, reviewed). %>

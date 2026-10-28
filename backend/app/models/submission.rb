@@ -221,12 +221,18 @@ class Submission < ApplicationRecord
                 .sort_by { |name| photo_name_key(name) }
 
     names.map do |name|
-      attachment = photos.detect { |p| p.filename.to_s == name.to_s }
+      own = photos.detect { |p| p.filename.to_s == name.to_s }
+      # Display resolution: the submission's own bytes first; for a name that
+      # merely echoes the sheet (the edit flow re-sends master photo names),
+      # the sheet's own attachment — the photo the name refers to is already
+      # on record, so the reviewer sees it rather than a missing-image box.
+      display = own
+      display ||= feat.field_photo_for(name.to_s) if feat && sheet_names.include?(name.to_s)
       {
         name: name.to_s,
-        attachment: attachment,
+        attachment: display,
         name_on_sheet: sheet_names.include?(name.to_s),
-        bytes_on_sheet: attachment ? sheet_checksums.include?(attachment.blob.checksum) : false
+        bytes_on_sheet: own ? sheet_checksums.include?(own.blob.checksum) : false
       }
     end
   end
