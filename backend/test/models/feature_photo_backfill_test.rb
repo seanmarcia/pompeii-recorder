@@ -96,4 +96,17 @@ class FeaturePhotoBackfillTest < ActiveSupport::TestCase
     assert_equal 0, result[:attached]
     assert Feature.find_by(sheet: "703").field_photos.empty?
   end
+
+  test "a submission's photos link only to its own sheet, never a same-named photo on another sheet" do
+    sub = approved_submission("800", [ "IMG_1.jpg" ])
+    attach_photo(sub, "IMG_1.jpg")
+    own = Feature.create!(sheet: "800", photos: [ "IMG_1.jpg" ])
+    other = Feature.create!(sheet: "801", photos: [ "IMG_1.jpg" ]) # same photo name, different sheet
+
+    result = FeaturePhotoBackfill.run!
+
+    assert_equal 1, own.reload.field_photos.count, "the submission's own sheet links its photo"
+    assert_equal 0, other.reload.field_photos.count, "another sheet sharing the filename stays untouched"
+    assert_equal 1, result[:attached]
+  end
 end
