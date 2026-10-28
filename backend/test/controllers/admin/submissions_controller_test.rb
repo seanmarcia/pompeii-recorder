@@ -82,7 +82,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".detail-title", /Submission ##{@submission.id}/
     assert_select "tr[data-field='CATEGORY_ID'] strong", text: "Category"
-    assert_select "tr[data-field='USAGE_ID'] strong", text: "Usage Classification"
+    assert_select "tr[data-field='USAGE_ID'] strong", text: "Late Usage"
     assert_select "div", text: "Your Name / Data Entered By"
   end
 
@@ -92,7 +92,42 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tr[data-field='CATEGORY_ID'] td.value-cell[data-kind='category']" do |cells|
       assert_equal [ "Commercial", "Domestic" ], JSON.parse(cells.first["data-options"])
     end
-    assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='text']"
+    assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='late_usage']"
+  end
+
+  test "late usage editor offers the current category's late usage types" do
+    @submission.update!(payload: @submission.payload.merge("CATEGORY_ID" => "Commercial"))
+    get "/admin/submissions/#{@submission.id}"
+
+    cell = assert_select("tr[data-field='USAGE_ID'] td.value-cell[data-kind='late_usage']").first
+    options = JSON.parse(cell["data-options"])
+    assert_includes options, "Bakery"
+    assert_includes options, "Thermopolium"
+    assert_not_includes options, "Villa rustica", "Commercial list must not offer Domestic types"
+  end
+
+  test "late usage editor options follow the category after a correction" do
+    @submission.update!(payload: @submission.payload.merge(
+      "CATEGORY_ID" => "Commercial", "USAGE_ID" => "Commercial | Shop"
+    ))
+    patch "/admin/submissions/#{@submission.id}", params: {
+      fields: { "CATEGORY_ID" => "Domestic" }
+    }, as: :json
+
+    assert_response :success
+    row = response.parsed_body["rows"]["USAGE_ID"]
+    assert row, "a category correction must re-render the Late Usage row"
+    assert_match 'data-kind="late_usage"', row
+    options = JSON.parse(row[/data-options="([^"]*)"/, 1].gsub("&quot;", '"'))
+    assert_includes options, "House"
+    assert_not_includes options, "Bakery", "Domestic list must not offer Commercial types"
+  end
+
+  test "late usage editor keeps a legacy value editable with its stored text" do
+    @submission.update!(payload: @submission.payload.merge("USAGE_ID" => "Commercial | Shop"))
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_select "tr[data-field='USAGE_ID'] td.value-cell[data-kind='late_usage'][data-value='Commercial | Shop']"
   end
 
   test "category corrections preserve usage and late usage through approval" do

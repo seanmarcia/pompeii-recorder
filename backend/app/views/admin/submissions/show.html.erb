@@ -513,6 +513,17 @@
       } else if (kind === "textarea") {
         editor = document.createElement("textarea");
         editor.value = original;
+      } else if (kind === "late_usage") {
+        editor = document.createElement("input");
+        editor.type = "text";
+        editor.value = original;
+        editor.setAttribute("list", "late-usage-options");
+        const datalist = document.createElement("datalist");
+        datalist.id = "late-usage-options";
+        JSON.parse(cell.dataset.options || "[]").forEach((value) => {
+          datalist.add(new Option(value, value));
+        });
+        editor.datalist = datalist;
       } else {
         editor = document.createElement("input");
         editor.type = "text";
@@ -529,6 +540,7 @@
       display.hidden = true;
       cell.classList.add("editing");
       cell.append(editor, help);
+      if (editor.datalist) cell.append(editor.datalist);
       editor.focus();
       // Caret at the end rather than select-all, so a stray keystroke can't
       // wipe a long description.
@@ -539,6 +551,7 @@
         if (done) return;
         done = true;
         if (!save || editor.value === original) {
+          editor.datalist?.remove();
           editor.remove();
           help.remove();
           display.hidden = false;
@@ -582,12 +595,23 @@
         .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
         .then(({ ok, data }) => {
           if (!ok) throw new Error(data.error || "Could not save");
-          const tmp = document.createElement("tbody");
-          tmp.innerHTML = data.rows[key].trim();
-          const newRow = tmp.firstElementChild;
-          row.replaceWith(newRow);
-          newRow.classList.add("row-saved");
-          newRow.querySelector(".value-cell")?.focus();
+          // The response may carry extra re-rendered rows (a category
+          // correction also re-renders Late Usage). Replace each one.
+          let savedRow = null;
+          Object.entries(data.rows).forEach(([fieldKey, html]) => {
+            const tmp = document.createElement("tbody");
+            tmp.innerHTML = html.trim();
+            const newRow = tmp.firstElementChild;
+            const target = fieldKey === key
+              ? row
+              : table.querySelector(`tr[data-field='${fieldKey}']`);
+            if (target) {
+              target.replaceWith(newRow);
+              if (fieldKey === key) savedRow = newRow;
+            }
+          });
+          savedRow?.classList.add("row-saved");
+          savedRow?.querySelector(".value-cell")?.focus();
           const count = document.getElementById("changed-count");
           if (count) count.textContent = data.changed_count;
         })

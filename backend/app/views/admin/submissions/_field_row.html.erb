@@ -6,6 +6,8 @@
 <% editable = submission.status == "pending" && !locked && !local_assigns.fetch(:read_only, false) %>
 <% kind = if key == "CATEGORY_ID"
             "category"
+          elsif key == "USAGE_ID"
+            "late_usage"
           elsif Submission::LONG_TEXT_FIELDS.include?(key)
             "textarea"
           elsif Submission::BOOLEAN_FIELDS.include?(key)
@@ -37,6 +39,7 @@
         tabindex="0" title="Click to edit"
         data-kind="<%= kind %>" data-value="<%= value %>"
         <% if kind == "category" %>data-options="<%= Submission::CATEGORY_OPTIONS.to_json %>"<% end %>
+        <% if kind == "late_usage" %>data-options="<%= Submission.late_usage_types_for(submission.editable_value("CATEGORY_ID")).to_json %>"<% end %>
       <% end %>>
     <span class="value-display">
       <% if new_html %>
