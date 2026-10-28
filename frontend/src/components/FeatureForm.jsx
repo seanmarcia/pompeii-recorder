@@ -587,85 +587,7 @@ export default function FeatureForm({
                 )}
               </select>
             </div>
-            {isFeatureSheet && (
-              <div className="form-field">
-                <label>Feature Type</label>
-                <select
-                  name="FEATURE_TYPE_ID"
-                  value={selectedFeatureType}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
-                    }))
-                  }
-                >
-                  <option value="">Select Feature Type</option>
-                  {featureTypeOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {isSpaceSheet && (
-              <div className="form-field">
-                <label>Space Type</label>
-                <select
-                  name="SPACE_TYPE_ID"
-                  value={selectedSpaceType}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
-                    }))
-                  }
-                >
-                  <option value="">Select Space Type</option>
-                  {spaceTypeOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {isFeatureSheet && featureTypeAttributeOptions.length > 0 && (
-            <div className="form-field" style={{ marginTop: "1rem" }}>
-              <label>{selectedFeatureType} Attributes</label>
-              <AttributeMultiSelect
-                label={`${selectedFeatureType} attributes`}
-                options={featureTypeAttributeOptions}
-                selected={selectedFeatureAttributes}
-                onChange={(nextAttributes) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    FEATURE_TYPE_ID: formatFeatureType(selectedFeatureType, nextAttributes),
-                  }))
-                }
-              />
             </div>
-          )}
-
-          {isSpaceSheet && spaceTypeAttributeOptions.length > 0 && (
-            <div className="form-field" style={{ marginTop: "1rem" }}>
-              <label>{selectedSpaceType} Attributes</label>
-              <AttributeMultiSelect
-                label={`${selectedSpaceType} attributes`}
-                options={spaceTypeAttributeOptions}
-                selected={selectedSpaceAttributes}
-                onChange={(nextAttributes) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    SPACE_TYPE_ID: formatSpaceType(selectedSpaceType, nextAttributes),
-                  }))
-                }
-              />
-            </div>
-          )}
 
           <div className="form-grid-4" style={{ marginTop: "1rem" }}>
             <div className="form-field">
@@ -723,6 +645,89 @@ export default function FeatureForm({
               </div>
             )}
           </div>
+
+          {/* Room/Space type follows Late Usage; a sheet is one or the other. */}
+          {isSpaceSheet && (
+            <div className="form-grid-3" style={{ marginTop: "1rem" }}>
+              <div className="form-field">
+                <label>Space Type</label>
+                <select
+                  name="SPACE_TYPE_ID"
+                  value={selectedSpaceType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      SPACE_TYPE_ID: formatSpaceType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Space Type</option>
+                  {spaceTypeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          {isSpaceSheet && spaceTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedSpaceType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedSpaceType} attributes`}
+                options={spaceTypeAttributeOptions}
+                selected={selectedSpaceAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    SPACE_TYPE_ID: formatSpaceType(selectedSpaceType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
+
+          {isFeatureSheet && (
+            <div className="form-grid-3" style={{ marginTop: "1rem" }}>
+              <div className="form-field">
+                <label>Feature Type</label>
+                <select
+                  name="FEATURE_TYPE_ID"
+                  value={selectedFeatureType}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      FEATURE_TYPE_ID: formatFeatureType(e.target.value, []),
+                    }))
+                  }
+                >
+                  <option value="">Select Feature Type</option>
+                  {featureTypeOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+          {isFeatureSheet && featureTypeAttributeOptions.length > 0 && (
+            <div className="form-field" style={{ marginTop: "1rem" }}>
+              <label>{selectedFeatureType} Attributes</label>
+              <AttributeMultiSelect
+                label={`${selectedFeatureType} attributes`}
+                options={featureTypeAttributeOptions}
+                selected={selectedFeatureAttributes}
+                onChange={(nextAttributes) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    FEATURE_TYPE_ID: formatFeatureType(selectedFeatureType, nextAttributes),
+                  }))
+                }
+              />
+            </div>
+          )}
         </div>
 
         {/* SECTION 4: Archaeological Description & Relationships */}
