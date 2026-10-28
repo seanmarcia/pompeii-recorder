@@ -121,12 +121,11 @@ test("the originally-loaded type stays selectable after the value changes", () =
   );
 });
 
-test("legacy types keep their legacy attributes for stored values", () => {
-  // Pipes is on no 2026 sheet; its stored value still hydrates its attributes.
-  assert.deepEqual(attributesForFeatureType("Domestic", "Pipes", ["Lead"]), [
-    "Lead",
-    "Terracotta",
-  ]);
+test("stored attributes stay selectable when no sheet defines the type", () => {
+  // Pipes is on no 2026 sheet; its stored attributes stay selectable and it
+  // gains none — the retired merged list is gone.
+  assert.deepEqual(attributesForFeatureType("Domestic", "Pipes", ["Lead"]), ["Lead"]);
+  assert.deepEqual(attributesForFeatureType("Domestic", "Pipes"), []);
   // Stored attributes ride along even when the sheet lists different ones.
   assert.deepEqual(attributesForFeatureType("Commercial", "Paintings", ["Relief"]), [
     "Lararium",

@@ -67,17 +67,9 @@ test("the dining variants are atomic options, one per sheet line", () => {
   );
   // The Public sheet prints "Dining, other" lowercase.
   assert.ok(spaceTypesFor("Public").some((t) => t.name === "Dining, other"));
-  // A legacy "Dining: ..." stored value still finds its attributes through
-  // the legacy list.
-  assert.deepEqual(attributesForSpaceType("Domestic", "Dining", ["Hall"]), [
-    "Porch",
-    "Garden / Peristyle",
-    "Hall",
-    "Room",
-    "Second Floor",
-    "Tablinum",
-    "Other",
-  ]);
+  // A retired "Dining: ..." stored value keeps only its stored attributes —
+  // the old merged list is gone.
+  assert.deepEqual(attributesForSpaceType("Domestic", "Dining", ["Hall"]), ["Hall"]);
 });
 
 test("a stored type outside the category list stays selectable", () => {
@@ -99,16 +91,12 @@ test("the originally-loaded type stays selectable after the value changes", () =
   assert.ok(options.includes("Lobby"));
 });
 
-test("legacy types keep their legacy attributes for stored values", () => {
-  // "Exterior space" is on no 2026 sheet: the legacy set hydrates it.
-  assert.deepEqual(attributesForSpaceType("Public", "Exterior space"), [
-    "Walled",
-    "Open",
-    "Street",
-    "Sidewalk",
-  ]);
-  // The sheets print "Other" with no attributes; stored attributes from a
-  // legacy value still ride along through the union.
+test("stored attributes stay selectable when no sheet defines the type", () => {
+  // "Exterior space" is on no 2026 sheet: only stored attributes survive.
+  assert.deepEqual(attributesForSpaceType("Public", "Exterior space"), []);
+  assert.deepEqual(attributesForSpaceType("Public", "Exterior space", ["Walled"]), ["Walled"]);
+  // The sheets print "Other" with no attributes; stored attributes from an
+  // old value still ride along through the union.
   assert.deepEqual(attributesForSpaceType("Domestic", "Other", ["Ala", "Cubiculum"]), [
     "Ala",
     "Cubiculum",
