@@ -16,22 +16,15 @@
 #
 #  feature_id  (feature_id => features.id)
 #
-# One per photos_data name on the master sheet. The wrapper is the
-# ActiveStorage record type: its single `file` attachment carries the photo's
-# bytes, its `filename` column the provenance label the master table tracks.
-# `filename` is deliberately non-unique — names are labels, not identity
-# (issue #64).
+# One row per photos_data name on the master sheet — the per-photo record,
+# including names with no bytes (paper-era import, buried re-uploads).
+# `filename` is the catalog's provenance label; `file` the optional bytes.
 class FeaturePhoto < ApplicationRecord
   belongs_to :feature
 
-  # dependent: false, not the purge_later default: destroying a wrapper must
-  # never enqueue a blob purge. Rails refuses to destroy a blob while any
-  # attachment references it, so a shared blob (the same bytes live on the
-  # submission that supplied them) survives either way — but the default
-  # enqueues a purge job that is then guaranteed to raise, one doomed job per
-  # wrapper destroy. And a blob whose wrapper holds the only attachment would
-  # lose row and bytes for real. Main never purged anything sideways: the
-  # attachment row still dies with the wrapper, nothing else.
+  # Deliberate, not an omission: the purge_later default would enqueue a purge
+  # on every wrapper destroy — a job that either raises (shared blob) or
+  # deletes the wrapper's sole copy of the bytes. Nothing here purges.
   has_one_attached :file, dependent: false
 
   validates :filename, presence: true
