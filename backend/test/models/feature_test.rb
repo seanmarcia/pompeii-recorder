@@ -62,4 +62,20 @@ class FeatureTest < ActiveSupport::TestCase
 
     assert_equal [], feat.photos
   end
+
+  test "blank catalog names create no wrapper and approval never raises on them" do
+    feat = Feature.create!(sheet: "606", photos: [ "IMG_1.jpg" ])
+    feat.update_column(:photos_data, [ "IMG_1.jpg", nil, "" ].to_json)
+    feat.update!(photos: [ "IMG_1.jpg", nil, "" ])
+
+    assert_equal [ "IMG_1.jpg" ], feat.reload.feature_photos.map(&:filename),
+                 "blank names get no wrapper row"
+
+    sub = submit("SHEET" => "606", "photos" => [ nil, "" ])
+    sub.approve!
+
+    feat = Feature.find_by!(sheet: "606")
+    assert_equal 1, feat.feature_photos.count,
+                 "main approved blank-name payloads cleanly; the branch must too"
+  end
 end

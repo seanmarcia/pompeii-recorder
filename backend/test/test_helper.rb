@@ -18,5 +18,15 @@ module ActiveSupport
       )
       wrapper
     end
+
+    # A pending field-app submission from the cleaned payload.
+    def submit(payload)
+      Submission.create!(
+        action_type: "create_new",
+        target_sheet: payload["SHEET"],
+        status: "pending",
+        payload: Submission.clean_field_payload(payload)
+      )
+    end
   end
 end

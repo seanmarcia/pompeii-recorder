@@ -39,7 +39,7 @@ class FeaturePhotoBackfill
   private
 
   def create_wrappers(feature, stats)
-    feature.photos.map(&:to_s).each do |name|
+    feature.photos.map(&:to_s).reject(&:blank?).each do |name|
       next if feature.feature_photos.exists?(filename: name)
       feature.feature_photos.create!(filename: name)
       stats[:wrappers_created] += 1

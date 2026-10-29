@@ -67,9 +67,11 @@ class Feature < ApplicationRecord
 
   # One wrapper row per photos_data name: create missing, destroy names that
   # left the catalog. Runs whenever photos_data changes, so every write path
-  # (approval, import, seed) converges without a manual sync step.
+  # (approval, import, seed) converges without a manual sync step. Blank
+  # entries (null, "") in the catalog get no wrapper: main served them as
+  # placeholders and raised on nothing.
   def sync_feature_photos
-    names = photos.map(&:to_s).uniq
+    names = photos.map(&:to_s).reject(&:blank?).uniq
     feature_photos.where.not(filename: names).destroy_all
     existing = feature_photos.pluck(:filename)
     (names - existing).each { |name| feature_photos.create!(filename: name) }

@@ -339,8 +339,12 @@ class Submission < ApplicationRecord
       served_names = wrappers.values.select { |wrapper| wrapper.file.attached? }.map(&:filename)
       photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
         name = photo.filename.to_s
-        wrapper = wrappers[name]
-        next if wrapper.nil? # name not in the catalog: nothing can serve it
+        next if name.blank?
+        # The wrapper for a catalog name can be missing on a database whose
+        # seeds bypassed callbacks (the import writes photos_data in bulk).
+        # Main served such a name from the first bytes it carried — create
+        # the row and serve the bytes.
+        wrapper = wrappers[name] ||= feat.feature_photos.create!(filename: name)
         next if served_names.include?(name)
         next if linked_checksums.include?(photo.blob.checksum)
         wrapper.file.attach(photo.blob)

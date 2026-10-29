@@ -6,15 +6,6 @@ class SubmissionTest < ActiveSupport::TestCase
     Feature.destroy_all
   end
 
-  def submit(payload)
-    Submission.create!(
-      action_type: "create_new",
-      target_sheet: payload["SHEET"],
-      status: "pending",
-      payload: Submission.clean_field_payload(payload)
-    )
-  end
-
   test "two people sending parts of the same sheet merge in either approval order" do
     describer = submit(
       "SHEET" => "500", "DESCRIPTION" => "Counter with three dolia.", "SPACE_NUMBER" => "Taberna",

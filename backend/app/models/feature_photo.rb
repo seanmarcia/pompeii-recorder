@@ -24,7 +24,12 @@
 class FeaturePhoto < ApplicationRecord
   belongs_to :feature
 
-  has_one_attached :file
+  # dependent: false, not the purge_later default: destroying a wrapper must
+  # never purge its blob. Blobs are shared evidence — the same bytes live on
+  # the submission that supplied them — and main never purged anything
+  # sideways. The attachment row still dies with the wrapper; only the blob
+  # purge is suppressed.
+  has_one_attached :file, dependent: false
 
   validates :filename, presence: true
 end
