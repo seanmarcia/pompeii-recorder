@@ -31,6 +31,11 @@ echo "-- backend gems --"
 cd "$here/backend"
 mise exec -- bundle install
 
+# Activate the pre-commit hook. core.hooksPath is repo-wide (shared by the
+# primary checkout and all worktrees); git resolves the relative path against
+# each worktree's own checkout, so every worktree runs its own hook file.
+git -C "$here" config core.hooksPath .githooks
+
 echo "-- dev database (seed chain runs on a fresh DB) --"
 mise exec -- bin/rails db:prepare
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# pre-commit hook: run the full check suite (bin/check) before a commit is
+# created. A failing check aborts the commit with output naming the layer
+# and check that broke. Bypass with git commit --no-verify.
+#
+# One-time activation per clone: git config core.hooksPath .githooks
+# (bin/worktree-setup does this for secondary worktrees.)
+
+# mise may be missing from PATH in non-interactive contexts (GUI git
+# clients); add its shims so bin/check's `mise exec --` calls still work.
+if ! command -v mise >/dev/null 2>&1 && [ -d "$HOME/.local/share/mise/shims" ]; then
+  PATH="$HOME/.local/share/mise/shims:$PATH"
+fi
+
+exec bin/check
