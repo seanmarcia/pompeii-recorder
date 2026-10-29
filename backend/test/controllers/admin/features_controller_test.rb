@@ -20,11 +20,8 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
 
   test "master sheet photo grid renders attached photos whole with metadata dimension hints" do
     @feature.update!(photos: [ "portrait_test.jpg" ])
-    @feature.field_photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "portrait_test.jpg", content_type: "image/jpeg"
-    )
-    @feature.field_photos.first.blob.analyze
+    wrapper = attach_master_photo(@feature, "portrait_test.jpg")
+    wrapper.file.blob.analyze
 
     get admin_feature_path(@feature.sheet)
 

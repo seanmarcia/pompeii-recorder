@@ -233,7 +233,7 @@ class Submission < ApplicationRecord
   def photo_review_items
     feat = master_feature
     sheet_names = feat ? feat.photos.map(&:to_s) : []
-    sheet_checksums = feat ? feat.field_photos_attachments.joins(:blob).pluck("active_storage_blobs.checksum") : []
+    sheet_checksums = feat ? feat.linked_photo_blobs.map { |(_blob_id, checksum)| checksum } : []
     # The payload's photo names are the merge source, so they drive the list;
     # a submission with attachments but no photos key (older payloads) falls
     # back to its attachment filenames, as the old photo card did. Duplicate
@@ -314,33 +314,41 @@ class Submission < ApplicationRecord
 
       feat.save!
 
-      # Link this submission's photo blobs to the master feature. The names
-      # merged above are dead references without them. Attaching reuses the
-      # existing blobs — a row insert, no byte copy — and the submission
-      # keeps its own attachments as evidence.
+      # Link this submission's photo blobs to the master sheet's photo
+      # wrappers. The names merged above are dead references without them:
+      # each wrapper (one per photos_data name) carries the bytes of exactly
+      # one photo. Attaching reuses the existing blobs — a row insert, no
+      # byte copy — and the submission keeps its own attachments as evidence.
       #
-      # A blob already linked is skipped, and so is any blob whose bytes the
-      # feature already carries under another name: two uploads of the same
-      # file produce two blobs with the same checksum, and one image per
-      # name on the sheet is the bar — never a duplicate attachment row.
+      # Two burials keep one image per name on the sheet:
+      # - a wrapper that already serves bytes keeps them: a re-upload under
+      #   a name the sheet already displays never re-serves the tile;
+      # - a blob whose bytes a wrapper already carries links to no wrapper:
+      #   a re-upload of the same file under a new filename stays a
+      #   placeholder instead of a second copy of bytes already on record.
       #
-      # The "already linked?" snapshot reads the raw field_photos_attachments
-      # association, never the field_photos proxy: attach leaves a pending
-      # change on the record, and while one is pending the proxy returns a
-      # plain array of built attachments (no query interface). The snapshot
-      # is taken before the loop because attach only adds.
+      # The served-names and checksum snapshots grow as the loop attaches —
+      # two names carrying the same bytes (the " (1)" copy-suffix re-upload)
+      # in one submission attach once, and one name in the payload that
+      # carries two different-byte files buries the second.
       names = new_photos.map(&:to_s)
-      linked = feat.field_photos_attachments.joins(:blob)
-                   .pluck(:blob_id, "active_storage_blobs.checksum")
+      linked = feat.linked_photo_blobs
       linked_blob_ids = linked.map { |(blob_id, _checksum)| blob_id }
       linked_checksums = linked.map { |_blob_id, checksum| checksum }
+      wrappers = feat.feature_photos.index_by(&:filename)
+      served_names = wrappers.values.select { |wrapper| wrapper.file.attached? }.map(&:filename)
       photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
-        next if linked_blob_ids.include?(photo.blob_id)
+        name = photo.filename.to_s
+        next if name.blank?
+        # The wrapper for a catalog name can be missing on a database whose
+        # seeds bypassed callbacks (the import writes photos_data in bulk).
+        # Main served such a name from the first bytes it carried — create
+        # the row and serve the bytes.
+        wrapper = wrappers[name] ||= feat.feature_photos.create!(filename: name)
+        next if served_names.include?(name)
         next if linked_checksums.include?(photo.blob.checksum)
-        feat.field_photos.attach(photo.blob)
-        # The snapshot must grow with the record: two names carrying the same
-        # bytes (the " (1)" copy-suffix re-upload) in one submission attach
-        # once, exactly like the backfill's walk.
+        wrapper.file.attach(photo.blob)
+        served_names << name
         linked_blob_ids << photo.blob_id
         linked_checksums << photo.blob.checksum
       end

@@ -226,8 +226,9 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     blob_ids = @submission.photos.map(&:blob_id).sort
     assert_equal 2, blob_ids.size
-    assert_equal blob_ids, Feature.find_by!(sheet: "8888").field_photos.map(&:blob_id).sort,
-      "both matching photos link to the master feature"
+    wrappers = Feature.find_by!(sheet: "8888").feature_photos.where(filename: [ "portrait_test.jpg", "second.jpg" ])
+    assert_equal blob_ids, wrappers.map { |w| w.file.blob_id }.sort,
+      "both matching photos link to their master-sheet wrappers"
   end
 
   # Issue #37: two names in one submission carrying the same bytes — the
@@ -248,7 +249,10 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
     feat = Feature.find_by!(sheet: "8888")
     assert_equal [ "portrait_test.jpg", "portrait_test (1).jpg" ], feat.photos, "names still merge"
-    assert_equal 1, feat.field_photos.count, "one attachment row for one file's bytes"
+    wrappers = feat.feature_photos.index_by(&:filename)
+    assert wrappers["portrait_test.jpg"].file.attached?
+    assert_not wrappers["portrait_test (1).jpg"].file.attached?,
+               "one attachment for one file's bytes: the copy-name's wrapper stays file-less"
   end
 
   # Issue #37: the reviewer's per-photo selection rides the approve POST.
@@ -273,7 +277,8 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
     feat = Feature.find_by!(sheet: "8888")
     assert_equal [ "portrait_test.jpg" ], feat.photos
-    assert_equal [ portrait_blob_id ], feat.field_photos.map(&:blob_id)
+    wrapper = feat.feature_photos.find_by!(filename: "portrait_test.jpg")
+    assert_equal [ portrait_blob_id ], [ wrapper.file.blob_id ]
     assert_equal [ "portrait_test.jpg" ], @submission.reload.payload["photos"]
     assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
   end
@@ -295,10 +300,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
   test "review page shows the sheet's photos beside the proposed ones with duplicate flags" do
     feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg", "paper-era.jpg" ])
-    feat.field_photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "portrait_test.jpg", content_type: "image/jpeg"
-    )
+    attach_master_photo(feat, "portrait_test.jpg")
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "renamed.jpg", "fresh.jpg" ] }
     @submission.save!
     @submission.photos.attach(
@@ -346,10 +348,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
   test "read-only review shows the comparison without selection controls" do
     feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg" ])
-    feat.field_photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "portrait_test.jpg", content_type: "image/jpeg"
-    )
+    attach_master_photo(feat, "portrait_test.jpg")
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "fresh.jpg" ] }
     @submission.save!
 

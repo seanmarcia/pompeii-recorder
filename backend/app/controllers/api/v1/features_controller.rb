@@ -16,7 +16,7 @@ module Api
             # so the file stays host-independent and re-importable.
             features.map(&:as_json_pompeii)
           else
-            features.with_attached_field_photos.map { |feature| feature_json(feature) }
+            features.with_photo_files.map { |feature| feature_json(feature) }
           end
 
         if params[:download].present?
@@ -33,7 +33,7 @@ module Api
 
       # GET /api/v1/features/:sheet
       def show
-        feature = Feature.with_attached_field_photos.find_by(sheet: params[:sheet])
+        feature = Feature.with_photo_files.find_by(sheet: params[:sheet])
         if feature
           render json: feature_json(feature)
         else
