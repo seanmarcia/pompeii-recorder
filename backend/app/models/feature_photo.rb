@@ -25,10 +25,13 @@ class FeaturePhoto < ApplicationRecord
   belongs_to :feature
 
   # dependent: false, not the purge_later default: destroying a wrapper must
-  # never purge its blob. Blobs are shared evidence — the same bytes live on
-  # the submission that supplied them — and main never purged anything
-  # sideways. The attachment row still dies with the wrapper; only the blob
-  # purge is suppressed.
+  # never enqueue a blob purge. Rails refuses to destroy a blob while any
+  # attachment references it, so a shared blob (the same bytes live on the
+  # submission that supplied them) survives either way — but the default
+  # enqueues a purge job that is then guaranteed to raise, one doomed job per
+  # wrapper destroy. And a blob whose wrapper holds the only attachment would
+  # lose row and bytes for real. Main never purged anything sideways: the
+  # attachment row still dies with the wrapper, nothing else.
   has_one_attached :file, dependent: false
 
   validates :filename, presence: true
