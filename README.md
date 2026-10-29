@@ -37,3 +37,15 @@ Then start both servers with one command from the repo root:
 ```bash
 overmind start -f Procfile.dev   # Rails :3000 + Vite :5173
 ```
+
+## Git hooks
+
+A `pre-commit` hook runs the full check suite (`bin/check`) before each
+commit; a failing check aborts the commit. Activate it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`bin/worktree-setup` runs this for secondary worktrees. Bypass the hook
+with `git commit --no-verify` when you really mean it.

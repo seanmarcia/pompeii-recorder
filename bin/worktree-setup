@@ -31,6 +31,9 @@ echo "-- backend gems --"
 cd "$here/backend"
 mise exec -- bundle install
 
+# Activate the pre-commit hook from this clone's checkout.
+git config core.hooksPath .githooks
+
 echo "-- dev database (seed chain runs on a fresh DB) --"
 mise exec -- bin/rails db:prepare
 
