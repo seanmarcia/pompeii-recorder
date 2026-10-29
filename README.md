@@ -41,7 +41,9 @@ overmind start -f Procfile.dev   # Rails :3000 + Vite :5173
 ## Git hooks
 
 A `pre-commit` hook runs the full check suite (`bin/check`) before each
-commit; a failing check aborts the commit. Activate it once per clone:
+commit; a failing check aborts the commit. Activate it once per clone
+(the setting applies to the primary checkout and all worktrees; each
+worktree runs its own hook file):
 
 ```bash
 git config core.hooksPath .githooks
