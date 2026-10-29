@@ -1,0 +1,76 @@
+<%# The review page's photo card: the sheet's current photos beside this
+    submission's proposals, so a duplicate is visible before approval.
+    Counts live in the column heads, not the card title, so each side
+    states its own size. %>
+<% items = submission.photo_review_items %>
+<% decisions, noops = items.partition { |item| !(item[:name_on_sheet] || item[:bytes_on_sheet]) } %>
+<%# Controls only for a payload the merge will actually read: a legacy
+    submission without a photos key never merges its attachment names, so
+    they are display-only. %>
+<% offering_controls = submission.status == "pending" && !read_only && submission.payload["photos"].is_a?(Array) %>
+<div class="card">
+  <div class="card-title">
+    <span>Attached Photos</span>
+  </div>
+
+  <% if items.empty? %>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">No photos attached to this submission.</p>
+  <% else %>
+    <div class="photo-compare">
+      <% if master %>
+        <div class="compare-col compare-sheet">
+          <div class="compare-col-head">
+            <span>On the sheet now</span>
+            <span class="col-count"><%= pluralize(master.photo_items.size, "photo") %></span>
+          </div>
+          <% if master.photo_items.any? %>
+            <div class="photos-grid">
+              <% master.photo_items.each do |item| %>
+                <%= render "admin/shared/photo_box", item: item %>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="compare-empty">No photos on the sheet yet.</p>
+          <% end %>
+        </div>
+      <% end %>
+      <div class="compare-col compare-proposed">
+        <div class="compare-col-head">
+          <span>Proposed by this submission</span>
+          <span class="col-count">
+            <%= pluralize(items.size, "photo") %><%= " · #{noops.size} already on sheet" if noops.any? %>
+          </span>
+        </div>
+        <%# A live tally of the reviewer's decision — hidden when there is
+            nothing to decide (flagged duplicates, read-only, reviewed). %>
+        <% if offering_controls && decisions.any? %>
+          <p class="compare-selection" id="proposed-selection-summary"><%= decisions.size %> included on approval</p>
+        <% end %>
+        <div class="photos-grid">
+          <%# Decisions render ahead of the already-on-sheet no-ops, so
+              every checkbox sits in one block at the top of the column. %>
+          <% (decisions + noops).each do |item| %>
+            <% caption = item[:attachment] ? "#{number_to_human_size(item[:attachment].byte_size)} • #{item[:name]}" : item[:name] %>
+            <%= render layout: "admin/shared/photo_box", locals: { item: item, caption: caption } do %>
+              <% if item[:name_on_sheet] %>
+                <div class="photo-flag echo">image with name already on sheet</div>
+              <% elsif item[:bytes_on_sheet] %>
+                <div class="photo-flag">identical image already on sheet</div>
+              <% elsif offering_controls %>
+                <%# The include checkbox rides the approve form through the
+                    form attribute (the form lives in the page's action
+                    sidebar, id approve-form); only checked boxes submit,
+                    and the approve action drops everything left
+                    unchecked. %>
+                <label class="pick-row">
+                  <input type="checkbox" name="include_photos[]" value="<%= item[:name] %>" form="approve-form" checked>
+                  <span>Add to sheet on approval</span>
+                </label>
+              <% end %>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

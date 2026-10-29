@@ -228,8 +228,10 @@ class Submission < ApplicationRecord
   # whether the photo is already on the master sheet — by filename (the edit
   # flow echoes the master's names back into the payload) or by bytes (a
   # re-upload of the same file under a new filename produces a second blob
-  # with the same checksum). A photo already on the sheet gets no exclude
+  # with the same checksum). A photo already on the sheet gets no include
   # control: under the additive-union merge, excluding it is a no-op.
+  # Items are name-sorted (digit-aware); the proposed column groups the
+  # reviewer's decisions ahead of the already-on-sheet no-ops itself.
   def photo_review_items
     feat = master_feature
     sheet_names = feat ? feat.photos.map(&:to_s) : []
@@ -238,10 +240,7 @@ class Submission < ApplicationRecord
     # a submission with attachments but no photos key (older payloads) falls
     # back to its attachment filenames, as the old photo card did. Duplicate
     # names collapse: the merge's .uniq does, so the display must not imply
-    # two independent photos. Display order is name-sorted (digit-aware),
-    # matching the sheet column, with one functional override: photos the
-    # reviewer can decide on sort above the already-on-sheet no-ops, so
-    # every checkbox sits in one block at the top of the proposed column.
+    # two independent photos.
     names = (payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }).map(&:to_s).uniq
                 .sort_by { |name| photo_name_key(name) }
 
@@ -259,37 +258,39 @@ class Submission < ApplicationRecord
         name_on_sheet: sheet_names.include?(name.to_s),
         bytes_on_sheet: own ? sheet_checksums.include?(own.blob.checksum) : false
       }
-    end.sort_by do |item|
-      # Decisions first, then the already-on-sheet no-ops; name order within
-      # each group.
-      already = item[:name_on_sheet] || item[:bytes_on_sheet]
-      [ already ? 1 : 0, photo_name_key(item[:name]) ]
     end
   end
 
-  # Removes excluded photo names from the payload before approval, so the
-  # merge (an additive union of the payload's names) never carries them and
-  # the byte-linking loop never attaches them. The submission keeps its own
-  # attachments as evidence.
-  def exclude_photos!(names)
-    data = payload
-    proposed = data["photos"]
-    return false unless proposed.is_a?(Array)
-
-    dropped = names.map(&:to_s)
-    kept = proposed.reject { |name| dropped.include?(name.to_s) }
-    return false if kept.size == proposed.size
-
-    data["photos"] = kept
-    self.payload = data
-    save!
+  # The photo names the review page offers the reviewer to decide on: not
+  # already on the sheet (by name or bytes) and read by the merge (a payload
+  # with a photos key). The approve action diffs this against the include
+  # checkboxes the form serialized — everything unchecked is dropped — so
+  # the excluded set is always names the page actually offered, never a
+  # client-authored list.
+  def selectable_photo_names
+    return [] unless payload["photos"].is_a?(Array)
+    photo_review_items.reject { |item| item[:name_on_sheet] || item[:bytes_on_sheet] }
+                      .map { |item| item[:name] }
   end
 
-  # Approve this submission and merge it into the Feature master table
-  def approve!(reviewer_note = nil)
+  # Approve this submission and merge it into the Feature master table.
+  # exclude_photos drops those names from the payload's photo list inside
+  # the same transaction as the merge, so they are neither merged into
+  # photos_data nor attached; the submission keeps its own attachments as
+  # evidence. A failed approve rolls the payload rewrite back with
+  # everything else.
+  def approve!(reviewer_note = nil, exclude_photos: [])
     ActiveRecord::Base.transaction do
       sheet_val = sheet_number
       raise "Missing Sheet Number in submission payload" if sheet_val.blank?
+
+      # Dropped names leave the payload before the merge reads it.
+      data = payload
+      if exclude_photos.any? && data["photos"].is_a?(Array)
+        dropped = exclude_photos.map(&:to_s)
+        data["photos"] = data["photos"].reject { |name| dropped.include?(name.to_s) }
+        self.payload = data
+      end
 
       feat = Feature.find_or_initialize_by(sheet: sheet_val)
 
@@ -308,42 +309,18 @@ class Submission < ApplicationRecord
 
       # Merge photos: keep existing + add any filenames/URLs from payload
       current_photos = feat.photos.dup
-      new_photos = payload["photos"] || []
+      new_photos = data["photos"] || []
       merged_photos = (current_photos + new_photos).uniq
       feat.photos = merged_photos
 
       feat.save!
 
       # Link this submission's photo blobs to the master feature. The names
-      # merged above are dead references without them. Attaching reuses the
-      # existing blobs — a row insert, no byte copy — and the submission
-      # keeps its own attachments as evidence.
-      #
-      # A blob already linked is skipped, and so is any blob whose bytes the
-      # feature already carries under another name: two uploads of the same
-      # file produce two blobs with the same checksum, and one image per
-      # name on the sheet is the bar — never a duplicate attachment row.
-      #
-      # The "already linked?" snapshot reads the raw field_photos_attachments
-      # association, never the field_photos proxy: attach leaves a pending
-      # change on the record, and while one is pending the proxy returns a
-      # plain array of built attachments (no query interface). The snapshot
-      # is taken before the loop because attach only adds.
+      # merged above are dead references without them; the submission keeps
+      # its own attachments as evidence. The feature's attach skips blobs it
+      # already carries, by link or by bytes.
       names = new_photos.map(&:to_s)
-      linked = feat.field_photos_attachments.joins(:blob)
-                   .pluck(:blob_id, "active_storage_blobs.checksum")
-      linked_blob_ids = linked.map { |(blob_id, _checksum)| blob_id }
-      linked_checksums = linked.map { |_blob_id, checksum| checksum }
-      photos.select { |p| names.include?(p.filename.to_s) }.uniq(&:blob_id).each do |photo|
-        next if linked_blob_ids.include?(photo.blob_id)
-        next if linked_checksums.include?(photo.blob.checksum)
-        feat.field_photos.attach(photo.blob)
-        # The snapshot must grow with the record: two names carrying the same
-        # bytes (the " (1)" copy-suffix re-upload) in one submission attach
-        # once, exactly like the backfill's walk.
-        linked_blob_ids << photo.blob_id
-        linked_checksums << photo.blob.checksum
-      end
+      feat.attach_new_photo_blobs(photos.select { |p| names.include?(p.filename.to_s) })
 
       self.status = "approved"
       self.reviewed_at = Time.current

@@ -188,7 +188,7 @@ class SubmissionTest < ActiveSupport::TestCase
     assert sub.photos.attached?, "the submission keeps its evidence"
   end
 
-  test "exclude_photos! drops the names from the payload and approval skips them" do
+  test "approve! drops excluded photo names from the payload and the merge skips them" do
     sub = submit("SHEET" => "517", "photos" => [ "keep.jpg", "dup.jpg" ])
     [ "keep.jpg", "dup.jpg" ].each do |name|
       sub.photos.attach(
@@ -197,10 +197,8 @@ class SubmissionTest < ActiveSupport::TestCase
       )
     end
 
-    sub.exclude_photos!([ "dup.jpg" ])
+    sub.approve!(exclude_photos: [ "dup.jpg" ])
     assert_equal [ "keep.jpg" ], sub.reload.payload["photos"]
-
-    sub.approve!
 
     feat = Feature.find_by(sheet: "517")
     assert_equal [ "keep.jpg" ], feat.photos
@@ -216,13 +214,21 @@ class SubmissionTest < ActiveSupport::TestCase
       filename: "dup.jpg", content_type: "image/jpeg"
     )
 
-    sub.exclude_photos!([ "dup.jpg" ])
-    sub.approve!
+    sub.approve!(exclude_photos: [ "dup.jpg" ])
 
     feat = Feature.find_by(sheet: "519")
     assert_equal [], feat.photos
     assert feat.field_photos.empty?
     assert sub.reload.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "excluded names the payload never carried are a no-op" do
+    sub = submit("SHEET" => "523", "photos" => [ "keep.jpg" ])
+
+    sub.approve!(exclude_photos: [ "not-there.jpg" ])
+
+    assert_equal [ "keep.jpg" ], Feature.find_by(sheet: "523").photos
+    assert_equal [ "keep.jpg" ], sub.reload.payload["photos"]
   end
 
   test "photo review flags mark filename echoes and byte-identical re-uploads as already on the sheet" do
@@ -245,18 +251,22 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_not by_name["renamed.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:name_on_sheet]
     assert_not by_name["fresh.jpg"][:bytes_on_sheet]
-    # Display order is decision-first: the selectable photo sorts above the
-    # already-on-sheet no-ops, name-sorted (digit-aware) within each group.
+    # The selectable photo sorts above the already-on-sheet no-ops in the
+    # rendered column (the view groups them); items themselves are
+    # name-sorted, digit-aware.
     assert_equal [ "fresh.jpg", "IMG_1.jpg", "renamed.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+    assert_equal [ "fresh.jpg" ], sub.selectable_photo_names
   end
 
-  test "photo review order puts decisions above already-on-sheet no-ops" do
+  test "photo review items stay name-sorted and the selectable names exclude already-on-sheet photos" do
     Feature.create!(sheet: "521", photos: [ "aaa_echo.jpg" ])
     sub = submit("SHEET" => "521", "photos" => [ "aaa_echo.jpg", "zzz_new.jpg" ])
 
-    # Pure name order would put the echo first; the decision (zzz_new)
-    # must come before the no-op it outranks.
-    assert_equal [ "zzz_new.jpg", "aaa_echo.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+    # Pure name order would put the echo first; the decisions-first
+    # grouping is the proposed column's partition, not a sort baked into
+    # the model.
+    assert_equal [ "aaa_echo.jpg", "zzz_new.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+    assert_equal [ "zzz_new.jpg" ], sub.selectable_photo_names
   end
 
   test "photo review flags for a new sheet mark nothing as already on the sheet" do
@@ -267,6 +277,18 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal [ "fresh.jpg" ], items.map { |i| i[:name] }
     assert_not items.first[:name_on_sheet]
     assert_not items.first[:bytes_on_sheet]
+    assert_equal [ "fresh.jpg" ], sub.selectable_photo_names
+  end
+
+  test "a legacy payload without a photos key offers no selectable names" do
+    sub = submit("SHEET" => "524", "DESCRIPTION" => "x")
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+
+    assert_equal [ "portrait_test.jpg" ], sub.photo_review_items.map { |i| i[:name] }
+    assert_equal [], sub.selectable_photo_names, "legacy names never merge, so they get no control"
   end
 
   test "photo URLs echoed back by the edit form store and merge as filenames" do

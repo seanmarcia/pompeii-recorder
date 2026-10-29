@@ -73,22 +73,20 @@ module Admin
 
     # POST /admin/submissions/:id/approve
     def approve
-      # Reviewer photo selection rides the approve POST (save-on-approve,
-      # like every other state change in the approval flow): excluded names
-      # leave the payload before the merge, so approve! needs no new
-      # parameters. The checkboxes live beside the proposed photos and sync
-      # this field on change. If approval itself fails, the exclusion save
-      # has already persisted (visible on reload: the names are gone from
-      # the proposed column) and a re-approve re-applies the same flow.
-      if @submission.status == "pending"
-        excluded = begin
-          JSON.parse(params[:exclude_photos].to_s)
-        rescue JSON::ParserError
-          []
-        end
-        @submission.exclude_photos!(excluded) if excluded.is_a?(Array) && excluded.any?
+      # Reviewer photo selection rides the approve POST as native form
+      # serialization: the include checkboxes ride the approve form through
+      # their form attribute, only checked boxes submit, and the excluded
+      # set is what the page offered minus what stayed checked — never a
+      # client-authored list (the photo_selection marker says the form
+      # itself was submitted; a bare POST keeps merging everything). The
+      # exclusion is part of the approve transaction: a failed approve
+      # leaves the payload as it was.
+      excluded = []
+      if @submission.status == "pending" && params[:photo_selection].present?
+        included = Array(params[:include_photos]).map(&:to_s)
+        excluded = @submission.selectable_photo_names - included
       end
-      @submission.approve!(params[:reviewer_notes])
+      @submission.approve!(params[:reviewer_notes], exclude_photos: excluded)
       redirect_to admin_submission_path(@submission), notice: "Submission ##{@submission.id} has been APPROVED and merged into the master features catalog."
     rescue StandardError => e
       redirect_to admin_submission_path(@submission), alert: "Error approving submission: #{e.message}"

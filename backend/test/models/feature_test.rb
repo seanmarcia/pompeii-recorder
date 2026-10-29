@@ -41,6 +41,30 @@ class FeatureTest < ActiveSupport::TestCase
     assert order.index("img_9.jpg") < order.index("IMG_10.jpg"), "natural sort: 9 before 10"
   end
 
+  test "attach_new_photo_blobs skips already-linked and byte-identical blobs and returns what it attached" do
+    feat = Feature.create!(sheet: "604", photos: [ "a.jpg", "b.jpg" ])
+    feat.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "a.jpg", content_type: "image/jpeg"
+    )
+    # A second feature as the blob source, the way approval and the backfill
+    # both carry attachments: same bytes as a.jpg under a re-uploaded name,
+    # and one genuinely new file.
+    source = Feature.create!(sheet: "605", photos: [ "a (1).jpg", "c.jpg" ])
+    source.field_photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "a (1).jpg", content_type: "image/jpeg"
+    )
+    source.field_photos.attach(io: StringIO.new("genuinely new bytes"), filename: "c.jpg", content_type: "image/jpeg")
+
+    attached = feat.attach_new_photo_blobs(source.field_photos.to_a)
+
+    assert_equal [ "c.jpg" ], attached.map { |a| a.filename.to_s },
+                 "the byte-identical blob is skipped; only the new bytes attach"
+    assert_equal 2, feat.field_photos.count, "one attachment row per set of bytes"
+    assert_equal 3, ActiveStorage::Blob.count, "attach reuses blobs — no new bytes are written"
+  end
+
   test "photos keeps reading names when photos_data holds junk" do
     feat = Feature.create!(sheet: "601")
     feat.update_column(:photos_data, "not json")
