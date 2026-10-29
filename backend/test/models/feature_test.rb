@@ -2,15 +2,33 @@ require "test_helper"
 
 class FeatureTest < ActiveSupport::TestCase
   setup do
+    Submission.destroy_all
     Feature.destroy_all
+  end
+
+  test "saving photos= creates one FeaturePhoto row per photos_data name" do
+    feat = Feature.create!(sheet: "600", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
+
+    assert_equal [ "IMG_1.jpg", "paper-era.jpg" ], feat.feature_photos.order(:id).map(&:filename),
+                 "one wrapper row per catalog name, nothing else"
+    assert_equal 2, feat.feature_photos.count
+  end
+
+  test "re-saving with a dropped name removes that wrapper, re-saving unchanged adds nothing" do
+    feat = Feature.create!(sheet: "604", photos: [ "IMG_1.jpg", "IMG_2.jpg" ])
+
+    feat.update!(photos: [ "IMG_1.jpg" ])
+
+    assert_equal [ "IMG_1.jpg" ], feat.reload.feature_photos.map(&:filename)
+    count = feat.feature_photos.count
+    feat.update!(description: "touch")
+    feat.update!(photos: [ "IMG_1.jpg" ])
+    assert_equal count, feat.reload.feature_photos.count, "an unchanged catalog converges to no new rows"
   end
 
   test "photo_items returns one display item per photos_data name" do
     feat = Feature.create!(sheet: "602", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
-    feat.field_photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "IMG_1.jpg", content_type: "image/jpeg"
-    )
+    attach_master_photo(feat, "IMG_1.jpg")
 
     items = feat.photo_items
 
@@ -19,15 +37,12 @@ class FeatureTest < ActiveSupport::TestCase
     assert_nil items[1][:attachment], "a text-only name resolves to nothing"
   end
 
-  test "field_photo_for finds the attachment serving a name, and misses the rest" do
-    feat = Feature.create!(sheet: "600", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
-    feat.field_photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "IMG_1.jpg", content_type: "image/jpeg"
-    )
+  test "field_photo_for serves the wrapper's file for a name, and misses the rest" do
+    feat = Feature.create!(sheet: "601", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
 
     assert_equal "IMG_1.jpg", feat.field_photo_for("IMG_1.jpg").filename.to_s
-    assert_nil feat.field_photo_for("paper-era.jpg"), "names without a linked blob resolve to nothing"
+    assert_nil feat.field_photo_for("paper-era.jpg"), "a wrapper without bytes resolves to nothing"
     assert_nil feat.field_photo_for("never-seen.jpg")
   end
 
@@ -42,7 +57,7 @@ class FeatureTest < ActiveSupport::TestCase
   end
 
   test "photos keeps reading names when photos_data holds junk" do
-    feat = Feature.create!(sheet: "601")
+    feat = Feature.create!(sheet: "605")
     feat.update_column(:photos_data, "not json")
 
     assert_equal [], feat.photos

@@ -48,16 +48,32 @@
 class Feature < ApplicationRecord
   include PhotoNameOrder
 
-  # Photo bytes carried into the master record: attached on approval
-  # (Submission#approve!) or by the backfill for approvals that predate the
-  # linkage. Kept in a separate association because `photos`/`photos=` are
-  # the photos_data name list, which stays the source of truth for what a
-  # sheet's photos are called.
-  has_many_attached :field_photos
+  # Per-photo wrapper rows, one per photos_data name. The wrapper is the
+  # ActiveStorage record type: its `file` attachment carries the photo's
+  # bytes, its `filename` column the provenance label. `photos`/`photos=`
+  # keep photos_data as the source of truth for what a sheet's photos are
+  # called; the sync below mirrors each name into a wrapper row.
+  has_many :feature_photos, dependent: :destroy
 
   validates :sheet, presence: true, uniqueness: true
 
   scope :ordered, -> { order(:region, :insula, :entrance, :sheet) }
+
+  # Preload wrapper files (and their blobs) for read paths that resolve
+  # photo URLs; the replacement for the old with_attached_field_photos.
+  scope :with_photo_files, -> { includes(feature_photos: { file_attachment: :blob }) }
+
+  after_save :sync_feature_photos, if: :saved_change_to_photos_data?
+
+  # One wrapper row per photos_data name: create missing, destroy names that
+  # left the catalog. Runs whenever photos_data changes, so every write path
+  # (approval, import, seed) converges without a manual sync step.
+  def sync_feature_photos
+    names = photos.map(&:to_s).uniq
+    feature_photos.where.not(filename: names).destroy_all
+    existing = feature_photos.pluck(:filename)
+    (names - existing).each { |name| feature_photos.create!(filename: name) }
+  end
 
   def photos
     return [] if photos_data.blank?
@@ -70,12 +86,20 @@ class Feature < ApplicationRecord
     self.photos_data = list.is_a?(Array) ? list.to_json : (list || [].to_json)
   end
 
-  # The photo attachment serving a name from photos_data, if the photo's
-  # bytes reached the master record. Names that exist only as text —
-  # paper-era names, rejected-submission photos, renamed files — resolve to
-  # nothing and keep their placeholder.
+  # The photo file serving a name from photos_data, if the photo's bytes
+  # reached the master record. Names that exist only as text — paper-era
+  # names, rejected-submission photos, renamed files — resolve to nothing and
+  # keep their placeholder.
   def field_photo_for(name)
-    field_photos.detect { |attachment| attachment.filename.to_s == name.to_s }
+    wrapper = feature_photos.detect { |photo| photo.filename == name.to_s }
+    wrapper&.file_attachment
+  end
+
+  # Blob ids and checksums of the bytes the sheet's wrappers carry: the
+  # "already on the sheet" facts for approval and review display.
+  def linked_photo_blobs
+    feature_photos.joins(file_attachment: :blob)
+                  .pluck("active_storage_attachments.blob_id", "active_storage_blobs.checksum")
   end
 
   # One display item per photos_data name: the attachment serving the name's
