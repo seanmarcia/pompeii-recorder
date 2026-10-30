@@ -332,6 +332,72 @@ class SubmissionTest < ActiveSupport::TestCase
     assert sub.reload.photos.attached?, "the submission keeps its evidence"
   end
 
+  test "a duplicate of another proposed photo is flagged and approval joins only the first" do
+    feat = Feature.create!(sheet: "528")
+    sub = submit("SHEET" => "528", "photos" => [ "IMG_1.jpg", "IMG_1 (1).jpg" ])
+    # The same file attached twice under two names: the copy-suffix pair.
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
+    )
+
+    items = sub.photo_review_items.index_by { |i| i[:name] }
+    assert_not items["IMG_1.jpg"][:dup_of_proposed], "the first copy is the decision"
+    assert items["IMG_1 (1).jpg"][:dup_of_proposed], "the second copy is flagged as a duplicate"
+    assert_not items["IMG_1 (1).jpg"][:bytes_on_sheet], "the bytes are not on the sheet yet"
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "approval joins only the first copy"
+    assert_equal 1, feat.feature_photos.count
+  end
+
+  test "excluding the first copy promotes its byte-identical sibling" do
+    feat = Feature.create!(sheet: "529")
+    sub = submit("SHEET" => "529", "photos" => [ "IMG_1.jpg", "IMG_1 (1).jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
+    )
+
+    sub.exclude_photos!([ "IMG_1.jpg" ])
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1 (1).jpg" ], feat.photos,
+                 "with the first copy gone, the sibling's bytes are new to the sheet and join under its name"
+    assert_equal 1, feat.feature_photos.count
+  end
+
+  test "a placeholder whose re-sent bytes the sheet already serves elsewhere stays empty" do
+    feat = Feature.create!(sheet: "527", photos: [ "IMG_9.jpg", "dead-ref.jpg" ])
+    attach_master_photo(feat, "IMG_9.jpg")
+    sub = submit("SHEET" => "527", "photos" => [ "dead-ref.jpg" ])
+    # Identical bytes to what IMG_9.jpg already serves on the sheet.
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "dead-ref.jpg", content_type: "image/jpeg"
+    )
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_9.jpg", "dead-ref.jpg" ], feat.photos, "the catalog keeps both names"
+    assert feat.feature_photos.find_by!(filename: "IMG_9.jpg").file.attached?
+    assert_not feat.feature_photos.find_by!(filename: "dead-ref.jpg").file.attached?,
+               "the bytes are already on record under IMG_9.jpg; no second display of them"
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
+  end
+
   test "photo review flags mark filename echoes and byte-identical re-uploads as already on the sheet" do
     feat = Feature.create!(sheet: "518", photos: [ "IMG_1.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")

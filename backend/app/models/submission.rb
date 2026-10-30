@@ -235,7 +235,9 @@ class Submission < ApplicationRecord
   # get no exclude control: a pure echo (name on the sheet, no bytes behind
   # it here) and a byte-identical duplicate (the sheet already serves those
   # bytes — a second copy adds nothing, so approval joins neither bytes nor
-  # name). Every other byte-carrying card is a real decision: approval
+  # name), and a duplicate of another proposed photo (dup_of_proposed: the
+  # submission itself carries the same bytes twice; approval joins only the
+  # first copy). Every other byte-carrying card is a real decision: approval
   # joins it to the sheet as its own row, and excluding it leaves the sheet
   # untouched.
   def photo_review_items
@@ -253,16 +255,31 @@ class Submission < ApplicationRecord
     names = (payload["photos"].is_a?(Array) ? payload["photos"] : photos.map { |p| p.filename.to_s }).map(&:to_s).uniq
                 .sort_by { |name| photo_name_key(name) }
 
+    # The merge accepts the first attachment carrying each unseen checksum,
+    # in attachment order; later attachments with the same checksum — under
+    # the same name or another — are its duplicates, and approval joins
+    # neither their bytes nor their name. Mark those so the view can show
+    # them as flagged, control-free no-ops in the exact set the merge keeps.
+    seen_checksums = sheet_checksums.dup
+    duplicate_attachments = {}
+    photos.select { |p| names.include?(p.filename.to_s) }.each do |attachment|
+      checksum = attachment.blob.checksum
+      duplicate_attachments[attachment] = true if seen_checksums.include?(checksum) && !sheet_checksums.include?(checksum)
+      seen_checksums << checksum
+    end
+
     items = names.flat_map do |name|
       carriers = photos.select { |p| p.filename.to_s == name }
       if carriers.any?
         carriers.map do |attachment|
+          checksum = attachment.blob.checksum
           {
             name: name,
             attachment: attachment,
             own_bytes: true,
             name_on_sheet: sheet_names.include?(name),
-            bytes_on_sheet: sheet_checksums.include?(attachment.blob.checksum)
+            bytes_on_sheet: sheet_checksums.include?(checksum),
+            dup_of_proposed: duplicate_attachments[attachment].present?
           }
         end
       else
