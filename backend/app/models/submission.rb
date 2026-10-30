@@ -231,10 +231,13 @@ class Submission < ApplicationRecord
   # one card. A photo is already on the master sheet by filename (the edit
   # flow echoes the master's names back into the payload) or by bytes (a
   # re-upload of the same file under a new filename produces a second blob
-  # with the same checksum). A pure echo — a name already on the sheet with
-  # no bytes behind it here — gets no exclude control: excluding it changes
-  # nothing. Every byte-carrying card is a real decision: approval joins it
-  # to the sheet as its own row, and excluding it leaves the sheet untouched.
+  # with the same checksum). Two kinds of card are no-ops on approval and
+  # get no exclude control: a pure echo (name on the sheet, no bytes behind
+  # it here) and a byte-identical duplicate (the sheet already serves those
+  # bytes — a second copy adds nothing, so approval joins neither bytes nor
+  # name). Every other byte-carrying card is a real decision: approval
+  # joins it to the sheet as its own row, and excluding it leaves the sheet
+  # untouched.
   def photo_review_items
     feat = master_feature
     sheet_names = feat ? feat.photos.map(&:to_s) : []
@@ -337,15 +340,29 @@ class Submission < ApplicationRecord
       # first byteless wrapper for a name (a paper-era placeholder) is filled
       # by the linking step below, so only the surplus beyond it becomes new
       # entries. Excluded names never join, byte-carrying or not.
+      #
+      # Byte-identical proposals are inert: the sheet already serves those
+      # bytes, so a second copy adds nothing — no entry, no wrapper, not even
+      # a placeholder for the name. The first attachment carrying unseen
+      # bytes wins; later attachments with the same checksum (the " (1)"
+      # copy-suffix pair in one submission) are invisible too.
       current_photos = feat.photos
       proposed_names = (payload["photos"] || []).map(&:to_s)
+      known_checksums = feat.linked_photo_blobs.map { |(_blob_id, checksum)| checksum }
+      accepted = []
+      photos.select { |p| proposed_names.include?(p.filename.to_s) }.each do |photo|
+        checksum = photo.blob.checksum
+        next if known_checksums.include?(checksum)
+        known_checksums << checksum
+        accepted << photo
+      end
       new_entries = proposed_names.flat_map do |name|
-        carriers = photos.select { |p| p.filename.to_s == name }
+        carriers = accepted.select { |p| p.filename.to_s == name }
         if carriers.any?
           fillable = FeaturePhoto.where(feature_id: feat.id, filename: name)
                                  .count { |wrapper| !wrapper.file.attached? }
           [ name ] * [ carriers.length - fillable, 0 ].max
-        elsif current_photos.include?(name)
+        elsif current_photos.include?(name) || photos.any? { |p| p.filename.to_s == name }
           []
         else
           [ name ]
@@ -356,25 +373,24 @@ class Submission < ApplicationRecord
       feat.save!
 
       # Link this submission's photo bytes to the master sheet's photo
-      # wrappers, one row per photo. Each byte-carrying attachment pairs with
-      # the first wrapper for its name that serves nothing — completing a
+      # wrappers, one row per photo. Each accepted attachment pairs with the
+      # first wrapper for its name that serves nothing — completing a
       # paper-era placeholder — or, when every row for that name already
       # serves bytes, gets a brand-new row. Attaching reuses the existing
       # blobs — a row insert, no byte copy — and the submission keeps its own
-      # attachments as evidence. Nothing buries: no served-names freeze, no
-      # checksum burial; every approved photo displays.
-      proposed_names.each do |name|
+      # attachments as evidence. Byte-identical attachments never reach this
+      # loop: the sheet already displays those bytes.
+      accepted.each do |photo|
+        name = photo.filename.to_s
         next if name.blank?
-        photos.select { |p| p.filename.to_s == name }.each do |photo|
-          # The merge adds exactly the entries the byteless wrappers cannot
-          # absorb, so a free wrapper always exists here: sync created rows
-          # for the new entries above, and any pre-existing placeholder
-          # fills first (id order).
-          wrapper = FeaturePhoto.where(feature_id: feat.id, filename: name)
-                                .order(:id).detect { |row| !row.file.attached? }
-          raise "no free FeaturePhoto wrapper for #{name.inspect} on sheet #{feat.sheet}" unless wrapper
-          wrapper.file.attach(photo.blob)
-        end
+        # The merge adds exactly the entries the byteless wrappers cannot
+        # absorb, so a free wrapper always exists here: sync created rows
+        # for the new entries above, and any pre-existing placeholder
+        # fills first (id order).
+        wrapper = FeaturePhoto.where(feature_id: feat.id, filename: name)
+                              .order(:id).detect { |row| !row.file.attached? }
+        raise "no free FeaturePhoto wrapper for #{name.inspect} on sheet #{feat.sheet}" unless wrapper
+        wrapper.file.attach(photo.blob)
       end
 
       self.status = "approved"

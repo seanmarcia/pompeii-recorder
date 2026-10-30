@@ -164,7 +164,7 @@ class SubmissionTest < ActiveSupport::TestCase
     assert b.photos.attached?, "the submission keeps its evidence"
   end
 
-  test "a byte-identical re-upload under a new filename merges the name and serves the bytes" do
+  test "a byte-identical re-upload under a new filename joins nothing" do
     feat = Feature.create!(sheet: "515", photos: [ "IMG_1.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")
     sub = submit("SHEET" => "515", "photos" => [ "IMG_1 (1).jpg" ])
@@ -172,18 +172,30 @@ class SubmissionTest < ActiveSupport::TestCase
       io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
       filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
     )
-    blob_count = ActiveStorage::Blob.count
 
     sub.approve!
 
     feat.reload
-    assert_equal [ "IMG_1.jpg", "IMG_1 (1).jpg" ], feat.photos, "the name merges (additive union)"
-    wrapper = feat.feature_photos.find_by!(filename: "IMG_1 (1).jpg")
-    assert wrapper.file.attached?, "no burial: the re-upload displays even when the bytes already exist"
-    assert_equal sub.reload.photos.first.blob_id, wrapper.file.blob_id,
-                 "the blob is reused, not copied"
-    assert_equal blob_count, ActiveStorage::Blob.count
-    assert sub.photos.attached?, "the submission keeps its evidence"
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "the byte duplicate's name joins no entry"
+    assert_equal 1, feat.feature_photos.count, "the sheet already serves those bytes"
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "re-uploading the exact same file under the same name joins nothing" do
+    feat = Feature.create!(sheet: "526", photos: [ "IMG_1.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    sub = submit("SHEET" => "526", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg" ], feat.photos
+    assert_equal 1, feat.feature_photos.count
+    assert feat.feature_photos.first.file.attached?, "the original tile keeps its bytes"
   end
 
   test "two same-name photos in one submission show one card per blob and approve to two rows" do
@@ -263,18 +275,22 @@ class SubmissionTest < ActiveSupport::TestCase
     assert sub.reload.photos.attached?, "the submission keeps its evidence"
   end
 
-  test "excluding a byte-identical re-upload merges no placeholder for its name" do
+  test "a byte-identical re-upload is inert even without an explicit exclusion" do
     feat = Feature.create!(sheet: "525", photos: [ "IMG_1.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")
     sub = submit("SHEET" => "525", "photos" => [ "IMG_1.jpg", "IMG_1 (1).jpg" ])
-    sub.photos.attach(io: StringIO.new("same bytes"), filename: "IMG_1 (1).jpg", content_type: "image/jpeg")
+    # Identical bytes to the sheet's wrapper (the same fixture file).
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
+    )
 
-    sub.exclude_photos!([ "IMG_1 (1).jpg" ])
     sub.approve!
 
     feat.reload
-    assert_equal [ "IMG_1.jpg" ], feat.photos, "the excluded name joins the catalog nowhere"
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "the byte duplicate joins nothing: no row, no placeholder entry"
     assert_equal 1, feat.feature_photos.count
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
   end
 
   test "exclude_photos! drops the names from the payload and approval skips them" do

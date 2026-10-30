@@ -490,7 +490,7 @@
               </div>
               <% # A live tally of the reviewer's decision — hidden when there is
                  # nothing to decide (read-only, reviewed, no selectable cards). %>
-              <% decision_count = (@submission.status == "pending" && !@read_only && @submission.payload["photos"].is_a?(Array)) ? proposed_items.count { |i| i[:own_bytes] || !i[:name_on_sheet] } : 0 %>
+              <% decision_count = (@submission.status == "pending" && !@read_only && @submission.payload["photos"].is_a?(Array)) ? proposed_items.count { |i| i[:own_bytes] ? !i[:bytes_on_sheet] : !i[:name_on_sheet] } : 0 %>
               <% if decision_count > 0 %>
                 <p class="compare-selection" id="proposed-selection-summary"><%= decision_count %> included on approval</p>
               <% end %>
@@ -498,15 +498,17 @@
                 <% proposed_items.each do |item| %>
                   <% # Controls only for a payload the merge will actually read:
                      # a legacy submission without a photos key never merges
-                     # its attachment names, so they are display-only. A pure
-                     # echo (name already on the sheet, no bytes behind it
-                     # here) is a no-op on approval, so it gets no checkbox.
-                     # Every byte-carrying card is a real decision: it joins
-                     # the sheet as its own row on approval, or the reviewer
-                     # declines it.
+                     # its attachment names, so they are display-only. Two
+                     # kinds of card are no-ops on approval and get no
+                     # checkbox: a pure echo (name already on the sheet, no
+                     # bytes behind it here) and a byte-identical duplicate
+                     # (the sheet already serves those bytes — a second copy
+                     # adds nothing). Every other byte-carrying card is a
+                     # real decision: it joins the sheet as its own row on
+                     # approval, or the reviewer declines it.
                      selectable = @submission.status == "pending" && !@read_only &&
                        @submission.payload["photos"].is_a?(Array) &&
-                       (item[:own_bytes] || !item[:name_on_sheet]) %>
+                       (item[:own_bytes] ? !item[:bytes_on_sheet] : !item[:name_on_sheet]) %>
                   <div class="photo-box">
                     <% if item[:attachment] %>
                       <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
