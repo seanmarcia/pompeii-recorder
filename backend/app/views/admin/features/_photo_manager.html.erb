@@ -1,0 +1,61 @@
+<% # The Field Photos section, framed. The whole section lives inside the
+   # "photo-manager" Turbo Frame: the toggle navigates the frame (advance
+   # keeps ?manage=1 in the address bar, so manage mode stays shareable and
+   # refreshable), and the hide/restore streams replace it in place —
+   # no full reload, no scroll jump (issue #76). %>
+<% photo_items = feature.photo_items %>
+<%= turbo_frame_tag "photo-manager" do %>
+  <section class="sheet-section">
+    <div class="section-head">
+      <span class="section-num"><%= format("%02d", section_number) %></span>
+      <h3>Field Photos (<%= photo_items.size %>)</h3>
+      <% if photo_items.any? %>
+        <%= link_to (manage_photos ? "Done" : "Manage photos"),
+                    admin_feature_path(feature.sheet, manage: manage_photos ? nil : "1"),
+                    class: "btn btn-outline manage-photos-toggle",
+                    data: { turbo_action: "advance" } %>
+      <% end %>
+    </div>
+    <% if photo_items.any? %>
+      <ul class="photo-grid">
+        <% photo_items.each do |item| %>
+          <li class="<%= "photo-hidden" if item[:hidden] %>">
+            <% if item[:attachment] %>
+              <%= link_to url_for(item[:attachment]), target: "_blank", rel: "noopener" do %>
+                <%= image_tag item[:attachment], alt: item[:name], loading: "lazy", **photo_dimension_attributes(item[:attachment]) %>
+              <% end %>
+            <% else %>
+              <div class="photo-missing"><span>No image on file</span></div>
+            <% end %>
+            <% if manage_photos && item[:photo_id] %>
+              <% if item[:hidden] %>
+                <%= button_to restore_photo_admin_feature_path(feature.sheet),
+                              params: { photo_id: item[:photo_id], manage: "1" },
+                              class: "photo-hide-btn restore", title: "Restore this photo",
+                              "aria-label": "Restore #{item[:name]}" do %>
+                  <%= lucide_icon "eye", size: 15 %>
+                <% end %>
+              <% else %>
+                <%= button_to hide_photo_admin_feature_path(feature.sheet),
+                              params: { photo_id: item[:photo_id], manage: "1" },
+                              class: "photo-hide-btn", title: "Hide this photo from all surfaces",
+                              "aria-label": "Hide #{item[:name]}" do %>
+                  <%= lucide_icon "eye-off", size: 15 %>
+                <% end %>
+              <% end %>
+            <% end %>
+            <span title="<%= item[:name] %>"><%= item[:name] %></span>
+            <% if item[:hidden] %>
+              <span class="hidden-badge">Hidden</span>
+              <span class="hidden-meta">
+                <%= item[:hidden_by] %> · <%= item[:hidden_at]&.strftime("%b %-d, %Y") %>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="none">No photos recorded.</p>
+    <% end %>
+  </section>
+<% end %>

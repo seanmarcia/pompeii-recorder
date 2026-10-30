@@ -72,29 +72,72 @@ module Admin
 
     # Admin photo visibility: hiding flips the wrapper row's display state
     # and every master read path stops serving it — the bytes stay (issue
-    # #66). The flash-and-redirect follows the approve/reject pattern; the
-    # manage-mode param rides along so the admin lands back on the controls.
+    # #66). Turbo requests get an in-place stream: the flash updates where
+    # it stands and the photo-manager frame is replaced, so nothing reloads
+    # and the scroll position survives (issue #76). Plain HTML keeps the
+    # flash-and-redirect of approve/reject.
     def hide_photo
       photo = @feature.feature_photos.find(params[:photo_id])
       photo.update!(hidden: true, hidden_at: Time.current, hidden_by: current_user)
-      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
-                  notice: "Photo \"#{photo.filename}\" hidden — it leaves the master sheet, export, and field app; the review comparison keeps it annotated."
+      respond_photo_change(photo,
+                           notice: "Photo \"#{photo.filename}\" hidden — it leaves the master sheet, export, and field app; the review comparison keeps it annotated.")
     rescue ActiveRecord::RecordNotFound
-      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
-                  alert: "Photo not found on this sheet."
+      respond_photo_miss
     end
 
     def restore_photo
       photo = @feature.feature_photos.find(params[:photo_id])
       photo.update!(hidden: false, hidden_at: nil, hidden_by_id: nil)
-      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
-                  notice: "Photo \"#{photo.filename}\" restored to the master sheet."
+      respond_photo_change(photo, notice: "Photo \"#{photo.filename}\" restored to the master sheet.")
     rescue ActiveRecord::RecordNotFound
-      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
-                  alert: "Photo not found on this sheet."
+      respond_photo_miss
     end
 
     private
+
+    # Success path: stream replaces the photo-manager frame and reports
+    # through the layout's #admin-flash container; HTML redirects back to
+    # the controls with the manage-mode param preserved.
+    def respond_photo_change(photo, notice:)
+      respond_to do |format|
+        format.turbo_stream do
+          flash.now[:notice] = notice
+          refresh_photo_state
+          render turbo_stream: photo_manager_stream
+        end
+        format.html { redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence), notice: notice }
+      end
+    end
+
+    def respond_photo_miss
+      respond_to do |format|
+        format.turbo_stream do
+          flash.now[:alert] = "Photo not found on this sheet."
+          refresh_photo_state
+          render turbo_stream: photo_manager_stream
+        end
+        format.html { redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence), alert: "Photo not found on this sheet." }
+      end
+    end
+
+    # The show request eager-loads feature_photos (with_photo_files), so the
+    # loaded target can carry the pre-toggle state into the stream's frame
+    # render. Reset it: the next read re-queries the committed state.
+    def refresh_photo_state
+      @feature.feature_photos.reset
+    end
+
+    # Both streams carry the same two operations: report in place, then
+    # swap the frame for a fresh render of the section.
+    def photo_manager_stream
+      [
+        turbo_stream.update("admin-flash", partial: "admin/shared/flash"),
+        turbo_stream.replace("photo-manager",
+                             partial: "photo_manager",
+                             locals: { feature: @feature, manage_photos: params[:manage].present?,
+                                       section_number: Submission::EDITABLE_FIELDS.size + 1 })
+      ]
+    end
 
     def set_feature
       @feature = Feature.with_photo_files.find_by!(sheet: params[:sheet])

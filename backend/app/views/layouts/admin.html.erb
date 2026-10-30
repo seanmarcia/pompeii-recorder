@@ -208,8 +208,9 @@
       color: var(--text-muted);
     }
   </style>
+  <%= javascript_importmap_tags %>
 </head>
-<body>
+<body <%= yield(:body_attributes) %>>
   <header class="admin-header">
     <a href="/admin" class="brand">
       <div class="brand-icon">&#9928;</div>
@@ -223,7 +224,7 @@
         <span style="font-size: 0.85rem; color: var(--text-muted); margin-right: 0.5rem;">
           Signed in as <strong style="color: var(--accent);"><%= current_user.display_name %></strong>
         </span>
-        <a href="/admin/export_master" class="btn btn-outline" title="Export the complete verified Pompeii features master JSON file">
+        <a href="/admin/export_master" class="btn btn-outline" title="Export the complete verified Pompeii features master JSON file" data-turbo="false">
           <span>&#8681;</span> Master JSON
         </a>
         <%= link_to "Master Sheets", admin_features_path, class: "btn btn-outline" %>
@@ -240,12 +241,16 @@
   </header>
 
   <main class="admin-main">
-    <% if notice %>
-      <div class="flash flash-notice"><%= notice %></div>
-    <% end %>
-    <% if alert %>
-      <div class="flash flash-alert"><%= alert %></div>
-    <% end %>
+    <% # The wrapper is always rendered so Turbo Streams can update the flash
+       # in place (photo hide/restore — issue #76). %>
+    <div id="admin-flash">
+      <% if notice %>
+        <div class="flash flash-notice"><%= notice %></div>
+      <% end %>
+      <% if alert %>
+        <div class="flash flash-alert"><%= alert %></div>
+      <% end %>
+    </div>
 
     <%= yield %>
   </main>

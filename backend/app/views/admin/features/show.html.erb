@@ -93,7 +93,7 @@
   }
   .photo-hide-btn.restore { background: var(--terracotta); }
   .photo-hide-btn:hover { background: var(--terracotta); }
-  .manage-photos-link { font-size: 0.85rem; font-weight: 600; }
+  .manage-photos-toggle { font-size: 0.85rem; margin-left: auto; }
 
   .history { list-style: none; }
   .history li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.7rem 0; border-bottom: 1px solid #eadfca; }
@@ -171,58 +171,11 @@
     </section>
   <% end %>
 
-  <% photo_items = @feature.photo_items %>
-  <section class="sheet-section">
-    <div class="section-head">
-      <span class="section-num"><%= format("%02d", section_count + 1) %></span>
-      <h3>Field Photos (<%= photo_items.size %>)</h3>
-      <% if photo_items.any? %>
-        <% # Manage mode is a server-rendered toggle, not JS: the link flips
-           # the param, hide/restore POSTs redirect back with it preserved.
-           %>
-        <%= link_to (@manage_photos ? "Done" : "Manage photos"),
-                    admin_feature_path(@feature.sheet, manage: @manage_photos ? nil : "1"),
-                    class: "manage-photos-link", style: "margin-left: auto;" %>
-      <% end %>
-    </div>
-    <% if photo_items.any? %>
-      <ul class="photo-grid">
-        <% photo_items.each do |item| %>
-          <li class="<%= "photo-hidden" if item[:hidden] %>">
-            <% if item[:attachment] %>
-              <%= link_to url_for(item[:attachment]), target: "_blank", rel: "noopener" do %>
-                <%= image_tag item[:attachment], alt: item[:name], loading: "lazy", **photo_dimension_attributes(item[:attachment]) %>
-              <% end %>
-            <% else %>
-              <div class="photo-missing"><span>No image on file</span></div>
-            <% end %>
-            <% if @manage_photos && item[:photo_id] %>
-              <% if item[:hidden] %>
-                <%= button_to "↺", restore_photo_admin_feature_path(@feature.sheet),
-                              params: { photo_id: item[:photo_id], manage: "1" },
-                              class: "photo-hide-btn restore", title: "Restore this photo",
-                              "aria-label": "Restore #{item[:name]}" %>
-              <% else %>
-                <%= button_to "🚫", hide_photo_admin_feature_path(@feature.sheet),
-                              params: { photo_id: item[:photo_id], manage: "1" },
-                              class: "photo-hide-btn", title: "Hide this photo from all surfaces",
-                              "aria-label": "Hide #{item[:name]}" %>
-              <% end %>
-            <% end %>
-            <span title="<%= item[:name] %>"><%= item[:name] %></span>
-            <% if item[:hidden] %>
-              <span class="hidden-badge">Hidden</span>
-              <span class="hidden-meta">
-                <%= item[:hidden_by] %> · <%= item[:hidden_at]&.strftime("%b %-d, %Y") %>
-              </span>
-            <% end %>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <p class="none">No photos recorded.</p>
-    <% end %>
-  </section>
+  <% # section_number: the Field Photos section follows the sheet sections.
+     # Photo controls live in the photo-manager frame (issue #76). %>
+  <%= render "photo_manager", feature: @feature,
+                              manage_photos: @manage_photos,
+                              section_number: section_count + 1 %>
 
   <section class="sheet-section">
     <div class="section-head">
