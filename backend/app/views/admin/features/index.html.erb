@@ -94,7 +94,7 @@
 
 <%= form_with url: admin_features_path, method: :get, class: "search-card", id: "catalog-search",
               data: { controller: "auto-submit", turbo_frame: "catalog-results", turbo_action: "replace",
-                      action: { input: "auto-submit#input", change: "auto-submit#change" } } do |form| %>
+                      action: "input->auto-submit#input change->auto-submit#change submit->auto-submit#cancelDebounce" } do |form| %>
   <div class="search-row">
     <div class="search-input-wrap">
       <%= form.search_field :q, value: @query, class: "search-input", autofocus: @query.blank?,

@@ -10,7 +10,7 @@
   <span>
     <strong><%= number_with_delimiter(@total) %></strong> <%= @total == 1 ? "sheet" : "sheets" %>
     <%= filtered ? "match" : "in the catalog" %>
-    <% if filtered %><%= link_to "Clear search", admin_features_path, class: "clear-link" %><% end %>
+    <%= filtered ? link_to("Clear search", admin_features_path, class: "clear-link", data: { turbo_frame: "_top" }) : nil %>
   </span>
   <% if @total > Admin::FeaturesController::PAGE_SIZE %>
     <span>Showing <%= (@page - 1) * Admin::FeaturesController::PAGE_SIZE + 1 %>–<%= [ @page * Admin::FeaturesController::PAGE_SIZE, @total ].min %></span>
@@ -37,7 +37,7 @@
             <td><span class="sheet-tag"><%= mark.(feature.sheet) %></span></td>
             <td><span class="loc"><%= location.any? ? location.join(".") : content_tag(:span, "—", class: "loc-empty") %></span></td>
             <td>
-              <%= link_to url, class: "room-title" do %>
+              <%= link_to url, class: "room-title", data: { turbo_frame: "_top" } do %>
                 <%= feature.space_number.present? || feature.structure_id.present? ? mark.(feature.space_number.presence || feature.structure_id) : content_tag(:span, "Untitled sheet", class: "muted") %>
               <% end %>
               <% if feature.space_number.present? && feature.structure_id.present? %>
@@ -67,23 +67,25 @@
   <% else %>
     <div class="empty-state">
       <strong>No matching sheets</strong>
-      Try fewer words, check the spelling, or <%= link_to "clear the search", admin_features_path, class: "clear-link" %>.
+      Try fewer words, check the spelling, or <%= link_to "clear the search", admin_features_path, class: "clear-link", data: { turbo_frame: "_top" } %>.
     </div>
   <% end %>
 </div>
 
 <% if @page_count > 1 %>
   <nav class="pager" aria-label="Catalog pages">
-    <% if @page > 1 %><%= link_to "← Prev", admin_features_path(link_params.(page: @page - 1)) %><% end %>
+    <% # advance: the frame navigation pushes history, so Back works between
+       # result pages. Everything else about the search uses replace. %>
+    <% if @page > 1 %><%= link_to "← Prev", admin_features_path(link_params.(page: @page - 1)), data: { turbo_action: "advance" } %><% end %>
     <% pages = ([ 1, @page_count ] + ((@page - 2)..(@page + 2)).to_a).select { |n| n.between?(1, @page_count) }.uniq.sort %>
     <% pages.each_with_index do |n, i| %>
       <% if i > 0 && n - pages[i - 1] > 1 %><span class="gap">…</span><% end %>
       <% if n == @page %>
         <span class="current" aria-current="page"><%= n %></span>
       <% else %>
-        <%= link_to n, admin_features_path(link_params.(page: n)) %>
+        <%= link_to n, admin_features_path(link_params.(page: n)), data: { turbo_action: "advance" } %>
       <% end %>
     <% end %>
-    <% if @page < @page_count %><%= link_to "Next →", admin_features_path(link_params.(page: @page + 1)) %><% end %>
+    <% if @page < @page_count %><%= link_to "Next →", admin_features_path(link_params.(page: @page + 1)), data: { turbo_action: "advance" } %><% end %>
   </nav>
 <% end %>

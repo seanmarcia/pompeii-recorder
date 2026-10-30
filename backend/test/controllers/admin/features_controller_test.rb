@@ -100,16 +100,28 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_select "turbo-frame#catalog-results .catalog-table"
     assert_select "form#catalog-search[data-turbo-frame='catalog-results']"
     assert_select "form#catalog-search[data-controller='auto-submit']"
+    assert_select "form#catalog-search[data-action*='input->auto-submit#input']", { count: 1 },
+                  "the action must be the Stimulus string form, not a nested hash (serializes to JSON)"
     # Turbo drives the page again — no opt-out, no bespoke script.
     assert_select "body[data-turbo='false']", { count: 0 }, "the opt-out comes off once the search is Hotwired"
     assert_select "body script", { count: 0 }, "behavior lives in Stimulus, not inline script"
   end
 
-  test "the pager renders inside the results frame" do
+  test "the pager renders inside the results frame with advance actions" do
     51.times { |index| Feature.create!(sheet: "pager-#{index}") }
     get admin_features_path, params: { q: "pager-", page: 1 }
 
     assert_select "turbo-frame#catalog-results .pager a", text: /2/
+    assert_select "turbo-frame#catalog-results .pager a[data-turbo-action='advance']", { count: 2 },
+                  "page links and Next push history so Back works between pages"
+  end
+
+  test "in-page links that leave the catalog target the top frame" do
+    Feature.create!(sheet: "topframe-1", space_number: "Top frame target")
+    get admin_features_path, params: { q: "topframe-" }
+
+    assert_select "turbo-frame#catalog-results a.room-title[data-turbo-frame='_top']", count: 1
+    assert_select "turbo-frame#catalog-results a.clear-link[data-turbo-frame='_top']", count: 1
   end
 
   test "unknown master sheet returns not found" do
