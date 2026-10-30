@@ -377,6 +377,28 @@ class SubmissionTest < ActiveSupport::TestCase
     assert sub.photos.attached?, "the submission keeps its evidence"
   end
 
+  test "a failure after the merge writes rolls the whole unit of work back" do
+    feat = Feature.create!(sheet: "533", description: "Original")
+    sub = submit("SHEET" => "533", "DESCRIPTION" => "Changed", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(io: StringIO.new("mid-merge bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
+
+    # Fail at the LAST write of the unit of work. By then the field merge,
+    # the catalog write, the sync's wrapper rows, and the attachment have
+    # all been written inside the transaction — the rollback must undo all
+    # of them, leaving the submission untouched and the sheet unchanged.
+    def sub.save!
+      raise "boom"
+    end
+
+    assert_raises(RuntimeError) { sub.approve! }
+
+    assert_equal "pending", sub.reload.status
+    assert_equal [], feat.reload.photos, "the merge's catalog write rolled back"
+    assert_empty feat.reload.feature_photos, "the sync's wrapper rows rolled back"
+    assert_equal "Original", feat.reload.description, "the field merge rolled back"
+    assert sub.photos.attached?, "the submission keeps its evidence"
+  end
+
   test "photo review marks a blob-excluded card as dropped by the reviewer" do
     Feature.create!(sheet: "532")
     sub = submit("SHEET" => "532", "photos" => [ "IMG_1.jpg", "IMG_2.jpg" ])
