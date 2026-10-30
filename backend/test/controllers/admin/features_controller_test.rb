@@ -200,7 +200,8 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "turbo-frame#photo-manager"
     assert_select "turbo-frame#photo-manager a.btn-outline", text: /Manage photos/
-    assert_select "turbo-frame#photo-manager a.btn-outline", text: /Manage photos/
+    assert_select "a.manage-photos-toggle[data-turbo-action='advance']", { count: 1 },
+                  "advance keeps ?manage=1 in the address bar so manage mode stays shareable"
     assert_select ".manage-photos-link", { count: 0 }, "the old plain link is gone"
   end
 

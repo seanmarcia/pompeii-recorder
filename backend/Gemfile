@@ -14,6 +14,9 @@ gem "importmap-rails"
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
+# Lucide SVG icons for the admin photo controls (issue #76 — pinned to the
+# version trialed and reverted 2026-10-30)
+gem "lucide-rails", "= 0.7.4"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
 # Enable Cross-Origin Resource Sharing (CORS) for frontend React app
@@ -65,5 +68,3 @@ group :development do
   # the ctran `annotate` gem, which caps activerecord < 8.0.
   gem "annotaterb"
 end
-
-gem "lucide-rails", "= 0.7.4"
