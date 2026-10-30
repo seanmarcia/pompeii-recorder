@@ -170,11 +170,19 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     # The dimmed tile stays in place with its own restore control: the same
     # control reversed, so a click target never moves.
     assert_select ".photo-grid li.photo-hidden form[action*='restore_photo']", count: 1
+
+    # The dimmed state and badge render in every mode; only the controls
+    # are gated behind manage mode.
+    get admin_feature_path(@feature.sheet)
+
+    assert_select ".photo-grid li.photo-hidden", count: 1
+    assert_select ".photo-grid .hidden-badge", text: "Hidden"
+    assert_select ".photo-grid form", count: 0
   end
 
   test "restore unhides a photo and clears the hide state" do
     wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
-    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin, hide_reason: "blurry scan")
 
     post restore_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id, manage: "1" }
 
@@ -182,6 +190,15 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_not wrapper.reload.hidden?, "restore is unconditional: it just unhides the row"
     assert_nil wrapper.hidden_at
     assert_nil wrapper.hidden_by_id
+    assert_nil wrapper.hide_reason
+  end
+
+  test "hiding an unknown photo id redirects with an alert and hides nothing" do
+    post hide_photo_admin_feature_path(@feature.sheet), params: { photo_id: -1, manage: "1" }
+
+    assert_redirected_to admin_feature_path(@feature.sheet, manage: "1")
+    assert flash[:alert].present?
+    assert_equal 0, FeaturePhoto.where(hidden: true).count
   end
 
   test "hide and restore require admin authentication" do
@@ -194,5 +211,17 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
 
     post restore_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id }
     assert_redirected_to admin_login_path
+  end
+
+  test "a signed-in non-admin cannot hide or restore either" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+    User.create!(username: "field-worker", email: "field-worker@example.org",
+                 password: "test-password", role: "recorder")
+    delete admin_logout_path
+    post admin_login_path, params: { login: "field-worker", password: "test-password" }
+
+    post hide_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id }
+    assert_redirected_to admin_login_path
+    assert_not wrapper.reload.hidden?
   end
 end

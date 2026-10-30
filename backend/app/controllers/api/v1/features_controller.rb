@@ -14,8 +14,10 @@ module Api
           if params[:download].present?
             # The file export keeps the pompeiifd schema: photo names only,
             # so the file stays host-independent and re-importable. Hidden
-            # master photos leave the name list (issue #66).
-            features.map(&:as_json_pompeii_export)
+            # master photos leave the name list (issue #66); the include
+            # keeps export_photo_names's wrapper pairing from querying
+            # per feature.
+            features.includes(:feature_photos).map(&:as_json_pompeii_export)
           else
             features.with_photo_files.map { |feature| feature_json(feature) }
           end

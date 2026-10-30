@@ -79,7 +79,7 @@ module Admin
       photo.update!(hidden: true, hidden_at: Time.current, hidden_by: current_user,
                     hide_reason: params[:hide_reason].presence)
       redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
-                  notice: "Photo \"#{photo.filename}\" hidden — removed from the master sheet, review comparison, export, and field app."
+                  notice: "Photo \"#{photo.filename}\" hidden — it leaves the master sheet, export, and field app; the review comparison keeps it annotated."
     rescue ActiveRecord::RecordNotFound
       redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
                   alert: "Photo not found on this sheet."

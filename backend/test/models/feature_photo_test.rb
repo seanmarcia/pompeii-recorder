@@ -62,6 +62,26 @@ class FeaturePhotoTest < ActiveSupport::TestCase
     assert_equal [ "IMG_1.jpg" ], feat.feature_photos.hidden.order(:filename).map(&:filename)
   end
 
+  test "approval still pairs bytes with a hidden wrapper — hiding is display state" do
+    # Merge logic is deliberately unchanged (issue #66): an approved upload
+    # pairs with the sheet's wrapper row by name even when that row is
+    # hidden. The annotation on the review page is what keeps the reviewer
+    # informed; unhiding later reveals the merged bytes.
+    feat = Feature.create!(sheet: "615", photos: [ "IMG_1.jpg" ])
+    feat.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+    sub = submit("SHEET" => "615", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "IMG_1.jpg", content_type: "image/jpeg"
+    )
+
+    sub.approve!
+
+    wrapper = feat.reload.feature_photos.find_by!(filename: "IMG_1.jpg")
+    assert wrapper.file.attached?, "the approved bytes land on the sheet's wrapper row"
+    assert wrapper.hidden?, "hiding survives the merge; unhiding reveals the photo again"
+  end
+
   test "a wrapper-less catalog name is created and served when a submission re-sends it" do
     # Fresh-db state: the import writes photos_data in bulk, bypassing the
     # sync, so the catalog has names with no wrapper rows yet.
