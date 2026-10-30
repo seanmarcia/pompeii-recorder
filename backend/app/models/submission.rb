@@ -339,14 +339,13 @@ class Submission < ApplicationRecord
       # entries. Excluded names never join, byte-carrying or not.
       current_photos = feat.photos
       proposed_names = (payload["photos"] || []).map(&:to_s)
-      carried_names = photos.map { |p| p.filename.to_s }
       new_entries = proposed_names.flat_map do |name|
         carriers = photos.select { |p| p.filename.to_s == name }
         if carriers.any?
           fillable = FeaturePhoto.where(feature_id: feat.id, filename: name)
                                  .count { |wrapper| !wrapper.file.attached? }
           [ name ] * [ carriers.length - fillable, 0 ].max
-        elsif current_photos.include?(name) || carried_names.include?(name)
+        elsif current_photos.include?(name)
           []
         else
           [ name ]
