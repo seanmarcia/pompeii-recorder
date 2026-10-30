@@ -51,8 +51,8 @@ module Api
       end
 
       def photos_payload(feature)
-        feature.photos.map do |name|
-          attachment = feature.field_photo_for(name)
+        feature.photos.map(&:to_s).zip(feature.photo_wrappers_per_entry).map do |name, wrapper|
+          attachment = wrapper&.file_attachment
           attachment ? url_for(attachment) : name
         end
       end

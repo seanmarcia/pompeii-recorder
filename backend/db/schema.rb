@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_29_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_091119) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -90,6 +90,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_000001) do
   create_table "submissions", force: :cascade do |t|
     t.string "action_type", default: "create_new", null: false
     t.datetime "created_at", null: false
+    t.text "excluded_photo_blobs"
     t.text "payload_data", null: false
     t.datetime "reviewed_at"
     t.text "reviewer_notes"

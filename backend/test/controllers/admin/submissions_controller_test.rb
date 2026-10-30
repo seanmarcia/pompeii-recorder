@@ -231,10 +231,12 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
       "both matching photos link to their master-sheet wrappers"
   end
 
-  # Issue #37: two names in one submission carrying the same bytes — the
-  # " (1)" copy-suffix re-upload — attach once. One image per name is not the
-  # bar here: the bytes are the same photo, so one attachment row.
-  test "approve attaches byte-identical blobs under two names once" do
+  # Issue #37's re-upload scenario, under issue #65's rules: two names in
+  # one submission carrying the same bytes — the " (1)" copy-suffix
+  # re-upload. The first attachment's bytes are new to the sheet and join
+  # it; the second is byte-identical to what the sheet now serves and joins
+  # nothing: no second row, no placeholder entry.
+  test "approve keeps byte-identical blobs under two names to one row" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "portrait_test (1).jpg" ] }
     @submission.save!
     [ "portrait_test.jpg", "portrait_test (1).jpg" ].each do |name|
@@ -248,11 +250,10 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
     feat = Feature.find_by!(sheet: "8888")
-    assert_equal [ "portrait_test.jpg", "portrait_test (1).jpg" ], feat.photos, "names still merge"
-    wrappers = feat.feature_photos.index_by(&:filename)
-    assert wrappers["portrait_test.jpg"].file.attached?
-    assert_not wrappers["portrait_test (1).jpg"].file.attached?,
-               "one attachment for one file's bytes: the copy-name's wrapper stays file-less"
+    assert_equal [ "portrait_test.jpg" ], feat.photos, "the copy-name joins no entry"
+    assert_equal 1, feat.feature_photos.count
+    assert feat.feature_photos.first.file.attached?
+    assert_equal @submission.reload.photos.count, 2, "the submission keeps its evidence"
   end
 
   # Issue #37: the reviewer's per-photo selection rides the approve POST.
@@ -280,6 +281,28 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     wrapper = feat.feature_photos.find_by!(filename: "portrait_test.jpg")
     assert_equal [ portrait_blob_id ], [ wrapper.file.blob_id ]
     assert_equal [ "portrait_test.jpg" ], @submission.reload.payload["photos"]
+    assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
+  end
+
+  test "approve with a blob-keyed exclusion drops that photo only" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
+    @submission.save!
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.attach(io: StringIO.new("second photo bytes"), filename: "second.jpg", content_type: "image/jpeg")
+    second_blob_id = @submission.reload.photos.find { |p| p.filename.to_s == "second.jpg" }.blob_id
+
+    post "/admin/submissions/#{@submission.id}/approve", params: {
+      exclude_photos: [ "blob:#{second_blob_id}" ].to_json
+    }
+
+    assert_redirected_to admin_submission_path(@submission)
+    assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
+    feat = Feature.find_by!(sheet: "8888")
+    assert_equal [ "portrait_test.jpg" ], feat.photos, "the excluded blob joins nothing; the other photo still does"
+    assert_equal [ second_blob_id ], @submission.reload.excluded_photo_blob_ids, "the exclusion persists on the submission"
     assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
   end
 
@@ -313,21 +336,24 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".compare-sheet .compare-col-head", text: "On the sheet now 2 photos"
     assert_select ".compare-proposed .compare-col-head", text: "Proposed by this submission 3 photos · 2 already on sheet"
-    # The selection tally counts only the photos the reviewer can decide on:
-    # flagged duplicates are no-ops and get no tally line item.
+    # The selection tally counts the photos the reviewer can decide on: the
+    # fresh name only. The filename echo and the byte-identical re-upload
+    # are no-ops — the sheet already displays that name and those bytes —
+    # and get no control.
     assert_select "#proposed-selection-summary", text: "1 included on approval"
-    # The sheet's column renders one box per name through field_photo_for:
+    # The sheet's column renders one box per name through the wrapper rows:
     # the linked name shows its image, the text-only name a placeholder.
     assert_select ".compare-sheet .photo-box img", count: 1
     assert_select ".compare-sheet .photo-box .photo-missing", count: 1
     # Proposed: three boxes; the filename echo and the byte-identical
-    # re-upload are flagged, the fresh name gets an include control.
+    # re-upload are flagged and uncontrollable, the fresh name gets an
+    # include control.
     assert_select ".compare-proposed .photo-box", count: 3
     assert_select ".photo-flag", text: "image with name already on sheet"
     assert_select ".photo-flag", text: "identical image already on sheet"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
-    assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
-    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
+    assert_select "input[type=checkbox][data-photo-key='name:portrait_test.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-key^='blob:']", count: 0
     assert_select "input[name='exclude_photos']"
     # The control's copy names the destination and the trigger: an unchecked
     # box drops the photo at approval time.
@@ -343,7 +369,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-col-head", text: "On the sheet now", count: 0
     assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
     assert_select "#proposed-selection-summary", text: "1 included on approval"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
+    assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
   end
 
   test "read-only review shows the comparison without selection controls" do

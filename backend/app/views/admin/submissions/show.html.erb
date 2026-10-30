@@ -489,8 +489,8 @@
                 </span>
               </div>
               <% # A live tally of the reviewer's decision — hidden when there is
-                 # nothing to decide (flagged duplicates, read-only, reviewed). %>
-              <% decision_count = (@submission.status == "pending" && !@read_only && @submission.payload["photos"].is_a?(Array)) ? proposed_items.count { |i| !i[:name_on_sheet] && !i[:bytes_on_sheet] } : 0 %>
+                 # nothing to decide (read-only, reviewed, no selectable cards). %>
+              <% decision_count = (@submission.status == "pending" && !@read_only && @submission.payload["photos"].is_a?(Array)) ? proposed_items.count { |i| i[:own_bytes] ? (!i[:bytes_on_sheet] && !i[:dup_of_proposed]) : !i[:name_on_sheet] } : 0 %>
               <% if decision_count > 0 %>
                 <p class="compare-selection" id="proposed-selection-summary"><%= decision_count %> included on approval</p>
               <% end %>
@@ -498,10 +498,18 @@
                 <% proposed_items.each do |item| %>
                   <% # Controls only for a payload the merge will actually read:
                      # a legacy submission without a photos key never merges
-                     # its attachment names, so they are display-only.
+                     # its attachment names, so they are display-only. Three
+                     # kinds of card are no-ops on approval and get no
+                     # checkbox: a pure echo (name already on the sheet, no
+                     # bytes behind it here), a byte-identical duplicate of
+                     # what the sheet serves, and a duplicate of another
+                     # proposed photo (approval joins only the first copy).
+                     # Every other byte-carrying card is a real decision: it
+                     # joins the sheet as its own row on approval, or the
+                     # reviewer declines it.
                      selectable = @submission.status == "pending" && !@read_only &&
                        @submission.payload["photos"].is_a?(Array) &&
-                       !item[:name_on_sheet] && !item[:bytes_on_sheet] %>
+                       (item[:own_bytes] ? (!item[:bytes_on_sheet] && !item[:dup_of_proposed]) : !item[:name_on_sheet]) %>
                   <div class="photo-box">
                     <% if item[:attachment] %>
                       <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
@@ -512,13 +520,23 @@
                       <% if item[:attachment] %><%= number_to_human_size(item[:attachment].byte_size) %> &bull; <% end %>
                       <%= item[:name] %>
                     </div>
-                    <% if item[:name_on_sheet] %>
+                    <% if item[:excluded] %>
+                      <div class="photo-flag">dropped by the reviewer</div>
+                    <% elsif item[:name_on_sheet] %>
                       <div class="photo-flag echo">image with name already on sheet</div>
                     <% elsif item[:bytes_on_sheet] %>
                       <div class="photo-flag">identical image already on sheet</div>
-                    <% elsif selectable %>
+                    <% elsif item[:dup_of_proposed] %>
+                      <div class="photo-flag">identical to another proposed photo</div>
+                    <% end %>
+                    <% if selectable && !item[:excluded] %>
+                      <% # The key names the individual photo: byte-carrying
+                         # cards exclude by attachment blob, name-only
+                         # proposals (no bytes) by name. Two same-named
+                         # photos are two independent decisions.
+                         exclude_key = item[:own_bytes] ? "blob:#{item[:attachment].blob_id}" : "name:#{item[:name]}" %>
                       <label class="pick-row">
-                        <input type="checkbox" data-photo-name="<%= item[:name] %>" checked>
+                        <input type="checkbox" data-photo-key="<%= exclude_key %>" checked>
                         <span>Add to sheet on approval</span>
                       </label>
                     <% end %>
@@ -746,18 +764,20 @@
   })();
 
   // Photo selection sync: the include/exclude checkboxes ride the approve
-  // POST as a JSON list of excluded names. Nothing is written until the
-  // reviewer approves, matching how the rest of the approval state flows.
-  // The column-head tally (N included on approval · M dropped) tracks the
-  // same checkboxes so the decision is visible where the photos live.
+  // POST as a JSON list of excluded photo keys ("blob:<id>" for a
+  // byte-carrying photo, "name:<filename>" for a name-only proposal).
+  // Nothing is written until the reviewer approves, matching how the rest
+  // of the approval state flows. The column-head tally (N included on
+  // approval · M dropped) tracks the same checkboxes so the decision is
+  // visible where the photos live. Each checkbox is its own decision — two
+  // same-named photos exclude independently.
   (function () {
     const excludeField = document.getElementById("exclude-photos-field");
     if (!excludeField) return;
     const summary = document.getElementById("proposed-selection-summary");
-    const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"));
+    const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-key]"));
     const syncExclusions = () => {
-      const excluded = selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoName);
-      excludeField.value = JSON.stringify(excluded);
+      excludeField.value = JSON.stringify(selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoKey));
     };
     const syncSummary = () => {
       if (!summary) return;
@@ -769,7 +789,7 @@
         : `${included} of ${boxes.length} included on approval · ${dropped} dropped`;
     };
     document.addEventListener("change", (event) => {
-      if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-name]")) {
+      if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-key]")) {
         syncExclusions();
         syncSummary();
       }
