@@ -130,7 +130,7 @@ class Feature < ApplicationRecord
   def photo_items
     photos.map(&:to_s).zip(photo_wrappers_per_entry)
           .map { |name, wrapper| { name: name, attachment: wrapper&.file_attachment } }
-          .sort_by { |item| photo_name_key(item[:name]) }
+          .sort_by.with_index { |item, index| [ photo_name_key(item[:name]), index ] }
   end
 
   def as_json_pompeii

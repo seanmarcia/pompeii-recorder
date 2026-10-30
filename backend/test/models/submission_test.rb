@@ -240,9 +240,41 @@ class SubmissionTest < ActiveSupport::TestCase
 
     sub.approve!
 
-    wrapper = feat.reload.feature_photos.find_by!(filename: "dead-ref.jpg")
+    feat.reload
+    assert_equal [ "dead-ref.jpg" ], feat.photos, "the re-sent name fills the placeholder, no second entry"
+    assert_equal 1, feat.feature_photos.count, "one row: the placeholder gains the bytes"
+    wrapper = feat.feature_photos.sole
     assert wrapper.file.attached?, "the dead reference resolves once the bytes arrive"
     assert_equal sub.reload.photos.first.blob_id, wrapper.file.blob_id
+  end
+
+  test "excluding a same-name re-upload declines its row and leaves the sheet untouched" do
+    feat = Feature.create!(sheet: "524", photos: [ "IMG_1.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    sub = submit("SHEET" => "524", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(io: StringIO.new("device B bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
+
+    sub.exclude_photos!([ "IMG_1.jpg" ])
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg" ], feat.photos
+    assert_equal 1, feat.feature_photos.count, "the excluded photo joins no row"
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "excluding a byte-identical re-upload merges no placeholder for its name" do
+    feat = Feature.create!(sheet: "525", photos: [ "IMG_1.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    sub = submit("SHEET" => "525", "photos" => [ "IMG_1.jpg", "IMG_1 (1).jpg" ])
+    sub.photos.attach(io: StringIO.new("same bytes"), filename: "IMG_1 (1).jpg", content_type: "image/jpeg")
+
+    sub.exclude_photos!([ "IMG_1 (1).jpg" ])
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "the excluded name joins the catalog nowhere"
+    assert_equal 1, feat.feature_photos.count
   end
 
   test "exclude_photos! drops the names from the payload and approval skips them" do

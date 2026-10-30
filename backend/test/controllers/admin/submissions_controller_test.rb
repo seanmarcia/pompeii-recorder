@@ -318,21 +318,24 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".compare-sheet .compare-col-head", text: "On the sheet now 2 photos"
     assert_select ".compare-proposed .compare-col-head", text: "Proposed by this submission 3 photos · 2 already on sheet"
-    # The selection tally counts only the photos the reviewer can decide on:
-    # flagged duplicates are no-ops and get no tally line item.
-    assert_select "#proposed-selection-summary", text: "1 included on approval"
-    # The sheet's column renders one box per name through field_photo_for:
+    # The selection tally counts the photos the reviewer can decide on: the
+    # byte-carrying cards (the byte-identical re-upload would join the sheet
+    # as its own row) and the fresh name. Only the pure filename echo is a
+    # no-op without a control.
+    assert_select "#proposed-selection-summary", text: "2 included on approval"
+    # The sheet's column renders one box per name through the wrapper rows:
     # the linked name shows its image, the text-only name a placeholder.
     assert_select ".compare-sheet .photo-box img", count: 1
     assert_select ".compare-sheet .photo-box .photo-missing", count: 1
     # Proposed: three boxes; the filename echo and the byte-identical
-    # re-upload are flagged, the fresh name gets an include control.
+    # re-upload are flagged, and both byte-carrying cards get include
+    # controls — declining them is a real decision now.
     assert_select ".compare-proposed .photo-box", count: 3
     assert_select ".photo-flag", text: "image with name already on sheet"
     assert_select ".photo-flag", text: "identical image already on sheet"
     assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
     assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
-    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']"
     assert_select "input[name='exclude_photos']"
     # The control's copy names the destination and the trigger: an unchecked
     # box drops the photo at approval time.
