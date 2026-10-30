@@ -139,4 +139,60 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     get admin_features_path, params: { q: "f-" }
     assert_equal [ "f-2", "f-3", "f-1" ], sheet_numbers
   end
+
+  test "photo tiles show no per-tile controls until manage mode is on" do
+    get admin_feature_path(@feature.sheet)
+    assert_response :success
+    assert_select ".photo-grid form", count: 0
+
+    get admin_feature_path(@feature.sheet, manage: "1")
+    assert_response :success
+    assert_select ".photo-grid form[action*='hide_photo']", count: 1
+    assert_select ".photo-grid form[action*='restore_photo']", count: 0
+  end
+
+  test "hiding a photo dims it in place with a badge and records who and when" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+
+    post hide_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id, manage: "1" }
+
+    assert_redirected_to admin_feature_path(@feature.sheet, manage: "1")
+    assert flash[:notice].present?, "the hide reports success like approve does"
+    assert_equal true, wrapper.reload.hidden?
+    assert_not_nil wrapper.hidden_at
+    assert_equal @admin.id, wrapper.hidden_by_id
+
+    get admin_feature_path(@feature.sheet, manage: "1")
+
+    assert_select ".photo-grid li.photo-hidden", count: 1
+    assert_select ".photo-grid .hidden-badge", text: "Hidden"
+    assert_select ".photo-grid .hidden-meta", text: /#{Regexp.escape(@admin.display_name)}/
+    # The dimmed tile stays in place with its own restore control: the same
+    # control reversed, so a click target never moves.
+    assert_select ".photo-grid li.photo-hidden form[action*='restore_photo']", count: 1
+  end
+
+  test "restore unhides a photo and clears the hide state" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+
+    post restore_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id, manage: "1" }
+
+    assert_redirected_to admin_feature_path(@feature.sheet, manage: "1")
+    assert_not wrapper.reload.hidden?, "restore is unconditional: it just unhides the row"
+    assert_nil wrapper.hidden_at
+    assert_nil wrapper.hidden_by_id
+  end
+
+  test "hide and restore require admin authentication" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+    delete admin_logout_path
+
+    post hide_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id }
+    assert_redirected_to admin_login_path
+    assert_not wrapper.reload.hidden?
+
+    post restore_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id }
+    assert_redirected_to admin_login_path
+  end
 end

@@ -51,6 +51,17 @@ class FeaturePhotoTest < ActiveSupport::TestCase
     assert sub.reload.photos.attached?, "the submission keeps its own attachment"
   end
 
+  test "photos are visible by default, and visible/hidden split the rows" do
+    feat = Feature.create!(sheet: "614", photos: [ "IMG_1.jpg", "IMG_2.jpg" ])
+    feat.feature_photos.find_by!(filename: "IMG_1.jpg")
+        .update!(hidden: true, hidden_at: Time.current)
+
+    assert_not feat.feature_photos.find_by!(filename: "IMG_2.jpg").hidden?,
+               "newly synced wrappers are visible: hiding is an explicit admin act"
+    assert_equal [ "IMG_2.jpg" ], feat.feature_photos.visible.order(:filename).map(&:filename)
+    assert_equal [ "IMG_1.jpg" ], feat.feature_photos.hidden.order(:filename).map(&:filename)
+  end
+
   test "a wrapper-less catalog name is created and served when a submission re-sends it" do
     # Fresh-db state: the import writes photos_data in bulk, bypassing the
     # sync, so the catalog has names with no wrapper rows yet.

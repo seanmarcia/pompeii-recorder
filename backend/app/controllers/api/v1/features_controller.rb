@@ -13,8 +13,9 @@ module Api
         data =
           if params[:download].present?
             # The file export keeps the pompeiifd schema: photo names only,
-            # so the file stays host-independent and re-importable.
-            features.map(&:as_json_pompeii)
+            # so the file stays host-independent and re-importable. Hidden
+            # master photos leave the name list (issue #66).
+            features.map(&:as_json_pompeii_export)
           else
             features.with_photo_files.map { |feature| feature_json(feature) }
           end
@@ -50,8 +51,12 @@ module Api
         feature.as_json_pompeii.merge("photos" => photos_payload(feature))
       end
 
+      # Hidden master photos leave the payload entirely (issue #66) — hiding
+      # is a master-display concept and the field app only sees the result.
       def photos_payload(feature)
-        feature.photos.map(&:to_s).zip(feature.photo_wrappers_per_entry).map do |name, wrapper|
+        feature.photos.map(&:to_s).zip(feature.photo_wrappers_per_entry)
+               .reject { |_name, wrapper| wrapper&.hidden? }
+               .map do |name, wrapper|
           attachment = wrapper&.file_attachment
           attachment ? url_for(attachment) : name
         end

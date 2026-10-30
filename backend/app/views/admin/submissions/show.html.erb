@@ -472,6 +472,13 @@
                           <div class="photo-missing"><span>No image on file</span></div>
                         <% end %>
                         <div class="photo-caption"><%= item[:name] %></div>
+                        <% # Hidden master photos stay visible here, annotated:
+                           # a reviewer approving a same-named photo deserves
+                           # to know an admin already hid one (issue #66).
+                           %>
+                        <% if item[:hidden] %>
+                          <div class="photo-flag echo">Hidden by <%= item[:hidden_by] || "an admin" %></div>
+                        <% end %>
                       </div>
                     <% end %>
                   </div>

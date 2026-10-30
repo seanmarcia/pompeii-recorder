@@ -2,6 +2,7 @@ module Admin
   class FeaturesController < ApplicationController
     layout "admin"
     before_action :require_admin_login
+    before_action :set_feature, only: [ :show, :hide_photo, :restore_photo ]
 
     PAGE_SIZE = 50
 
@@ -64,12 +65,41 @@ module Admin
     end
 
     def show
-      @feature = Feature.with_photo_files.find_by!(sheet: params[:sheet])
       @values = @feature.as_json_pompeii
       @submissions = Submission.where(target_sheet: @feature.sheet).recent
+      @manage_photos = params[:manage].present?
+    end
+
+    # Admin photo visibility: hiding flips the wrapper row's display state
+    # and every master read path stops serving it — the bytes stay (issue
+    # #66). The flash-and-redirect follows the approve/reject pattern; the
+    # manage-mode param rides along so the admin lands back on the controls.
+    def hide_photo
+      photo = @feature.feature_photos.find(params[:photo_id])
+      photo.update!(hidden: true, hidden_at: Time.current, hidden_by: current_user,
+                    hide_reason: params[:hide_reason].presence)
+      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
+                  notice: "Photo \"#{photo.filename}\" hidden — removed from the master sheet, review comparison, export, and field app."
+    rescue ActiveRecord::RecordNotFound
+      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
+                  alert: "Photo not found on this sheet."
+    end
+
+    def restore_photo
+      photo = @feature.feature_photos.find(params[:photo_id])
+      photo.update!(hidden: false, hidden_at: nil, hidden_by_id: nil, hide_reason: nil)
+      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
+                  notice: "Photo \"#{photo.filename}\" restored to the master sheet."
+    rescue ActiveRecord::RecordNotFound
+      redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
+                  alert: "Photo not found on this sheet."
     end
 
     private
+
+    def set_feature
+      @feature = Feature.with_photo_files.find_by!(sheet: params[:sheet])
+    end
 
     def search_terms(query)
       return [] if query.blank? || query.match?(ADDRESS_PATTERN)

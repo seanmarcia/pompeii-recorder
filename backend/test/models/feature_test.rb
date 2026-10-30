@@ -77,6 +77,31 @@ class FeatureTest < ActiveSupport::TestCase
     assert order.index("img_9.jpg") < order.index("IMG_10.jpg"), "natural sort: 9 before 10"
   end
 
+  test "photo_items marks the paired wrapper's hidden state on each display item" do
+    feat = Feature.create!(sheet: "hidden-items", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    feat.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+
+    items = feat.reload.photo_items
+    assert items.find { |i| i[:name] == "IMG_1.jpg" }[:hidden],
+           "the display item must carry the wrapper's hidden state for the admin surfaces"
+    assert_not items.find { |i| i[:name] == "paper-era.jpg" }[:hidden],
+               "a name with no wrapper row has no hidden state to carry"
+  end
+
+  test "export_photo_names drops names whose every paired wrapper is hidden" do
+    feat = Feature.create!(sheet: "hidden-export",
+                           photos: [ "IMG_1.jpg", "dup.jpg", "dup.jpg", "paper-era.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    attach_master_photo(feat, "dup.jpg")
+    feat.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+    # One of the two dup.jpg wrappers stays visible, so the name survives:
+    # a name leaves the export only when no visible pairing remains.
+    feat.feature_photos.where(filename: "dup.jpg").order(:id).first.update!(hidden: true)
+
+    assert_equal [ "dup.jpg", "paper-era.jpg" ], feat.reload.export_photo_names
+  end
+
   test "as_json_pompeii keeps the export name-uniq'd when the catalog holds duplicates" do
     feat = Feature.create!(sheet: "614", photos: [ "IMG_1.jpg", "IMG_1.jpg", "paper-era.jpg" ])
 

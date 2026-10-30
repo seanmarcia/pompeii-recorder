@@ -99,7 +99,7 @@ module Admin
 
     # GET /admin/export_master
     def export_master
-      data = Feature.ordered.map(&:as_json_pompeii)
+      data = Feature.ordered.map(&:as_json_pompeii_export)
       send_data(
         JSON.pretty_generate(data),
         filename: "features.json",
