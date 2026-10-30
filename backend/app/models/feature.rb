@@ -65,16 +65,25 @@ class Feature < ApplicationRecord
 
   after_save :sync_feature_photos, if: :saved_change_to_photos_data?
 
-  # One wrapper row per photos_data name: create missing, destroy names that
-  # left the catalog. Runs whenever photos_data changes, so every write path
-  # (approval, import, seed) converges without a manual sync step. Blank
-  # entries (null, "") in the catalog get no wrapper: main served them as
-  # placeholders and raised on nothing.
+  # One wrapper row per photos_data entry: create missing, destroy entries
+  # that left the catalog. Runs whenever photos_data changes, so every write
+  # path (approval, import, seed) converges without a manual sync step. A
+  # repeated name is two photos, not one: the k-th occurrence of a name pairs
+  # with the k-th wrapper row for that name (id order), so each duplicate
+  # entry owns its row and its bytes. Blank entries (null, "") in the catalog
+  # get no wrapper: main served them as placeholders and raised on nothing.
   def sync_feature_photos
-    names = photos.map(&:to_s).reject(&:blank?).uniq
-    feature_photos.where.not(filename: names).destroy_all
-    existing = feature_photos.pluck(:filename)
-    (names - existing).each { |name| feature_photos.create!(filename: name) }
+    cursor = Hash.new(0)
+    matched_ids = []
+    create_names = []
+    photos.map(&:to_s).each do |name|
+      next if name.blank?
+      wrapper = (feature_photos.select { |row| row.filename == name }.sort_by(&:id))[cursor[name]]
+      cursor[name] += 1
+      wrapper ? matched_ids << wrapper.id : create_names << name
+    end
+    feature_photos.where.not(id: matched_ids).destroy_all
+    create_names.each { |name| feature_photos.create!(filename: name) }
   end
 
   def photos
@@ -88,13 +97,21 @@ class Feature < ApplicationRecord
     self.photos_data = list.is_a?(Array) ? list.to_json : (list || [].to_json)
   end
 
-  # The photo file serving a name from photos_data, if the photo's bytes
-  # reached the master record. Names that exist only as text — paper-era
-  # names, rejected-submission photos, renamed files — resolve to nothing and
-  # keep their placeholder.
-  def field_photo_for(name)
-    wrapper = feature_photos.detect { |photo| photo.filename == name.to_s }
-    wrapper&.file_attachment
+  # The wrapper row pairing with each photos_data entry, positionally: the
+  # k-th occurrence of a name pairs with the k-th wrapper row for that name
+  # (id order), mirroring sync_feature_photos. Names that exist only as text
+  # — paper-era names, rejected-submission photos, renamed files, or a bulk
+  # import that has not converged yet — pair with nothing.
+  def photo_wrappers_per_entry
+    pools = feature_photos.group_by(&:filename)
+    cursor = Hash.new(0)
+    photos.map do |name|
+      name = name.to_s
+      pool = name.blank? ? [] : pools[name].to_a
+      wrapper = pool.sort_by(&:id)[cursor[name]]
+      cursor[name] += 1
+      wrapper
+    end
   end
 
   # Blob ids and checksums of the bytes the sheet's wrappers carry: the
@@ -104,14 +121,15 @@ class Feature < ApplicationRecord
                   .pluck("active_storage_attachments.blob_id", "active_storage_blobs.checksum")
   end
 
-  # One display item per photos_data name: the attachment serving the name's
-  # bytes, or nil for a text-only name. Admin photo surfaces render one box
-  # per name through this, so attachment-level byte duplicates never
-  # double-render a page — the API resolves photos the same way. Display
-  # order is name-sorted (digit-aware), independent of the stored merge
-  # order, so the same name sits in the same spot everywhere.
+  # One display item per photos_data entry: the paired wrapper's bytes, or
+  # nil for a text-only name. Admin photo surfaces render one box per entry
+  # through this, so a repeated name renders as the two photos it is —
+  # each with its own bytes. Display order is name-sorted (digit-aware),
+  # independent of the stored merge order, so the same name sits in the same
+  # spot everywhere.
   def photo_items
-    photos.map { |name| { name: name.to_s, attachment: field_photo_for(name) } }
+    photos.map(&:to_s).zip(photo_wrappers_per_entry)
+          .map { |name, wrapper| { name: name, attachment: wrapper&.file_attachment } }
           .sort_by { |item| photo_name_key(item[:name]) }
   end
 
@@ -149,7 +167,10 @@ class Feature < ApplicationRecord
       "TIME_COUNT" => time_count,
       "VIDEO_COMMENTS" => video_comments,
       "ARTIST_ID" => artist_id,
-      "photos" => photos
+      # The archival interchange format stays a name list: duplicate display
+      # entries collapse here, nowhere else. The sheet itself may repeat a
+      # name — the export must stay re-importable in the pompeiifd schema.
+      "photos" => photos.uniq
     }
   end
 

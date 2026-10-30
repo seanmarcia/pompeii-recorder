@@ -137,36 +137,34 @@ class SubmissionTest < ActiveSupport::TestCase
     sub.approve!
 
     feat = Feature.find_by(sheet: "512")
+    assert_equal [ "IMG_1.jpg" ], feat.photos, "a re-approval must not re-merge the names"
     assert_equal 1, feat.feature_photos.count
     assert_equal 1, feat.feature_photos.sum { |w| w.file.attached? ? 1 : 0 }
     assert_equal 1, ActiveStorage::Blob.count
   end
 
-  test "a second approval of the same filename never re-serves the tile: the first bytes stay" do
-    a = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
-    b = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
+  test "a second approval of the same filename adds its own tile beside the first" do
+    feat = Feature.create!(sheet: "513", photos: [ "IMG_1.jpg" ])
+    first = attach_master_photo(feat, "IMG_1.jpg")
     # The bytes must differ: two devices photographing under the same
-    # filename. The first approval's bytes serve the tile; the second
-    # submission's bytes attach to no wrapper (the same-name burial) and stay
-    # on the submission as evidence.
-    a.photos.attach(
-      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
-      filename: "IMG_1.jpg", content_type: "image/jpeg"
-    )
+    # filename. The filename is a label, not identity — the second approval's
+    # bytes get their own wrapper row and display alongside the first.
+    b = submit("SHEET" => "513", "photos" => [ "IMG_1.jpg" ])
     b.photos.attach(io: StringIO.new("device B photo bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
 
-    a.approve!
     b.approve!
 
-    feat = Feature.find_by(sheet: "513")
-    assert_equal [ "IMG_1.jpg" ], feat.photos, "the name still merges to one entry"
-    assert_equal 1, feat.feature_photos.count, "one tile per filename: one wrapper, one file"
-    assert_equal a.reload.photos.first.blob_id, feat.feature_photos.first.file.blob_id,
-                 "the tile keeps the first approval's bytes"
-    assert b.reload.photos.attached?, "the second device's photo stays evidence on its submission"
+    feat.reload
+    assert_equal [ "IMG_1.jpg", "IMG_1.jpg" ], feat.photos, "the catalog may hold the name twice"
+    assert_equal 2, feat.feature_photos.count, "each approval's bytes get their own row"
+    wrappers = feat.feature_photos.order(:id).to_a
+    assert_equal first.file.blob_id, wrappers[0].file.blob_id, "the first tile keeps its bytes"
+    assert_equal b.reload.photos.first.blob_id, wrappers[1].file.blob_id,
+                 "the second tile serves the second approval's bytes"
+    assert b.photos.attached?, "the submission keeps its evidence"
   end
 
-  test "a byte-identical re-upload under a new filename merges the name but never the bytes" do
+  test "a byte-identical re-upload under a new filename merges the name and serves the bytes" do
     feat = Feature.create!(sheet: "515", photos: [ "IMG_1.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")
     sub = submit("SHEET" => "515", "photos" => [ "IMG_1 (1).jpg" ])
@@ -174,14 +172,62 @@ class SubmissionTest < ActiveSupport::TestCase
       io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
       filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
     )
+    blob_count = ActiveStorage::Blob.count
 
     sub.approve!
 
     feat.reload
-    assert_equal [ "IMG_1.jpg", "IMG_1 (1).jpg" ], feat.photos, "the name still merges (additive union)"
+    assert_equal [ "IMG_1.jpg", "IMG_1 (1).jpg" ], feat.photos, "the name merges (additive union)"
     wrapper = feat.feature_photos.find_by!(filename: "IMG_1 (1).jpg")
-    assert_not wrapper.file.attached?, "bytes already on the sheet must not attach again"
+    assert wrapper.file.attached?, "no burial: the re-upload displays even when the bytes already exist"
+    assert_equal sub.reload.photos.first.blob_id, wrapper.file.blob_id,
+                 "the blob is reused, not copied"
+    assert_equal blob_count, ActiveStorage::Blob.count
     assert sub.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "two same-name photos in one submission show one card per blob and approve to two rows" do
+    feat = Feature.create!(sheet: "522", photos: [ "other.jpg" ])
+    sub = submit("SHEET" => "522", "photos" => [ "thumbnail.jpg", "other.jpg" ])
+    # The #94 case: two different-byte files, both named thumbnail.jpg, in one
+    # POST. Intake uniq'd the payload names, both blobs still attached.
+    sub.photos.attach(io: StringIO.new("thumbnail bytes, first device"), filename: "thumbnail.jpg", content_type: "image/jpeg")
+    sub.photos.attach(io: StringIO.new("thumbnail bytes, second device"), filename: "thumbnail.jpg", content_type: "image/jpeg")
+    blob_ids = sub.reload.photos.map(&:blob_id)
+
+    items = sub.photo_review_items
+    thumbnails = items.select { |i| i[:name] == "thumbnail.jpg" }
+    assert_equal 2, thumbnails.length, "one card per blob, not one per name"
+    assert_equal blob_ids.sort, thumbnails.map { |i| i[:attachment].blob_id }.sort,
+                 "each card shows its own bytes"
+    # Decision-first order: the two thumbnail cards (decisions) sort above
+    # the already-on-sheet other.jpg no-op.
+    assert_equal [ "thumbnail.jpg", "thumbnail.jpg", "other.jpg" ], items.map { |i| i[:name] }
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "other.jpg", "thumbnail.jpg", "thumbnail.jpg" ], feat.photos
+    rows = feat.feature_photos.where(filename: "thumbnail.jpg").order(:id).to_a
+    assert_equal 2, rows.length, "each blob lands on its own wrapper row"
+    assert_equal blob_ids.sort, rows.map { |w| w.file.blob_id }.sort
+  end
+
+  test "an edit-flow echo of the sheet's own names adds no duplicate entries" do
+    feat = Feature.create!(sheet: "523", photos: [ "IMG_1.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    original_blob_id = feat.feature_photos.first.file.blob_id
+    # The edit flow echoes the master's photo list back into the payload; only
+    # the newly picked file carries bytes. The echo must not re-add entries.
+    sub = submit("SHEET" => "523", "photos" => [ "IMG_1.jpg", "new.jpg" ])
+    sub.photos.attach(io: StringIO.new("a new photo"), filename: "new.jpg", content_type: "image/jpeg")
+
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "IMG_1.jpg", "new.jpg" ], feat.photos, "the echoed name is not re-added as a second entry"
+    echo_wrapper = feat.feature_photos.find_by!(filename: "IMG_1.jpg")
+    assert_equal original_blob_id, echo_wrapper.file.blob_id, "the echo never touches the served bytes"
   end
 
   test "a name-only placeholder gets its bytes when a submission re-sends that name" do

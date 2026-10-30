@@ -756,7 +756,7 @@
     const summary = document.getElementById("proposed-selection-summary");
     const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"));
     const syncExclusions = () => {
-      const excluded = selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoName);
+      const excluded = [ ...new Set(selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoName)) ];
       excludeField.value = JSON.stringify(excluded);
     };
     const syncSummary = () => {
@@ -770,6 +770,10 @@
     };
     document.addEventListener("change", (event) => {
       if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-name]")) {
+        // A repeated filename is several cards but one decision: the backend
+        // excludes names, not blobs, so same-name checkboxes stay in step.
+        const name = event.target.dataset.photoName;
+        selectionBoxes().forEach((box) => { if (box.dataset.photoName === name) box.checked = event.target.checked; });
         syncExclusions();
         syncSummary();
       }

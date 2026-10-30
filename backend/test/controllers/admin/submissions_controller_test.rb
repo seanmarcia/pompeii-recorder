@@ -231,10 +231,11 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
       "both matching photos link to their master-sheet wrappers"
   end
 
-  # Issue #37: two names in one submission carrying the same bytes — the
-  # " (1)" copy-suffix re-upload — attach once. One image per name is not the
-  # bar here: the bytes are the same photo, so one attachment row.
-  test "approve attaches byte-identical blobs under two names once" do
+  # Issue #37's re-upload scenario, under issue #65's rules: two names in
+  # one submission carrying the same bytes — the " (1)" copy-suffix
+  # re-upload — are two photos. Each name gets its own wrapper row; the
+  # bytes land on both (blob reuse, no byte copy).
+  test "approve attaches byte-identical blobs under two names to their own rows" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "portrait_test (1).jpg" ] }
     @submission.save!
     [ "portrait_test.jpg", "portrait_test (1).jpg" ].each do |name|
@@ -251,8 +252,12 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "portrait_test.jpg", "portrait_test (1).jpg" ], feat.photos, "names still merge"
     wrappers = feat.feature_photos.index_by(&:filename)
     assert wrappers["portrait_test.jpg"].file.attached?
-    assert_not wrappers["portrait_test (1).jpg"].file.attached?,
-               "one attachment for one file's bytes: the copy-name's wrapper stays file-less"
+    assert wrappers["portrait_test (1).jpg"].file.attached?,
+           "no burial: the copy-name's wrapper serves the bytes too"
+    assert_equal @submission.reload.photos.find { |p| p.filename.to_s == "portrait_test.jpg" }.blob_id,
+                 wrappers["portrait_test.jpg"].file.blob_id, "each row reuses its attachment's blob"
+    assert_equal @submission.photos.find { |p| p.filename.to_s == "portrait_test (1).jpg" }.blob_id,
+                 wrappers["portrait_test (1).jpg"].file.blob_id, "each row reuses its attachment's blob"
   end
 
   # Issue #37: the reviewer's per-photo selection rides the approve POST.

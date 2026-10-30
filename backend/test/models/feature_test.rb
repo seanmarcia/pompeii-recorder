@@ -26,7 +26,26 @@ class FeatureTest < ActiveSupport::TestCase
     assert_equal count, feat.reload.feature_photos.count, "an unchanged catalog converges to no new rows"
   end
 
-  test "photo_items returns one display item per photos_data name" do
+  test "duplicate catalog names create one wrapper row per entry" do
+    feat = Feature.create!(sheet: "607", photos: [ "IMG_1.jpg", "IMG_1.jpg", "paper-era.jpg" ])
+
+    assert_equal %w[IMG_1.jpg IMG_1.jpg paper-era.jpg], feat.feature_photos.order(:id).map(&:filename),
+                 "a repeated name is two photos: one row per catalog entry"
+  end
+
+  test "dropping one occurrence of a duplicated name removes exactly one wrapper" do
+    feat = Feature.create!(sheet: "608", photos: [ "IMG_1.jpg", "IMG_1.jpg" ])
+    first = attach_master_photo(feat, "IMG_1.jpg")
+
+    feat.update!(photos: [ "IMG_1.jpg" ])
+
+    wrappers = feat.reload.feature_photos.order(:id).to_a
+    assert_equal 1, wrappers.length
+    assert_equal first.id, wrappers.first.id, "occurrence order decides the survivor"
+    assert wrappers.first.file.attached?, "the surviving wrapper keeps its bytes"
+  end
+
+  test "photo_items returns one display item per catalog entry, duplicates included" do
     feat = Feature.create!(sheet: "602", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")
 
@@ -37,13 +56,15 @@ class FeatureTest < ActiveSupport::TestCase
     assert_nil items[1][:attachment], "a text-only name resolves to nothing"
   end
 
-  test "field_photo_for serves the wrapper's file for a name, and misses the rest" do
-    feat = Feature.create!(sheet: "601", photos: [ "IMG_1.jpg", "paper-era.jpg" ])
+  test "photo_items pairs duplicate entries with their own wrapper rows" do
+    feat = Feature.create!(sheet: "609", photos: [ "IMG_1.jpg", "IMG_1.jpg" ])
     attach_master_photo(feat, "IMG_1.jpg")
 
-    assert_equal "IMG_1.jpg", feat.field_photo_for("IMG_1.jpg").filename.to_s
-    assert_nil feat.field_photo_for("paper-era.jpg"), "a wrapper without bytes resolves to nothing"
-    assert_nil feat.field_photo_for("never-seen.jpg")
+    items = feat.photo_items
+
+    assert_equal [ "IMG_1.jpg", "IMG_1.jpg" ], items.map { |i| i[:name] }
+    assert items[0][:attachment], "the first entry pairs with the wrapper holding bytes"
+    assert_nil items[1][:attachment], "the second entry pairs with the byteless wrapper"
   end
 
   test "photo_items sorts names digit-aware and case-insensitively" do
@@ -54,6 +75,13 @@ class FeatureTest < ActiveSupport::TestCase
     # Digit runs compare numerically, not lexicographically: IMG_9 before IMG_10.
     order = feat.photo_items.map { |i| i[:name] }
     assert order.index("img_9.jpg") < order.index("IMG_10.jpg"), "natural sort: 9 before 10"
+  end
+
+  test "as_json_pompeii keeps the export name-uniq'd when the catalog holds duplicates" do
+    feat = Feature.create!(sheet: "614", photos: [ "IMG_1.jpg", "IMG_1.jpg", "paper-era.jpg" ])
+
+    assert_equal [ "IMG_1.jpg", "paper-era.jpg" ], feat.as_json_pompeii["photos"],
+                 "the archival export stays a name list, deduplicated"
   end
 
   test "photos keeps reading names when photos_data holds junk" do
