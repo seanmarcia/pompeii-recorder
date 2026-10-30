@@ -133,6 +133,13 @@
     height: auto;
     display: block;
   }
+  /* A hidden master photo dims in place here too: same treatment as the
+     master sheet page, so the hidden state is unmistakable at a glance
+     (issue #66). */
+  .photo-box img.photo-hidden {
+    opacity: 0.3;
+    filter: grayscale(0.8);
+  }
   .photo-caption {
     padding: 0.5rem;
     font-size: 0.75rem;
@@ -467,7 +474,7 @@
                     <% @master.photo_items.each do |item| %>
                       <div class="photo-box">
                         <% if item[:attachment] %>
-                          <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]) %>
+                          <%= image_tag item[:attachment], alt: item[:name], **photo_dimension_attributes(item[:attachment]), class: ("photo-hidden" if item[:hidden]) %>
                         <% else %>
                           <div class="photo-missing"><span>No image on file</span></div>
                         <% end %>

@@ -374,6 +374,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     # removed — so approving a fresh photo of the same name is an informed
     # decision. The proposed column's controls are untouched.
     assert_select ".compare-sheet .photo-box img", count: 1
+    assert_select ".compare-sheet .photo-box img.photo-hidden", count: 1
     assert_select ".compare-sheet .photo-flag", text: /Hidden/
     assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
   end
