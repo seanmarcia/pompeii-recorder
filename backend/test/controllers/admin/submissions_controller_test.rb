@@ -284,6 +284,28 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
   end
 
+  test "approve with a blob-keyed exclusion drops that photo only" do
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
+    @submission.save!
+    @submission.photos.attach(
+      io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
+      filename: "portrait_test.jpg", content_type: "image/jpeg"
+    )
+    @submission.photos.attach(io: StringIO.new("second photo bytes"), filename: "second.jpg", content_type: "image/jpeg")
+    second_blob_id = @submission.reload.photos.find { |p| p.filename.to_s == "second.jpg" }.blob_id
+
+    post "/admin/submissions/#{@submission.id}/approve", params: {
+      exclude_photos: [ "blob:#{second_blob_id}" ].to_json
+    }
+
+    assert_redirected_to admin_submission_path(@submission)
+    assert_nil flash[:alert], "approval must not fail: #{flash[:alert]}"
+    feat = Feature.find_by!(sheet: "8888")
+    assert_equal [ "portrait_test.jpg" ], feat.photos, "the excluded blob joins nothing; the other photo still does"
+    assert_equal [ second_blob_id ], @submission.reload.excluded_photo_blob_ids, "the exclusion persists on the submission"
+    assert_equal 2, @submission.photos.count, "the submission keeps its evidence"
+  end
+
   test "approve without excluded photos merges everything" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "portrait_test.jpg", "second.jpg" ] }
     @submission.save!
@@ -329,9 +351,9 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-proposed .photo-box", count: 3
     assert_select ".photo-flag", text: "image with name already on sheet"
     assert_select ".photo-flag", text: "identical image already on sheet"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
-    assert_select "input[type=checkbox][data-photo-name='portrait_test.jpg']", count: 0
-    assert_select "input[type=checkbox][data-photo-name='renamed.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
+    assert_select "input[type=checkbox][data-photo-key='name:portrait_test.jpg']", count: 0
+    assert_select "input[type=checkbox][data-photo-key^='blob:']", count: 0
     assert_select "input[name='exclude_photos']"
     # The control's copy names the destination and the trigger: an unchecked
     # box drops the photo at approval time.
@@ -347,7 +369,7 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".compare-col-head", text: "On the sheet now", count: 0
     assert_select ".compare-col-head", text: "Proposed by this submission 1 photo"
     assert_select "#proposed-selection-summary", text: "1 included on approval"
-    assert_select "input[type=checkbox][data-photo-name='fresh.jpg']"
+    assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
   end
 
   test "read-only review shows the comparison without selection controls" do

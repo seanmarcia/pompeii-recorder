@@ -357,7 +357,27 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal 1, feat.feature_photos.count
   end
 
-  test "excluding the first copy promotes its byte-identical sibling" do
+  test "excluding one of two same-name photos by blob joins the other" do
+    feat = Feature.create!(sheet: "530")
+    sub = submit("SHEET" => "530", "photos" => [ "thumbnail.jpg" ])
+    sub.photos.attach(io: StringIO.new("device A bytes"), filename: "thumbnail.jpg", content_type: "image/jpeg")
+    sub.photos.attach(io: StringIO.new("device B bytes"), filename: "thumbnail.jpg", content_type: "image/jpeg")
+    attachments = sub.reload.photos.order(:id).to_a
+
+    sub.exclude_photos!([ "blob:#{attachments.first.blob_id}" ])
+    sub.approve!
+
+    feat.reload
+    assert_equal [ "thumbnail.jpg" ], feat.photos, "the kept blob's name still merges"
+    assert_equal 1, feat.feature_photos.count
+    assert_equal attachments.second.blob_id, feat.feature_photos.first.file.blob_id,
+                 "the kept blob serves the tile"
+    assert_equal [ attachments.first.blob_id ], sub.reload.excluded_photo_blob_ids,
+                 "the exclusion persists on the submission"
+    assert_equal 2, sub.photos.count, "the submission keeps its evidence"
+  end
+
+  test "excluding a copy kills its byte-identical sibling too" do
     feat = Feature.create!(sheet: "529")
     sub = submit("SHEET" => "529", "photos" => [ "IMG_1.jpg", "IMG_1 (1).jpg" ])
     sub.photos.attach(
@@ -368,14 +388,15 @@ class SubmissionTest < ActiveSupport::TestCase
       io: File.open(Rails.root.join("test/fixtures/files/portrait_test.jpg")),
       filename: "IMG_1 (1).jpg", content_type: "image/jpeg"
     )
+    first = sub.reload.photos.find { |p| p.filename.to_s == "IMG_1.jpg" }
 
-    sub.exclude_photos!([ "IMG_1.jpg" ])
+    sub.exclude_photos!([ "blob:#{first.blob_id}" ])
     sub.approve!
 
     feat.reload
-    assert_equal [ "IMG_1 (1).jpg" ], feat.photos,
-                 "with the first copy gone, the sibling's bytes are new to the sheet and join under its name"
-    assert_equal 1, feat.feature_photos.count
+    assert_equal [], feat.photos, "the excluded copy suppresses its identical sibling: nothing joins"
+    assert_empty feat.feature_photos
+    assert sub.reload.photos.attached?, "the submission keeps its evidence"
   end
 
   test "a placeholder whose re-sent bytes the sheet already serves elsewhere stays empty" do

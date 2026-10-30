@@ -528,8 +528,13 @@
                       <div class="photo-flag">identical to another proposed photo</div>
                     <% end %>
                     <% if selectable %>
+                      <% # The key names the individual photo: byte-carrying
+                         # cards exclude by attachment blob, name-only
+                         # proposals (no bytes) by name. Two same-named
+                         # photos are two independent decisions.
+                         exclude_key = item[:own_bytes] ? "blob:#{item[:attachment].blob_id}" : "name:#{item[:name]}" %>
                       <label class="pick-row">
-                        <input type="checkbox" data-photo-name="<%= item[:name] %>" checked>
+                        <input type="checkbox" data-photo-key="<%= exclude_key %>" checked>
                         <span>Add to sheet on approval</span>
                       </label>
                     <% end %>
@@ -757,18 +762,20 @@
   })();
 
   // Photo selection sync: the include/exclude checkboxes ride the approve
-  // POST as a JSON list of excluded names. Nothing is written until the
-  // reviewer approves, matching how the rest of the approval state flows.
-  // The column-head tally (N included on approval · M dropped) tracks the
-  // same checkboxes so the decision is visible where the photos live.
+  // POST as a JSON list of excluded photo keys ("blob:<id>" for a
+  // byte-carrying photo, "name:<filename>" for a name-only proposal).
+  // Nothing is written until the reviewer approves, matching how the rest
+  // of the approval state flows. The column-head tally (N included on
+  // approval · M dropped) tracks the same checkboxes so the decision is
+  // visible where the photos live. Each checkbox is its own decision — two
+  // same-named photos exclude independently.
   (function () {
     const excludeField = document.getElementById("exclude-photos-field");
     if (!excludeField) return;
     const summary = document.getElementById("proposed-selection-summary");
-    const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-name]"));
+    const selectionBoxes = () => Array.from(document.querySelectorAll("input[type='checkbox'][data-photo-key]"));
     const syncExclusions = () => {
-      const excluded = [ ...new Set(selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoName)) ];
-      excludeField.value = JSON.stringify(excluded);
+      excludeField.value = JSON.stringify(selectionBoxes().filter((box) => !box.checked).map((box) => box.dataset.photoKey));
     };
     const syncSummary = () => {
       if (!summary) return;
@@ -780,11 +787,7 @@
         : `${included} of ${boxes.length} included on approval · ${dropped} dropped`;
     };
     document.addEventListener("change", (event) => {
-      if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-name]")) {
-        // A repeated filename is several cards but one decision: the backend
-        // excludes names, not blobs, so same-name checkboxes stay in step.
-        const name = event.target.dataset.photoName;
-        selectionBoxes().forEach((box) => { if (box.dataset.photoName === name) box.checked = event.target.checked; });
+      if (event.target instanceof HTMLInputElement && event.target.matches("input[type='checkbox'][data-photo-key]")) {
         syncExclusions();
         syncSummary();
       }

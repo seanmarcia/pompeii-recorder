@@ -2,17 +2,18 @@
 #
 # Table name: submissions
 #
-#  id              :integer          not null, primary key
-#  action_type     :string           default("create_new"), not null
-#  payload_data    :text             not null
-#  reviewed_at     :datetime
-#  reviewer_notes  :text
-#  status          :string           default("pending"), not null
-#  submitter_name  :string
-#  submitter_notes :text
-#  target_sheet    :string
-#  created_at      :datetime         not null
-#  updated_at      :datetime         not null
+#  id                   :integer          not null, primary key
+#  action_type          :string           default("create_new"), not null
+#  excluded_photo_blobs :text
+#  payload_data         :text             not null
+#  reviewed_at          :datetime
+#  reviewer_notes       :text
+#  status               :string           default("pending"), not null
+#  submitter_name       :string
+#  submitter_notes      :text
+#  target_sheet         :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
 #
 # Indexes
 #
@@ -306,22 +307,54 @@ class Submission < ApplicationRecord
     end
   end
 
-  # Removes excluded photo names from the payload before approval, so the
-  # merge (an additive union of the payload's names) never carries them and
-  # the byte-linking loop never attaches them. The submission keeps its own
-  # attachments as evidence.
-  def exclude_photos!(names)
+  # Removes excluded photos from the proposal before approval, so the merge
+  # never carries them and the byte-linking loop never attaches them. The
+  # keys name individual photos: "blob:<id>" excludes one attachment — two
+  # same-named photos are two decisions — and "name:<filename>" (or a bare
+  # legacy name) excludes a name-only proposal, which has no attachment.
+  # Byte-carrying exclusions persist in excluded_photo_blobs; name
+  # exclusions drop the name from the payload. An excluded copy still
+  # counts for the duplicate rule: its identical siblings stay inert too.
+  # The submission keeps its own attachments as evidence.
+  def exclude_photos!(keys)
     data = payload
     proposed = data["photos"]
     return false unless proposed.is_a?(Array)
 
-    dropped = names.map(&:to_s)
-    kept = proposed.reject { |name| dropped.include?(name.to_s) }
-    return false if kept.size == proposed.size
+    blob_ids = []
+    dropped_names = []
+    keys.map(&:to_s).each do |key|
+      if key.start_with?("blob:")
+        blob_ids << key.delete_prefix("blob:").to_i
+      elsif key.start_with?("name:")
+        dropped_names << key.delete_prefix("name:")
+      else
+        dropped_names << key
+      end
+    end
 
-    data["photos"] = kept
-    self.payload = data
-    save!
+    changed = false
+    if dropped_names.any?
+      kept = proposed.reject { |name| dropped_names.include?(name.to_s) }
+      if kept.size != proposed.size
+        data["photos"] = kept
+        self.payload = data
+        changed = true
+      end
+    end
+    if blob_ids.any?
+      self.excluded_photo_blobs = JSON.generate((excluded_photo_blob_ids + blob_ids).uniq)
+      changed = true
+    end
+    changed ? save! : false
+  end
+
+  # Blob ids of the photos the reviewer excluded, stored as a JSON array in
+  # a text column.
+  def excluded_photo_blob_ids
+    JSON.parse(excluded_photo_blobs.to_s)
+  rescue StandardError
+    []
   end
 
   # Approve this submission and merge it into the Feature master table.
@@ -362,12 +395,16 @@ class Submission < ApplicationRecord
       # bytes, so a second copy adds nothing — no entry, no wrapper, not even
       # a placeholder for the name. The first attachment carrying unseen
       # bytes wins; later attachments with the same checksum (the " (1)"
-      # copy-suffix pair in one submission) are invisible too.
+      # copy-suffix pair in one submission) are invisible too, as are
+      # reviewer-excluded copies and their identical siblings.
       current_photos = feat.photos
       proposed_names = (payload["photos"] || []).map(&:to_s)
+      excluded = excluded_photo_blob_ids.map(&:to_i)
+      excluded_photos = photos.select { |p| excluded.include?(p.blob_id) }
       known_checksums = feat.linked_photo_blobs.map { |(_blob_id, checksum)| checksum }
+      known_checksums += excluded_photos.map { |p| p.blob.checksum }
       accepted = []
-      photos.select { |p| proposed_names.include?(p.filename.to_s) }.each do |photo|
+      photos.select { |p| proposed_names.include?(p.filename.to_s) && !excluded.include?(p.blob_id) }.each do |photo|
         checksum = photo.blob.checksum
         next if known_checksums.include?(checksum)
         known_checksums << checksum
