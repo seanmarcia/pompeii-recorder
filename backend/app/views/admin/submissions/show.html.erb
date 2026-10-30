@@ -520,14 +520,14 @@
                       <% if item[:attachment] %><%= number_to_human_size(item[:attachment].byte_size) %> &bull; <% end %>
                       <%= item[:name] %>
                     </div>
-                    <% if item[:name_on_sheet] %>
+                    <% if item[:excluded] %>
+                      <div class="photo-flag">dropped by the reviewer</div>
+                    <% elsif item[:name_on_sheet] %>
                       <div class="photo-flag echo">image with name already on sheet</div>
                     <% elsif item[:bytes_on_sheet] %>
                       <div class="photo-flag">identical image already on sheet</div>
                     <% elsif item[:dup_of_proposed] %>
                       <div class="photo-flag">identical to another proposed photo</div>
-                    <% elsif item[:excluded] %>
-                      <div class="photo-flag">dropped by the reviewer</div>
                     <% end %>
                     <% if selectable && !item[:excluded] %>
                       <% # The key names the individual photo: byte-carrying
