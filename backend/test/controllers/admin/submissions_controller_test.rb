@@ -360,6 +360,38 @@ class Admin::SubmissionsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".pick-row", text: "Add to sheet on approval"
   end
 
+  test "review page annotates hidden master photos in the sheet column" do
+    feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg" ])
+    wrapper = attach_master_photo(feat, "portrait_test.jpg")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+    @submission.payload = { "SHEET" => "8888", "photos" => [ "fresh.jpg" ] }
+    @submission.save!
+
+    get "/admin/submissions/#{@submission.id}"
+
+    assert_response :success
+    # The hidden photo still renders for the reviewer — annotated, not
+    # removed — so approving a fresh photo of the same name is an informed
+    # decision. The proposed column's controls are untouched.
+    assert_select ".compare-sheet .photo-box img", count: 1
+    assert_select ".compare-sheet .photo-box img.photo-hidden", count: 1
+    assert_select ".compare-sheet .photo-flag", text: /Hidden/
+    assert_select "input[type=checkbox][data-photo-key='name:fresh.jpg']"
+  end
+
+  test "master export drops hidden photo names" do
+    feat = Feature.create!(sheet: "8888", photos: [ "portrait_test.jpg", "keep.jpg" ])
+    wrapper = attach_master_photo(feat, "portrait_test.jpg")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+
+    get "/admin/export_master"
+
+    assert_response :success
+    photos = JSON.parse(response.body).find { |f| f["SHEET"] == "8888" }["photos"]
+    assert_equal [ "keep.jpg" ], photos,
+                 "the export is a master read path: hidden names leave the file"
+  end
+
   test "review page without a master shows proposed photos only, all controllable" do
     @submission.payload = { "SHEET" => "8888", "photos" => [ "fresh.jpg" ] }
     @submission.save!

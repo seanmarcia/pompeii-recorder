@@ -90,6 +90,50 @@ class Api::V1::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "IMG_1.jpg" ], photos, "the export schema stays host-independent"
   end
 
+  test "hidden master photos are filtered from the single-sheet field payload" do
+    @feature.photos = [ "IMG_1.jpg", "paper-era.jpg" ]
+    @feature.save!
+    attach_master_photo(@feature, "IMG_1.jpg")
+    @feature.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+
+    get "/api/v1/features/#{@feature.sheet}"
+
+    assert_response :success
+    photos = JSON.parse(response.body)["photos"]
+    assert_equal [ "paper-era.jpg" ], photos,
+                 "a hidden master photo leaves the field app's payload entirely"
+  end
+
+  test "hidden master photos are filtered from the master-list field payload" do
+    @feature.photos = [ "IMG_1.jpg" ]
+    @feature.save!
+    attach_master_photo(@feature, "IMG_1.jpg")
+    @feature.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+
+    get "/api/v1/features"
+
+    assert_response :success
+    assert_equal [ "6083" ], JSON.parse(response.body).map { |f| f["SHEET"] }
+    assert_empty JSON.parse(response.body).first["photos"],
+                 "the sheet's only photo is hidden, so the payload carries none"
+  end
+
+  test "the file export drops hidden photo names, keeping names with any visible pairing" do
+    @feature.photos = [ "IMG_1.jpg", "dup.jpg", "dup.jpg" ]
+    @feature.save!
+    attach_master_photo(@feature, "IMG_1.jpg")
+    attach_master_photo(@feature, "dup.jpg")
+    @feature.feature_photos.find_by!(filename: "IMG_1.jpg").update!(hidden: true)
+    @feature.feature_photos.where(filename: "dup.jpg").order(:id).first.update!(hidden: true)
+
+    get "/api/v1/features?download=true"
+
+    assert_response :success
+    photos = JSON.parse(response.body).first["photos"]
+    assert_equal [ "dup.jpg" ], photos,
+                 "IMG_1.jpg is fully hidden and drops; dup.jpg keeps a visible pairing"
+  end
+
   test "GET /api/v1/features/:sheet returns single feature" do
     get "/api/v1/features/6083"
     assert_response :success

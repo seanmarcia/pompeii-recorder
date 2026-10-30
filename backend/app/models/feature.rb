@@ -61,7 +61,8 @@ class Feature < ApplicationRecord
 
   # Preload wrapper files (and their blobs) for read paths that resolve
   # photo URLs; the replacement for the old with_attached_field_photos.
-  scope :with_photo_files, -> { includes(feature_photos: { file_attachment: :blob }) }
+  # hidden_by preloads the hide badge's "who" on the admin surfaces.
+  scope :with_photo_files, -> { includes(feature_photos: [ { file_attachment: :blob }, :hidden_by ]) }
 
   after_save :sync_feature_photos, if: :saved_change_to_photos_data?
 
@@ -126,11 +127,41 @@ class Feature < ApplicationRecord
   # through this, so a repeated name renders as the two photos it is —
   # each with its own bytes. Display order is name-sorted (digit-aware),
   # independent of the stored merge order, so the same name sits in the same
-  # spot everywhere.
+  # spot everywhere. Hidden state rides the paired wrapper: admin surfaces
+  # read it (dimmed tiles, review annotation), the export and the field API
+  # use it to filter.
   def photo_items
     photos.map(&:to_s).zip(photo_wrappers_per_entry)
-          .map { |name, wrapper| { name: name, attachment: wrapper&.file_attachment } }
+          .map do |name, wrapper|
+            {
+              name: name,
+              attachment: wrapper&.file_attachment,
+              photo_id: wrapper&.id,
+              hidden: wrapper&.hidden? || false,
+              hidden_at: wrapper&.hidden_at,
+              hidden_by: wrapper&.hidden_by&.display_name
+            }
+          end
           .sort_by.with_index { |item, index| [ photo_name_key(item[:name]), index ] }
+  end
+
+  # The export's photo name list: the catalog's names minus every name whose
+  # paired wrappers are all hidden. A name with any visible pairing — or no
+  # wrapper at all (paper-era entries) — survives; a repeated name is one
+  # export entry, as in the archival format. The two file-export surfaces
+  # (admin export_master, the field API download) serve this.
+  def export_photo_names
+    photos.map(&:to_s).zip(photo_wrappers_per_entry)
+          .reject { |_name, wrapper| wrapper&.hidden? }
+          .map { |name, _wrapper| name }
+          .uniq
+  end
+
+  # as_json_pompeii with hidden photos filtered from the name list. Kept
+  # separate from as_json_pompeii so review flows that compare against the
+  # full catalog state are untouched.
+  def as_json_pompeii_export
+    as_json_pompeii.merge("photos" => export_photo_names)
   end
 
   def as_json_pompeii
