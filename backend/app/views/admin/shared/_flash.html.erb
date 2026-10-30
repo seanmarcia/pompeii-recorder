@@ -1,0 +1,9 @@
+<% # Shared by the admin layout on full renders and by the photo
+   # hide/restore Turbo Streams (issue #76) so both surfaces
+   # produce identical flash markup. %>
+<% if notice %>
+  <div class="flash flash-notice"><%= notice %></div>
+<% end %>
+<% if alert %>
+  <div class="flash flash-alert"><%= alert %></div>
+<% end %>

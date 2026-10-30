@@ -74,7 +74,9 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "Religious"
     assert_select "dd", text: "Domestic | Shrine: Niche"
     assert_select "dd", text: "<script>not executable</script>"
-    assert_select "script", count: 0
+    # No bespoke inline scripts (the importmap/Hotwire scripts in <head> are
+    # the layout's own and are not page-authored).
+    assert_select "body script", count: 0
     assert_select "input, textarea, select", count: 0
     assert_select "li", /iphone.jpg/
     assert_select "a[href='#{admin_submission_path(@submission, mode: "view")}']"
@@ -190,6 +192,88 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_not wrapper.reload.hidden?, "restore is unconditional: it just unhides the row"
     assert_nil wrapper.hidden_at
     assert_nil wrapper.hidden_by_id
+  end
+
+  test "the Field Photos section is a photo-manager Turbo Frame with a button-styled toggle" do
+    get admin_feature_path(@feature.sheet)
+
+    assert_response :success
+    assert_select "turbo-frame#photo-manager"
+    assert_select "turbo-frame#photo-manager a.btn-outline", text: /Manage photos/
+    assert_select "a.manage-photos-toggle[data-turbo-action='advance']", { count: 1 },
+                  "advance keeps ?manage=1 in the address bar so manage mode stays shareable"
+    assert_select ".manage-photos-link", { count: 0 }, "the old plain link is gone"
+  end
+
+  test "hide over Turbo responds with a stream that reports in place and replaces the frame" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+
+    post hide_photo_admin_feature_path(@feature.sheet),
+         params: { photo_id: wrapper.id, manage: "1" },
+         headers: { Accept: "text/vnd.turbo-stream.html, text/html;q=0.8" }
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_select "turbo-stream[target='admin-flash']", 1
+    assert_select "turbo-stream[action='replace'][target='photo-manager']", 1
+    assert_select "turbo-stream .photo-grid li.photo-hidden", 1
+    assert_equal true, wrapper.reload.hidden?
+  end
+
+  test "restore over Turbo responds with a stream that reports in place and replaces the frame" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+
+    post restore_photo_admin_feature_path(@feature.sheet),
+         params: { photo_id: wrapper.id, manage: "1" },
+         headers: { Accept: "text/vnd.turbo-stream.html, text/html;q=0.8" }
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_select "turbo-stream[target='admin-flash']", 1
+    assert_select "turbo-stream[action='replace'][target='photo-manager']", 1
+    assert_select "turbo-stream .photo-grid li.photo-hidden", 0
+    assert_not wrapper.reload.hidden?
+  end
+
+  test "a Turbo-stream failure to hide still reports via stream with the alert" do
+    post hide_photo_admin_feature_path(@feature.sheet),
+         params: { photo_id: -1, manage: "1" },
+         headers: { Accept: "text/vnd.turbo-stream.html, text/html;q=0.8" }
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_select "turbo-stream[target='admin-flash'] .flash-alert", 1
+  end
+
+  test "manage mode renders lucide eye icons on the per-photo controls" do
+    wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
+    @feature.update!(photos: [ "iphone.jpg", "second.jpg" ])
+
+    get admin_feature_path(@feature.sheet, manage: "1")
+
+    assert_select ".photo-hide-btn:not(.restore) svg", { count: 1 }, "hide shows an eye-off icon"
+    assert_select ".photo-hide-btn.restore svg", { count: 1 }, "restore shows an eye icon"
+    assert_select ".photo-grid", text: /↺/, count: 0
+    assert_select ".photo-grid", text: /🚫/, count: 0
+  end
+
+  test "the admin layout ships Hotwire and bespoke-JS pages opt out of Turbo" do
+    get admin_feature_path(@feature.sheet)
+    assert_response :success
+    assert_select "script[type='importmap']", count: 1
+    assert_select "body[data-turbo='false']", { count: 0 }, "the master sheet keeps Turbo"
+
+    get admin_features_path
+    assert_response :success
+    assert_select "body[data-turbo='false']", count: 1
+
+    get admin_submission_path(@submission, mode: "view")
+    assert_response :success
+    assert_select "body[data-turbo='false']", count: 1
+
+    assert_select "a[href='/admin/export_master'][data-turbo='false']", count: 1
   end
 
   test "hiding an unknown photo id redirects with an alert and hides nothing" do

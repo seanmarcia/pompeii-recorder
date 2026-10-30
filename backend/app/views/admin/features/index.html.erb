@@ -1,3 +1,7 @@
+<% # The catalog's live-search script owns this page — Turbo never drives it
+   # (issue #76). The block form stores a SafeBuffer; a plain-string argument
+   # would be escaped by content_for into &quot; in the body tag. %>
+<% content_for :body_attributes do %>data-turbo="false"<% end %>
 <style>
   .catalog-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
   .catalog-head h2 { font-family: var(--font-serif); font-size: 1.75rem; }

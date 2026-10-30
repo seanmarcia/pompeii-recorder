@@ -1,3 +1,9 @@
+<% # The review page's inline photo-selection and inline-edit scripts own
+   # this page — Turbo never drives it until they are ported to Stimulus
+   # (follow-up; issue #76). The block form stores a SafeBuffer; a
+   # plain-string argument would be escaped by content_for into &quot; in
+   # the body tag. %>
+<% content_for :body_attributes do %>data-turbo="false"<% end %>
 <style>
   .detail-header {
     display: flex;
