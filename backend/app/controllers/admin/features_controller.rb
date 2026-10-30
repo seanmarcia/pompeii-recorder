@@ -76,8 +76,7 @@ module Admin
     # manage-mode param rides along so the admin lands back on the controls.
     def hide_photo
       photo = @feature.feature_photos.find(params[:photo_id])
-      photo.update!(hidden: true, hidden_at: Time.current, hidden_by: current_user,
-                    hide_reason: params[:hide_reason].presence)
+      photo.update!(hidden: true, hidden_at: Time.current, hidden_by: current_user)
       redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
                   notice: "Photo \"#{photo.filename}\" hidden — it leaves the master sheet, export, and field app; the review comparison keeps it annotated."
     rescue ActiveRecord::RecordNotFound
@@ -87,7 +86,7 @@ module Admin
 
     def restore_photo
       photo = @feature.feature_photos.find(params[:photo_id])
-      photo.update!(hidden: false, hidden_at: nil, hidden_by_id: nil, hide_reason: nil)
+      photo.update!(hidden: false, hidden_at: nil, hidden_by_id: nil)
       redirect_to admin_feature_path(@feature.sheet, manage: params[:manage].presence),
                   notice: "Photo \"#{photo.filename}\" restored to the master sheet."
     rescue ActiveRecord::RecordNotFound

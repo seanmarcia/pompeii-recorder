@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_200002) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -46,7 +46,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
     t.boolean "hidden", default: false, null: false
     t.datetime "hidden_at"
     t.integer "hidden_by_id"
-    t.string "hide_reason"
     t.datetime "updated_at", null: false
     t.index ["feature_id"], name: "index_feature_photos_on_feature_id"
   end
@@ -118,6 +117,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_200000) do
     t.string "username", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["username"], name: "index_users_on_username", unique: true
+  end
+
+  create_table "versions", force: :cascade do |t|
+    t.datetime "created_at"
+    t.string "event", null: false
+    t.bigint "item_id", null: false
+    t.string "item_type", null: false
+    t.text "object", limit: 1073741823
+    t.text "object_changes", limit: 1073741823
+    t.string "whodunnit"
+    t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

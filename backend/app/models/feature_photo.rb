@@ -10,11 +10,13 @@
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #  feature_id   :integer          not null
+#  file_blob_id :bigint
 #  hidden_by_id :integer
 #
 # Indexes
 #
-#  index_feature_photos_on_feature_id  (feature_id)
+#  index_feature_photos_on_feature_id    (feature_id)
+#  index_feature_photos_on_file_blob_id  (file_blob_id)
 #
 # Foreign Keys
 #

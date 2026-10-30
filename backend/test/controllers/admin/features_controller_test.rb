@@ -182,7 +182,7 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
 
   test "restore unhides a photo and clears the hide state" do
     wrapper = @feature.feature_photos.find_by!(filename: "iphone.jpg")
-    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin, hide_reason: "blurry scan")
+    wrapper.update!(hidden: true, hidden_at: Time.current, hidden_by: @admin)
 
     post restore_photo_admin_feature_path(@feature.sheet), params: { photo_id: wrapper.id, manage: "1" }
 
@@ -190,7 +190,6 @@ class Admin::FeaturesControllerTest < ActionDispatch::IntegrationTest
     assert_not wrapper.reload.hidden?, "restore is unconditional: it just unhides the row"
     assert_nil wrapper.hidden_at
     assert_nil wrapper.hidden_by_id
-    assert_nil wrapper.hide_reason
   end
 
   test "hiding an unknown photo id redirects with an alert and hides nothing" do
