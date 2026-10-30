@@ -526,8 +526,10 @@
                       <div class="photo-flag">identical image already on sheet</div>
                     <% elsif item[:dup_of_proposed] %>
                       <div class="photo-flag">identical to another proposed photo</div>
+                    <% elsif item[:excluded] %>
+                      <div class="photo-flag">dropped by the reviewer</div>
                     <% end %>
-                    <% if selectable %>
+                    <% if selectable && !item[:excluded] %>
                       <% # The key names the individual photo: byte-carrying
                          # cards exclude by attachment blob, name-only
                          # proposals (no bytes) by name. Two same-named

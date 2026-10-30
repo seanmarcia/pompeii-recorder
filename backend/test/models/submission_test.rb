@@ -357,6 +357,40 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal 1, feat.feature_photos.count
   end
 
+  test "a failed approval leaves the submission untouched, exclusions included" do
+    feat = Feature.create!(sheet: "531", photos: [ "IMG_1.jpg" ])
+    attach_master_photo(feat, "IMG_1.jpg")
+    sub = submit("SHEET" => "531", "photos" => [ "IMG_1.jpg" ])
+    sub.photos.attach(io: StringIO.new("device bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
+    blob_id = sub.reload.photos.first.blob_id
+    # Force the merge to raise: no sheet number anywhere.
+    sub.payload = { "photos" => [ "IMG_1.jpg" ] }
+    sub.save!
+    sub.update_column(:target_sheet, nil)
+    untouched_payload = sub.reload.payload
+
+    assert_raises(RuntimeError) { sub.approve!(nil, exclude: [ "blob:#{blob_id}" ]) }
+
+    assert_equal untouched_payload, sub.reload.payload, "the payload carries no exclusion edits"
+    assert_empty sub.reload.excluded_photo_blob_ids, "the blob exclusion did not persist"
+    assert_equal "pending", sub.reload.status
+    assert sub.photos.attached?, "the submission keeps its evidence"
+  end
+
+  test "photo review marks a blob-excluded card as dropped by the reviewer" do
+    Feature.create!(sheet: "532")
+    sub = submit("SHEET" => "532", "photos" => [ "IMG_1.jpg", "IMG_2.jpg" ])
+    sub.photos.attach(io: StringIO.new("first bytes"), filename: "IMG_1.jpg", content_type: "image/jpeg")
+    sub.photos.attach(io: StringIO.new("second bytes"), filename: "IMG_2.jpg", content_type: "image/jpeg")
+    second = sub.reload.photos.find { |p| p.filename.to_s == "IMG_2.jpg" }
+
+    sub.exclude_photos!([ "blob:#{second.blob_id}" ])
+
+    items = sub.reload.photo_review_items.index_by { |i| i[:name] }
+    assert_not items["IMG_1.jpg"][:excluded]
+    assert items["IMG_2.jpg"][:excluded], "the excluded card is marked, not silently shown as included"
+  end
+
   test "excluding one of two same-name photos by blob joins the other" do
     feat = Feature.create!(sheet: "530")
     sub = submit("SHEET" => "530", "photos" => [ "thumbnail.jpg" ])

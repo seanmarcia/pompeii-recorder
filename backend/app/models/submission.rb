@@ -246,6 +246,7 @@ class Submission < ApplicationRecord
     sheet_names = feat ? feat.photos.map(&:to_s) : []
     sheet_checksums = feat ? feat.linked_photo_blobs.map { |(_blob_id, checksum)| checksum } : []
     sheet_items = feat ? feat.photo_items : []
+    excluded_blob_ids = excluded_photo_blob_ids.map(&:to_i)
     # The payload's photo names are the merge source, so they drive the list;
     # a submission with attachments but no photos key (older payloads) falls
     # back to its attachment filenames, as the old photo card did. Display
@@ -278,6 +279,7 @@ class Submission < ApplicationRecord
             name: name,
             attachment: attachment,
             own_bytes: true,
+            excluded: excluded_blob_ids.include?(attachment.blob_id),
             name_on_sheet: sheet_names.include?(name),
             bytes_on_sheet: sheet_checksums.include?(checksum),
             dup_of_proposed: duplicate_attachments[attachment].present?
@@ -317,6 +319,15 @@ class Submission < ApplicationRecord
   # counts for the duplicate rule: its identical siblings stay inert too.
   # The submission keeps its own attachments as evidence.
   def exclude_photos!(keys)
+    apply_exclusions!(keys) ? save! : false
+  end
+
+  # Applies exclusion keys to the in-memory state without saving: name keys
+  # drop the name from the payload, blob keys merge into
+  # excluded_photo_blobs. Returns true when anything changed. The approval
+  # flow calls this inside its transaction, so the reviewer's selection and
+  # the merge commit — or fail — as one unit of work.
+  def apply_exclusions!(keys)
     data = payload
     proposed = data["photos"]
     return false unless proposed.is_a?(Array)
@@ -346,7 +357,7 @@ class Submission < ApplicationRecord
       self.excluded_photo_blobs = JSON.generate((excluded_photo_blob_ids + blob_ids).uniq)
       changed = true
     end
-    changed ? save! : false
+    changed
   end
 
   # Blob ids of the photos the reviewer excluded, stored as a JSON array in
@@ -358,12 +369,18 @@ class Submission < ApplicationRecord
   end
 
   # Approve this submission and merge it into the Feature master table.
+  # The reviewer's photo selection (exclude keys, same shapes
+  # exclude_photos! takes) applies inside the transaction: the submission's
+  # metadata, the selection, and the merge commit — or fail — as one unit
+  # of work. A failed approval leaves the submission untouched, so a retry
+  # starts from the pristine proposal.
   # Idempotent: a second call on an approved submission is a no-op — with
   # duplicate filenames legal, re-merging would pile on duplicate rows.
-  def approve!(reviewer_note = nil)
+  def approve!(reviewer_note = nil, exclude: nil)
     return self if status == "approved"
 
     ActiveRecord::Base.transaction do
+      apply_exclusions!(exclude) if exclude.present?
       sheet_val = sheet_number
       raise "Missing Sheet Number in submission payload" if sheet_val.blank?
 

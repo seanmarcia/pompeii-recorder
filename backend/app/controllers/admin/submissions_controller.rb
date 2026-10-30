@@ -73,22 +73,17 @@ module Admin
 
     # POST /admin/submissions/:id/approve
     def approve
-      # Reviewer photo selection rides the approve POST (save-on-approve,
-      # like every other state change in the approval flow): excluded names
-      # leave the payload before the merge, so approve! needs no new
-      # parameters. The checkboxes live beside the proposed photos and sync
-      # this field on change. If approval itself fails, the exclusion save
-      # has already persisted (visible on reload: the names are gone from
-      # the proposed column) and a re-approve re-applies the same flow.
-      if @submission.status == "pending"
-        excluded = begin
-          JSON.parse(params[:exclude_photos].to_s)
-        rescue JSON::ParserError
-          []
-        end
-        @submission.exclude_photos!(excluded) if excluded.is_a?(Array) && excluded.any?
+      # The reviewer's photo selection rides the approve POST and applies
+      # inside approve!'s transaction: the submission's metadata, the
+      # selection, and the merge commit — or fail — as one unit of work.
+      # A failed approval leaves the submission untouched, so the reviewer
+      # retries from the pristine proposal with nothing pre-decided.
+      excluded = begin
+        JSON.parse(params[:exclude_photos].to_s)
+      rescue JSON::ParserError
+        []
       end
-      @submission.approve!(params[:reviewer_notes])
+      @submission.approve!(params[:reviewer_notes], exclude: excluded.is_a?(Array) ? excluded : nil)
       redirect_to admin_submission_path(@submission), notice: "Submission ##{@submission.id} has been APPROVED and merged into the master features catalog."
     rescue StandardError => e
       redirect_to admin_submission_path(@submission), alert: "Error approving submission: #{e.message}"
