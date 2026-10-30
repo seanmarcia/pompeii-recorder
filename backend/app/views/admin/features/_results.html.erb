@@ -1,0 +1,89 @@
+<% # The catalog results: count bar, table, pager. Rendered by index.html.erb
+   # inside the "catalog-results" Turbo Frame, and swapped by the frame when
+   # the search form submits (issue #78). Everything it reads is a controller
+   # instance variable, so the frame navigation needs no extra locals. %>
+<% mark = ->(text) { @terms.any? ? highlight(h(text.to_s), @terms) : text.to_s } %>
+<% link_params = ->(changes = {}) { { q: @query.presence, sort: (@sort if @sort != "location"), **@filters }.merge(changes).compact } %>
+<% filtered = @query.present? || @filters.values.any? %>
+
+<div class="result-bar">
+  <span>
+    <strong><%= number_with_delimiter(@total) %></strong> <%= @total == 1 ? "sheet" : "sheets" %>
+    <%= filtered ? "match" : "in the catalog" %>
+    <% if filtered %><%= link_to "Clear search", admin_features_path, class: "clear-link" %><% end %>
+  </span>
+  <% if @total > Admin::FeaturesController::PAGE_SIZE %>
+    <span>Showing <%= (@page - 1) * Admin::FeaturesController::PAGE_SIZE + 1 %>–<%= [ @page * Admin::FeaturesController::PAGE_SIZE, @total ].min %></span>
+  <% end %>
+</div>
+
+<div class="catalog-table-card">
+  <% if @features.any? %>
+    <table class="catalog-table">
+      <thead>
+        <tr>
+          <th>Sheet</th>
+          <th>Location</th>
+          <th>Room / Structure</th>
+          <th class="col-types">Type</th>
+          <th class="col-people">Recorded by</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @features.each do |feature| %>
+          <% url = admin_feature_path(feature.sheet) %>
+          <% location = [ feature.region, feature.insula, feature.entrance ].map(&:presence).compact %>
+          <tr onclick="if (!event.target.closest('a')) window.location = '<%= j url %>'">
+            <td><span class="sheet-tag"><%= mark.(feature.sheet) %></span></td>
+            <td><span class="loc"><%= location.any? ? location.join(".") : content_tag(:span, "—", class: "loc-empty") %></span></td>
+            <td>
+              <%= link_to url, class: "room-title" do %>
+                <%= feature.space_number.present? || feature.structure_id.present? ? mark.(feature.space_number.presence || feature.structure_id) : content_tag(:span, "Untitled sheet", class: "muted") %>
+              <% end %>
+              <% if feature.space_number.present? && feature.structure_id.present? %>
+                <span class="structure">· <%= mark.(feature.structure_id) %></span>
+              <% end %>
+              <% if feature.description.present? %>
+                <% term = @terms.find { |t| feature.description.downcase.include?(t.downcase) } %>
+                <div class="snippet"><%= mark.(term ? excerpt(feature.description, term, radius: 90) : truncate(feature.description, length: 150)) %></div>
+              <% end %>
+            </td>
+            <td class="col-types">
+              <div class="type-tags">
+                <% [ feature.sheet_type_id, feature.feature_type_id, feature.space_type_id ].map(&:presence).compact.each do |t| %>
+                  <span class="type-tag"><%= mark.(t) %></span>
+                <% end %>
+                <% if feature.category_id.present? %><span class="type-tag cat"><%= mark.(feature.category_id) %></span><% end %>
+              </div>
+            </td>
+            <td class="col-people">
+              <div class="people"><%= feature.recorder_id.present? ? mark.(feature.recorder_id) : content_tag(:span, "—", class: "muted") %></div>
+              <% if feature.sheet_date.present? %><div class="muted people"><%= feature.sheet_date.to_s[0, 10] %></div><% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="empty-state">
+      <strong>No matching sheets</strong>
+      Try fewer words, check the spelling, or <%= link_to "clear the search", admin_features_path, class: "clear-link" %>.
+    </div>
+  <% end %>
+</div>
+
+<% if @page_count > 1 %>
+  <nav class="pager" aria-label="Catalog pages">
+    <% if @page > 1 %><%= link_to "← Prev", admin_features_path(link_params.(page: @page - 1)) %><% end %>
+    <% pages = ([ 1, @page_count ] + ((@page - 2)..(@page + 2)).to_a).select { |n| n.between?(1, @page_count) }.uniq.sort %>
+    <% pages.each_with_index do |n, i| %>
+      <% if i > 0 && n - pages[i - 1] > 1 %><span class="gap">…</span><% end %>
+      <% if n == @page %>
+        <span class="current" aria-current="page"><%= n %></span>
+      <% else %>
+        <%= link_to n, admin_features_path(link_params.(page: n)) %>
+      <% end %>
+    <% end %>
+    <% if @page < @page_count %><%= link_to "Next →", admin_features_path(link_params.(page: @page + 1)) %><% end %>
+  </nav>
+<% end %>
