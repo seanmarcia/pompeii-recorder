@@ -11,7 +11,7 @@ Repository context lives in `AGENTS.md` (tracked — workflow, PR rules, verific
 
 ## Inputs
 
-The work item is a GitHub issue number or URL. Fetch it with `gh issue view <n> --repo seanmarcia/pompeii-recorder`. The issue body carries the summary, current/expected behavior, files involved, and any decisions from the grilling that filed it. Decisions recorded in the issue are **agreed** — do not re-open them. Personal tracking stays private: never name local planning files in commit messages, PR titles, PR bodies, or comments.
+The work item is a GitHub issue number or URL. Fetch it with `gh issue view <n>` (gh resolves the repository from the checkout's remote). The issue body carries the summary, current/expected behavior, files involved, and any decisions from the grilling that filed it. Decisions recorded in the issue are **agreed** — do not re-open them. Personal tracking stays private: never name local planning files in commit messages, PR titles, PR bodies, or comments.
 
 ## Phase 0: Preflight
 
